@@ -5,18 +5,27 @@
 -- ribbon's, the capsules' WORLD flag -- and every draw path behind those
 -- gates already degrades to the classic presentation it replaced (flat
 -- rows, corner capsules, the plain rig). This module is one hand on all
--- of them: DYNAMIC is the costume as built, CLASSIC is a fight that
--- stands still -- the camera holds the rig, the menu and the box lie
--- flat on the glass, the capsules pin to the window corners (still
--- wearing Unova's bars: the ART is not what this row is about), and
--- nothing bobs, rocks or rains. OFF takes the costume off entirely --
--- the engine's own flat Game Boy box and HUD, the way a fresh install
--- would look.
+-- of them, across four levels:
+--
+--   DYNAMIC  the costume as built: the camera moves, the panels float,
+--            the capsules hang beside their own mon.
+--   CLASSIC  exactly the original mod's still fight -- the camera holds
+--            the rig, the menu and the box lie flat on the glass, the
+--            capsules pin to the window corners with Unova's bars (name,
+--            HP, EXP) -- minus the frosted panel that used to sit behind
+--            them, which this level never draws.
+--   MINIMAL  the same corner-pinned name/HP/EXP reading and the message
+--            text ("Wild X appeared!" and the like), but no command menu
+--            and no move-selection screen -- that is left for another
+--            mod to draw, or for a battle to sit in until one does.
+--   OFF      nothing this mod draws at all: no box, no HUD, no menu, no
+--            frost. Just the 3D scene, the models, and whatever hit FX
+--            are independently on -- the way a fresh install would look.
 --
 -- The flip is safe mid-battle by construction: every gate is consulted
--- per frame, and the classic paths are the fallbacks the dynamic ones
--- were built over. Applied at every battle's door too, so a persisted
--- CLASSIC or OFF holds from the first frame.
+-- per frame, and each level's paths are the fallbacks the level above it
+-- was built over. Applied at every battle's door too, so a persisted
+-- choice holds from the first frame.
 
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
@@ -26,34 +35,48 @@ local ModSetting = V.require("ModSetting")
 local BattleDynamic = {}
 
 BattleDynamic.setting = ModSetting.new("battledyn", "COMBAT",
-                                       { "dynamic", "classic", "off" },
-                                       { "DYNAMIC", "CLASSIC", "OFF" })
+                                       { "dynamic", "classic", "minimal", "off" },
+                                       { "DYNAMIC", "CLASSIC", "MINIMAL", "OFF" })
 
-function BattleDynamic.wantsDynamic()
-  return BattleDynamic.setting:get() == "dynamic"
+function BattleDynamic.mode()
+  return BattleDynamic.setting:get()
 end
 
--- CLASSIC still wears the X/Y costume (box, HUD, capsules), only held
--- still; only OFF takes it off and falls back to the engine's own box.
+function BattleDynamic.wantsDynamic()
+  return BattleDynamic.mode() == "dynamic"
+end
+
+-- CLASSIC and MINIMAL still wear the corner-pinned box and HUD; only OFF
+-- takes them off and draws nothing in their place.
 function BattleDynamic.wantsCostume()
-  return BattleDynamic.setting:get() ~= "off"
+  return BattleDynamic.mode() ~= "off"
+end
+
+function BattleDynamic.wantsMinimal()
+  return BattleDynamic.mode() == "minimal"
+end
+
+function BattleDynamic.wantsOff()
+  return BattleDynamic.mode() == "off"
 end
 
 -- the gates, by module and field -- each module stays its own master;
 -- this row only writes what a probe (or a hand on the module) could.
--- Tied to DYNAMIC specifically: these are the moving parts CLASSIC holds
--- still, not the costume itself (see COSTUME_GATES below).
+-- Tied to DYNAMIC specifically: these are the moving parts CLASSIC and
+-- MINIMAL hold still, not the costume itself (see COSTUME_GATES below).
+-- BattleHitFX is deliberately NOT here -- hit FX are an independent
+-- polish layer, not part of this row's own presentation, and stay on
+-- (their own default) at every level including OFF.
 local GATES = {
   { "BattleShot", "enabled" },
   { "BattleFanXY", "ENABLED" },
   { "BattlePanelsXY", "ENABLED" },
   { "BattleGlassFX", "ENABLED" },
   { "BattleRibbon", "ENABLED" },
-  { "BattleHitFX", "ENABLED" },
 }
 
--- the costume itself -- the box and HUD reskin -- on for DYNAMIC and
--- CLASSIC alike, off only for OFF
+-- the costume itself -- the box and HUD reskin -- on for DYNAMIC,
+-- CLASSIC and MINIMAL alike, off only for OFF
 local COSTUME_GATES = {
   { "BattleBoxXY", "ENABLED" },
   { "BattleHudXY", "ENABLED" },
@@ -70,10 +93,26 @@ function BattleDynamic.apply()
     local ok, M = pcall(V.require, gate[1])
     if ok and M then M[gate[2]] = costume end
   end
-  -- the capsules keep Unova's bars either way the costume is up; CLASSIC
-  -- only sends them back to the window corners, and clears the world
-  -- debug so a probe can tell which placement is live rather than
-  -- reading a stale one
+  local minimal = BattleDynamic.wantsMinimal()
+  local off = BattleDynamic.wantsOff()
+  -- MINIMAL: the box still speaks for the "messages" phase, but gets out
+  -- of the way for "menu"/"moveSelect" -- neither drawing its own command
+  -- UI there nor forcing the engine's, so another mod's own hook (or the
+  -- engine's, absent one) is what the player sees.
+  local okB, Box = pcall(V.require, "BattleBoxXY")
+  if okB and Box then
+    Box.HIDE_COMMANDS = minimal
+    -- OFF: suppressed outright, never falling back to the engine's own
+    -- box the way a plain `available()==false` would (see BattleBoxXY
+    -- .install) -- OFF means nothing this mod touches shows at all.
+    Box.SUPPRESS = off
+  end
+  local okH, Hud = pcall(V.require, "BattleHudXY")
+  if okH and Hud then Hud.SUPPRESS = off end
+  -- the capsules keep Unova's bars in CLASSIC and MINIMAL alike; only
+  -- DYNAMIC hangs them beside their own mon, and clears the world debug
+  -- so a probe can tell which placement is live rather than reading a
+  -- stale one
   local okC, Cap = pcall(V.require, "BattleCapsule")
   if okC and Cap then
     Cap.WORLD = on

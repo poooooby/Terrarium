@@ -26,23 +26,37 @@ Tags and packages:
 
 ## Unreleased
 
-### COMBAT ganhou uma terceira opção, OFF, que tira a fantasia X/Y por completo
+### COMBAT ganhou quatro níveis -- DYNAMIC, CLASSIC, MINIMAL e OFF -- em vez de dois
 
-> COMBAT gained a third option, OFF, that takes the X/Y costume off entirely
+> COMBAT gained four levels -- DYNAMIC, CLASSIC, MINIMAL and OFF -- instead of two
 
-- **`lib/BattleDynamic.lua` agora reconhece três estados** -- `DYNAMIC`,
-  `CLASSIC` e o novo `OFF` -- em vez de dois. `CLASSIC` continua vestindo a
-  fantasia X/Y (a caixa, o HUD, as cápsulas), só que parada; `OFF` desliga
-  `BattleBoxXY.ENABLED` e `BattleHudXY.ENABLED`, os dois interruptores que
-  antes eram constantes fixas em `true` e nunca respondiam a este ajuste,
-  caindo de volta na caixa e no HUD do próprio Game Boy.
+- **`lib/BattleDynamic.lua` agora reconhece quatro estados.** `DYNAMIC`
+  não mudou: a fantasia X/Y completa, câmera móvel e painéis flutuantes
+  inclusos. `CLASSIC` é exatamente a luta parada que o mod original já
+  tinha -- nome, HP e EXP nas cápsulas presas aos cantos da janela --
+  menos o vidro fosco que costumava ficar atrás delas, que este nível
+  nunca mais desenha. `MINIMAL` (novo) mantém essa mesma leitura de
+  nome/HP/EXP e o texto das mensagens ("Wild X apareceu!"), mas não
+  desenha o menu de comando nem a tela de seleção de golpe -- nem a
+  própria, nem força a do jogo -- deixando a fase livre para outro mod
+  desenhar a sua. `OFF` não desenha absolutamente nada: nem caixa, nem
+  HUD, nem menu, nem vidro -- só a cena 3D, os modelos, e os efeitos de
+  impacto, que continuam ligados por conta própria (nunca dependeram
+  desta linha).
 
-  > **`lib/BattleDynamic.lua` now recognizes three states** -- `DYNAMIC`,
-  > `CLASSIC` and the new `OFF` -- instead of two. `CLASSIC` still wears
-  > the X/Y costume (the box, the HUD, the capsules), only held still;
-  > `OFF` switches off `BattleBoxXY.ENABLED` and `BattleHudXY.ENABLED`,
-  > the two switches that used to be fixed `true` constants and never
-  > answered to this row, falling back to the Game Boy's own box and HUD.
+  > **`lib/BattleDynamic.lua` now recognizes four states.** `DYNAMIC` is
+  > unchanged: the full X/Y costume, moving camera and floating panels
+  > included. `CLASSIC` is exactly the still fight the original mod
+  > already had -- name, HP and EXP on the corner-pinned capsules --
+  > minus the frosted glass that used to sit behind them, which this
+  > level no longer draws at all. `MINIMAL` (new) keeps that same
+  > name/HP/EXP reading and the message text ("Wild X appeared!"), but
+  > draws neither the command menu nor the move-selection screen -- not
+  > its own, and not the engine's either -- leaving the phase free for
+  > another mod to draw. `OFF` draws nothing at all: no box, no HUD, no
+  > menu, no glass -- just the 3D scene, the models, and hit FX, which
+  > stay on their own independent switch (they never depended on this
+  > row to begin with).
 
 ### Corrigidos dois defeitos visuais do modo DYNAMIC: a caixa dobrada e a exclamação quebrada
 
