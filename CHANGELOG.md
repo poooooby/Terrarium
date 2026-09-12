@@ -26,6 +26,22 @@ Tags and packages:
 
 ## Unreleased
 
+### O texto do mapa 3D recuou de 1.5x para 1.25x
+
+> The 3D map's text backed off from 1.5x to 1.25x
+
+- **`FONT_UP` em `lib/WorldMap3D.lua` caiu de `1.5` para `1.25`** -- o
+  multiplicador da v1.37.6-beta crescia demais para o gosto do fork; o
+  resto do mecanismo (aplicado ao painel de objetivo, ao cartão, às
+  dicas, à bússola, ao banner e à tela de carregamento, deixando de fora
+  a etiqueta de cada pino) não muda.
+
+  > **`FONT_UP` in `lib/WorldMap3D.lua` dropped from `1.5` to `1.25`** --
+  > the v1.37.6-beta multiplier grew too large for the fork's taste; the
+  > rest of the mechanism (applied to the objective panel, the card, the
+  > hints, the compass, the banner and the loading screen, leaving each
+  > pin's own tag out) is unchanged.
+
 ### COMBAT ganhou quatro níveis -- DYNAMIC, CLASSIC, MINIMAL e OFF -- em vez de dois
 
 > COMBAT gained four levels -- DYNAMIC, CLASSIC, MINIMAL and OFF -- instead of two

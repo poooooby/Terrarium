@@ -1456,7 +1456,7 @@ local function S(px) return math.floor(px * UI + 0.5) end
 -- rather than replacing it. NOT applied inside plate() below: the floating
 -- name tag over each pin on the terrain was sized correctly already, and
 -- FONT_UP growing it too would make it fight the pin it sits on.
-local FONT_UP = 1.5
+local FONT_UP = 1.25
 local function fs(px) return px * FONT_UP end
 
 local function text(s, x, y, size, r, g, b, a)
