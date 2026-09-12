@@ -774,17 +774,14 @@ function BattleBoxXY.install()
       -- engine's own box, which a plain `available()==false` falls back
       -- to below.
       if BattleBoxXY.SUPPRESS then return end
-      if BattleBoxXY.available() then
-        -- MINIMAL: this file speaks for "messages" (handled in
-        -- OverworldBattle.snapHUDs) but steps aside for the command
-        -- phases, so another mod's own hook -- or the engine's, absent
-        -- one -- is what actually draws them.
-        if BattleBoxXY.HIDE_COMMANDS
-           and (self.phase == "menu" or self.phase == "moveSelect") then
-          return inner(self, ...)
-        end
-        return
-      end
+      -- MINIMAL (HIDE_COMMANDS): this file speaks for "messages" (handled
+      -- in OverworldBattle.snapHUDs) but draws nothing at all for the
+      -- command phases -- not its own UI, and not the engine's either.
+      -- A mod meaning to supply its own menu here has to reach the
+      -- screen some other way (its own render hook, not this chain),
+      -- since falling through to `inner` would show the engine's box
+      -- exactly when this level means to hide it.
+      if BattleBoxXY.available() then return end
     end
     return inner(self, ...)
   end

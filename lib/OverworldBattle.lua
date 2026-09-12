@@ -1571,12 +1571,18 @@ function OverworldBattle.snapHUDs(battle, shot)
     -- CLASSIC and MINIMAL keep the corner-pinned name/HP/EXP reading but
     -- lose the frost specifically behind it (see BattleDynamic) -- the
     -- box/moves rect's own glass, when BattleBoxXY is not the one
-    -- covering it, is untouched by either.
+    -- covering it, is untouched by either. MINIMAL additionally hides
+    -- the box's own glass during "menu"/"moveSelect": nothing is drawn
+    -- on it there (BattleBoxXY.HIDE_COMMANDS), so a pane of glass with
+    -- nothing on it is the one artefact left behind otherwise.
+    local minimalNoCommands = mode == "minimal"
+      and (battle.phase == "menu" or battle.phase == "moveSelect")
     for key, rect in pairs(live) do
       local noFrost = mode == "off"
         or (xyBox and (key == "box" or key == "moves"))
         or ((key == "enemy" or key == "player")
             and (mode == "classic" or mode == "minimal"))
+        or (minimalNoCommands and (key == "box" or key == "moves"))
       if not noFrost then
         BattleHud.panel(rect, shot, dark, true)
       end
