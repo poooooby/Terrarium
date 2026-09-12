@@ -20,13 +20,43 @@ The old `-mobile` channel is retired. Historical tags keep it (`v1.28.0-mobile` 
 
 Tags and packages:
 
-- Git tag: `v1.37.0-beta`
-- Zip asset: `TERRARIUM-1.37.0-beta.zip`
-- `manifest.json` / catalog `version` field: `1.37.0-beta`
+- Git tag: `v1.37.2-beta`
+- Zip asset: `TERRARIUM-1.37.2-beta.zip`
+- `manifest.json` / catalog `version` field: `1.37.2-beta`
 
 ## Unreleased
 
-## 1.37.0-beta
+## 1.37.2-beta
+
+**Beta para testes e nada mais.**
+
+### O SHOP-FX nunca teve um jeito de desligar, e por isso o RTX OFF não valia dentro de uma Poke Mart
+
+> SHOP-FX never had an OFF a player could reach, so RTX OFF didn't hold inside a Poke Mart
+
+- **`Shop.setting` (SHOP) e `Shop.fxSetting` (SHOP-FX) existiam em
+  `lib/Shop.lua`, no mesmo formato de toda outra configuração do mod, mas
+  nunca foram registrados em `main.lua`** — diferente de TREES, TOWER,
+  CRYPT e LEDGES, que passam todos pelo mesmo `SETTINGS`. Sem uma linha no
+  menu, SHOP-FX ficava travado em ON para sempre, e `RayFX.floor` (que o
+  chão de uma loja pede pelo menos no nível AO, veja `lib/VoxelScene.lua`)
+  não tinha como ser desligado — então o RTX OFF escolhido pelo jogador
+  nunca era realmente respeitado dentro de uma Poke Mart, como a Viridian.
+  As duas linhas agora estão no menu de OPÇÕES e na página do gerenciador
+  de mods, do mesmo jeito que CRYPT e CRYPT-FX.
+
+  > **`Shop.setting` (SHOP) and `Shop.fxSetting` (SHOP-FX) existed in
+  > `lib/Shop.lua`, in the exact same shape as every other setting in the
+  > mod, but were never registered in `main.lua`** — unlike TREES, TOWER,
+  > CRYPT and LEDGES, which all go through the same `SETTINGS` table.
+  > With no menu row, SHOP-FX stayed stuck at ON forever, and
+  > `RayFX.floor` (which a shop's floor asks for at least the AO rung,
+  > see `lib/VoxelScene.lua`) had no way to be turned off — so a player's
+  > RTX OFF choice was never actually honoured inside a Poke Mart, such
+  > as Viridian's. Both rows are now on the OPTIONS menu and the mod
+  > manager's page, the same way CRYPT and CRYPT-FX are.
+
+## 1.37.1-beta
 
 **Beta para testes e nada mais.**
 
