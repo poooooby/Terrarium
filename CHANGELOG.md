@@ -26,6 +26,26 @@ Tags and packages:
 
 ## Unreleased
 
+### As descrições de item da mochila, no menu X/Y, agora seguem o LANG
+
+> The bag's item descriptions, in the X/Y menu, now follow LANG
+
+- **`lib/BattleScreenXY.lua`'s `POCKET_DESC` era só português** -- a
+  frase de reserva mostrada quando o próprio item não carrega uma
+  descrição (`def.description`/`desc`/`text` vazios). Virou
+  `POCKET_DESC_EN`/`POCKET_DESC_PT`, escolhida por `Lang.isPT()`, o
+  mesmo padrão que a etiqueta de cada bolso (`pocketLabel`, logo acima
+  no arquivo) e o item MAPA do menu inicial já usam -- o português
+  original vira o lado PT em vez de ser substituído por ele.
+
+  > **`lib/BattleScreenXY.lua`'s `POCKET_DESC` was Portuguese-only** --
+  > the fallback line shown when an item itself carries no description
+  > (`def.description`/`desc`/`text` empty). Split into
+  > `POCKET_DESC_EN`/`POCKET_DESC_PT`, chosen by `Lang.isPT()`, the same
+  > pattern each pocket's own label (`pocketLabel`, just above in the
+  > file) and the start menu's MAP item already use -- the original
+  > Portuguese becomes the PT side instead of being replaced by it.
+
 ### O texto do mapa 3D recuou de 1.5x para 1.25x
 
 > The 3D map's text backed off from 1.5x to 1.25x

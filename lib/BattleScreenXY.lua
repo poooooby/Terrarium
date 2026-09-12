@@ -757,7 +757,17 @@ local function vcursorQuad(img, fi, fw, vh, vw, frames)
   return q or nil
 end
 
-local POCKET_DESC = {
+-- The fallback line shown when the engine's own item data carries no
+-- description of its own (def.description/desc/text) -- this mod's
+-- original Portuguese, kept as the PT half rather than replaced by it,
+-- the same MAPA/OPÇÕES pattern lib/Lang.lua already uses.
+local POCKET_DESC_EN = {
+  items = "An item from the bag.",
+  cura  = "Restores HP or cures a status condition.",
+  balls = "Used to catch Pokemon.",
+  tm    = "Teaches a move to a Pokemon.",
+}
+local POCKET_DESC_PT = {
   items = "Um objeto da mochila.",
   cura  = "Restaura HP ou cura um status.",
   balls = "Usada para capturar Pokémon.",
@@ -770,7 +780,8 @@ local function itemDesc(game, id, pocket)
     local d = def.description or def.desc or def.text
     if type(d) == "string" and d ~= "" then return d end
   end
-  return POCKET_DESC[pocket] or POCKET_DESC.items
+  local desc = Lang.isPT() and POCKET_DESC_PT or POCKET_DESC_EN
+  return desc[pocket] or desc.items
 end
 
 local function wrap2(str, th, maxW)
