@@ -1565,9 +1565,12 @@ do
           if key == KEY_VOXEL then
             self.save.options.tilt = 0
             self.save.options.gbcfx = 0
-            require("src.render.GBCFX").setLevel(0)
+            -- Some engine builds do not ship GBCFX at all; see pinEngineFx.
+            local okG, GBCFX = pcall(require, "src.render.GBCFX")
+            if okG then pcall(GBCFX.setLevel, 0) end
           end
-          require("src.render.Tilt").setLevel(self.save.options.tilt or 0)
+          local okT, Tilt = pcall(require, "src.render.Tilt")
+          if okT then pcall(Tilt.setLevel, self.save.options.tilt or 0) end
           self:writeOptions()
           return
         end
@@ -1722,15 +1725,18 @@ end
 local function pinEngineFx(game)
   game = game or require("src.core.Game")
   local opts = game and game.save and game.save.options
-  local Tilt = require("src.render.Tilt")
-  local GBCFX = require("src.render.GBCFX")
+  local okT, Tilt = pcall(require, "src.render.Tilt")
+  -- Some engine builds do not ship GBCFX at all (probed: only GbcPalette.lua
+  -- present); pcall the require itself, not just the call below, or a build
+  -- without it crashes every save.created/save.loaded and every OPTIONS open.
+  local okG, GBCFX = pcall(require, "src.render.GBCFX")
   local changed = false
   if opts then
     changed = (opts.tilt or 0) ~= 0 or (opts.gbcfx or 0) ~= 0
     opts.tilt, opts.gbcfx = 0, 0
   end
-  pcall(Tilt.setLevel, 0)
-  pcall(GBCFX.setLevel, 0)
+  if okT then pcall(Tilt.setLevel, 0) end
+  if okG then pcall(GBCFX.setLevel, 0) end
   if changed and game.writeOptions then pcall(game.writeOptions, game) end
 end
 
