@@ -1,4 +1,4 @@
-# Terrarium
+# TerrariumVoxel
 
 A little world under glass: it has its own weather, its own hours, and things
 living in it.
@@ -14,23 +14,33 @@ living in it.
 > is unported or untested there. If you want the finished experience, stay
 > on Kanto.
 
-> ### This is a fork, and the original is not mine
+> ### This is a fork of a fork, and neither original is mine
 >
-> **Terrarium is a fork of the [Dramatic Shape Voxel Mod](https://github.com/DramaticShape/DramaticShapeVoxelMod)
-> by [Dramatic Shape](https://github.com/DramaticShape).** The name is
-> different because the fork grew its own set of features, **not** because it
-> is a separate work — the diorama, the depth-buffered occlusion, the shadow
-> map, the tilt-shift pass and the over-the-shoulder battles are all his, and
-> without them there is nothing here to fork.
+> **TerrariumVoxel is a fork of [BrenoBertucci's Terrarium](https://github.com/BrenoBertucci/Terrarium),
+> itself a fork of the [Dramatic Shape Voxel Mod](https://github.com/DramaticShape/DramaticShapeVoxelMod)
+> by [Dramatic Shape](https://github.com/DramaticShape).** Two layers of
+> attribution, and neither is mine: the diorama, the depth-buffered
+> occlusion, the shadow map, the tilt-shift pass and the over-the-shoulder
+> battles are Dramatic Shape's original work; the low-end-hardware tuning,
+> the weather, the ecology, the wild Pokemon you can see, and everything
+> else under "What Terrarium adds to the original" below is BrenoBertucci's.
+> This tree's own additions sit on top of THAT, and are narrower: this mod's
+> own menus default to English rather than the hardcoded Portuguese they
+> shipped with (a Portuguese option is kept), plus a start-menu
+> visibility/sizing fix, an engine-compat crash guard, and wiring in two
+> options rows (SHOP / SHOP-FX) that existed in the code but were never
+> reachable from the menu -- see "What this fork adds on top of Terrarium"
+> further down.
 >
-> **If you are choosing between them, go and look at his first:**
-> https://github.com/DramaticShape/DramaticShapeVoxelMod
+> **If you are choosing between them, go and look at the originals first:**
+> <https://github.com/DramaticShape/DramaticShapeVoxelMod> and
+> <https://github.com/BrenoBertucci/Terrarium>
 >
 > It ships under its own mod id `TERRARIUM` and its own folder, so it can
-> sit **beside** the original without overwriting it. Both can be installed;
-> both can be installed and enabled together: this fork uses letter hotkeys
-> (v/g/t/c/m/b/n/p) and its own pipeline ids, so it does not fight upstream's
-> 3/5/6/7/8/9. Still only one world pipeline should own the frame at a time.
+> sit **beside** either without overwriting it. This fork uses letter
+> hotkeys (v/g/t/c/m/b/n/p) and its own pipeline ids, so it does not fight
+> upstream's 3/5/6/7/8/9. Still only one world pipeline should own the frame
+> at a time.
 
 A mod for the [Pokemon Gen 1 Recompilation
 Project](https://github.com/bryanthaboi/gen1recomp). The overworld becomes a
@@ -277,6 +287,42 @@ The most recent work went here, and it is measured rather than eyeballed:
 
 ---
 
+## What this fork adds on top of Terrarium
+
+This is the second layer: everything above this section, back through "What
+Terrarium adds to the original," is BrenoBertucci's work on Dramatic Shape's
+base. What follows is this tree's own, on top of that.
+
+- **This mod's own menus default to English.** The battle command buttons,
+  the bag's pocket tabs, and the start menu's MAP row were hardcoded
+  Portuguese literals -- not text from the game itself, which is English
+  throughout (`src/core/Strings.lua` ships as an identity function with no
+  translation loaded, and the extracted ROM text is the original cartridge
+  script). A new **UI LANG** row (OPTIONS menu and the mod manager) switches
+  between English and Portuguese for this mod's own overlays; nothing the
+  game itself prints is affected either way.
+- **The start menu could go invisible.** `StartMenuXY.available()` silenced
+  the engine's own flat menu whenever assets were ready, regardless of
+  whether the X/Y replacement would actually get painted -- which only
+  happens while the VOXEL or T-SHIFT pipeline is active. With both off, the
+  menu still opened (input still reached it) but nothing drew it. It also
+  inserted its MAP row without resizing the menu's own box, so the top item
+  could print above the frame's edge. Both are fixed.
+- **A missing `pcall` crashed engine builds that don't ship GBCFX.** Two
+  unguarded `require("src.render.GBCFX")` calls (a save-load hook and the
+  VOXEL hotkey) are now guarded like the rest of the file already guards
+  its own requires.
+- **SHOP and SHOP-FX are reachable now.** Both existed in `lib/Shop.lua`,
+  in the same shape as every other row, but neither was ever registered on
+  the options menu -- so SHOP-FX (which asks the RTX row for a minimum
+  ambient-occlusion rung inside a Poke Mart) had no OFF a player could
+  reach, and RTX OFF quietly didn't hold inside a mart such as Viridian's.
+
+Full detail on each, in this project's own bilingual (Portuguese-first)
+style, lives in [`CHANGELOG.md`](CHANGELOG.md).
+
+---
+
 ## Requirements
 
 - **[Gen1Recomp](https://github.com/bryanthaboi/gen1recomp) v0.1.37 or newer**
@@ -341,21 +387,23 @@ for anything else.
 
 ## Licence — please read before forking
 
-**The upstream mod does not currently carry a licence file**, and neither does
+**Neither upstream mod currently carries a licence file**, and neither does
 this fork. Under default copyright that means the code is *not* granted for
 redistribution or modification, however freely it is shared in practice, and
 [an open request for one](https://github.com/DramaticShape/DramaticShapeVoxelMod/issues/45)
 is sitting on the original repository.
 
-This fork is published in the spirit the original was — freely, for other
+This fork is published in the spirit the originals were — freely, for other
 people to read, run and learn from — but I cannot grant you rights over code
-that is not mine to license. If you plan to build on this, **please talk to
-Dramatic Shape first.** If a licence lands upstream, this fork will adopt it.
+that is not mine to license, two layers removed from mine. If you plan to
+build on this, **please talk to BrenoBertucci first** (this tree's direct
+upstream), **and to Dramatic Shape** (the root of the chain). If a licence
+lands anywhere upstream, this fork will adopt it.
 
 ## Roadmap & issues
 
 - Backlog: [`ROADMAP.md`](ROADMAP.md)
-- Open issues: https://github.com/BrenoBertucci/Terrarium/issues
+- Open issues: <https://github.com/poooooby/Terrarium/issues>
 - Drafts ready to file (UI + roamers + ambient):
   [`.github/issues-draft/`](.github/issues-draft/) —
   `powershell -File .github/issues-draft/create.ps1` after `gh auth login`
@@ -365,6 +413,12 @@ Dramatic Shape first.** If a licence lands upstream, this fork will adopt it.
 - **[Dramatic Shape](https://github.com/DramaticShape/DramaticShapeVoxelMod)**
   — the voxel mod this is built on. The diorama, the battles and the shape of
   the whole thing are his.
+- **[BrenoBertucci](https://github.com/BrenoBertucci/Terrarium)** — this
+  tree's direct upstream. The low-end-hardware tuning, the weather, the
+  ecology, the wild Pokemon you can see, and everything else under "What
+  Terrarium adds to the original" above are his work on Dramatic Shape's
+  base; this fork's own additions are the narrower list under "What this
+  fork adds on top of Terrarium."
 - **[bryanthaboi](https://github.com/bryanthaboi/gen1recomp)** and the
   Gen1Recomp contributors — the engine, and a mod platform generous enough
   that almost none of this needed a patch.

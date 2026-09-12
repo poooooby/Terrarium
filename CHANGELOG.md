@@ -20,11 +20,76 @@ The old `-mobile` channel is retired. Historical tags keep it (`v1.28.0-mobile` 
 
 Tags and packages:
 
-- Git tag: `v1.37.2-beta`
-- Zip asset: `TERRARIUM-1.37.2-beta.zip`
-- `manifest.json` / catalog `version` field: `1.37.2-beta`
+- Git tag: `v1.37.4-beta`
+- Zip asset: `TERRARIUM-1.37.4-beta.zip`
+- `manifest.json` / catalog `version` field: `1.37.4-beta`
 
 ## Unreleased
+
+## 1.37.4-beta
+
+**Beta para testes e nada mais.**
+
+### O fork ganhou nome e atribuição próprios: TerrariumVoxel, de poooooby, sobre o Terrarium de BrenoBertucci
+
+> The fork got its own name and attribution: TerrariumVoxel, by poooooby, on top of BrenoBertucci's Terrarium
+
+- **`manifest.json`, `mod.card` e os catálogos do Quiver agora apontam para
+  `poooooby/Terrarium`** em vez de `BrenoBertucci/Terrarium`, e o nome
+  exibido virou `TerrariumVoxel (a Terrarium fork)` — o `id` do mod
+  continua `TERRARIUM`, sem mudança, já que outros mods (o HGSS Visual
+  Overhaul, por exemplo) e saves existentes dependem dele.
+
+  > **`manifest.json`, `mod.card` and the Quiver catalogs now point at
+  > `poooooby/Terrarium`** instead of `BrenoBertucci/Terrarium`, and the
+  > displayed name became `TerrariumVoxel (a Terrarium fork)` — the mod's
+  > `id` stays `TERRARIUM`, unchanged, since other mods (HGSS Visual
+  > Overhaul, for one) and existing saves depend on it.
+
+- **A atribuição agora tem dois andares, no `mod.card` e no README.** O
+  diorama, as batalhas e a forma da coisa toda são trabalho original da
+  Dramatic Shape; o ajuste para hardware fraco, o clima, a ecologia e tudo
+  sob "What Terrarium adds to the original" são trabalho da BrenoBertucci
+  em cima daquela base. As adições desta árvore específica — a opção
+  UI LANG, os consertos do menu inicial, a proteção contra o crash do
+  GBCFX, e o registro de SHOP/SHOP-FX no menu — ganharam sua própria seção
+  no README, "What this fork adds on top of Terrarium".
+
+  > **Attribution is now two floors deep, in both `mod.card` and the
+  > README.** The diorama, the battles and the shape of the whole thing
+  > are Dramatic Shape's original work; the low-end-hardware tuning, the
+  > weather, the ecology and everything under "What Terrarium adds to the
+  > original" is BrenoBertucci's, on top of that base. This specific
+  > tree's own additions — the UI LANG setting, the start-menu fixes, the
+  > GBCFX crash guard, and registering SHOP/SHOP-FX on the menu — got
+  > their own README section, "What this fork adds on top of Terrarium."
+
+## 1.37.3-beta
+
+**Beta para testes e nada mais.**
+
+### A linha COMBAT falava português: DINAMICA e CLASSICA viraram DYNAMIC e CLASSIC
+
+> The COMBAT row spoke Portuguese: DINAMICA and CLASSICA became DYNAMIC and CLASSIC
+
+- **`BattleDynamic.setting` tinha os mesmos valores internos em inglês
+  (`"dynamic"`/`"classic"`) mas etiquetas exibidas em português** —
+  a mesma causa raiz do resto da interface historicamente em português
+  deste mod (veja `lib/Lang.lua`). Como os valores internos já eram
+  ingleses, o conserto foi só nas etiquetas: `DYNAMIC` / `CLASSIC`.
+  Comentários e as três probes que checavam o texto em português
+  diretamente (`tests/battledynamic_probe.lua`,
+  `tests/battlehitfx_probe.lua`, `tests/battleimpact_probe.lua`) também
+  foram atualizados.
+
+  > **`BattleDynamic.setting` had English internal values
+  > (`"dynamic"`/`"classic"`) but Portuguese displayed labels** — the
+  > same root cause as the rest of this mod's historically Portuguese UI
+  > (see `lib/Lang.lua`). Since the internal values were already English,
+  > the fix was just the display labels: `DYNAMIC` / `CLASSIC`. Comments
+  > and the three probes that asserted the Portuguese label text directly
+  > (`tests/battledynamic_probe.lua`, `tests/battlehitfx_probe.lua`,
+  > `tests/battleimpact_probe.lua`) were updated too.
 
 ## 1.37.2-beta
 
