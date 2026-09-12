@@ -9,12 +9,14 @@
 -- stands still -- the camera holds the rig, the menu and the box lie
 -- flat on the glass, the capsules pin to the window corners (still
 -- wearing Unova's bars: the ART is not what this row is about), and
--- nothing bobs, rocks or rains.
+-- nothing bobs, rocks or rains. OFF takes the costume off entirely --
+-- the engine's own flat Game Boy box and HUD, the way a fresh install
+-- would look.
 --
 -- The flip is safe mid-battle by construction: every gate is consulted
 -- per frame, and the classic paths are the fallbacks the dynamic ones
 -- were built over. Applied at every battle's door too, so a persisted
--- CLASSIC holds from the first frame.
+-- CLASSIC or OFF holds from the first frame.
 
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
@@ -24,15 +26,23 @@ local ModSetting = V.require("ModSetting")
 local BattleDynamic = {}
 
 BattleDynamic.setting = ModSetting.new("battledyn", "COMBAT",
-                                       { "dynamic", "classic" },
-                                       { "DYNAMIC", "CLASSIC" })
+                                       { "dynamic", "classic", "off" },
+                                       { "DYNAMIC", "CLASSIC", "OFF" })
 
 function BattleDynamic.wantsDynamic()
-  return BattleDynamic.setting:get() ~= "classic"
+  return BattleDynamic.setting:get() == "dynamic"
+end
+
+-- CLASSIC still wears the X/Y costume (box, HUD, capsules), only held
+-- still; only OFF takes it off and falls back to the engine's own box.
+function BattleDynamic.wantsCostume()
+  return BattleDynamic.setting:get() ~= "off"
 end
 
 -- the gates, by module and field -- each module stays its own master;
--- this row only writes what a probe (or a hand on the module) could
+-- this row only writes what a probe (or a hand on the module) could.
+-- Tied to DYNAMIC specifically: these are the moving parts CLASSIC holds
+-- still, not the costume itself (see COSTUME_GATES below).
 local GATES = {
   { "BattleShot", "enabled" },
   { "BattleFanXY", "ENABLED" },
@@ -42,15 +52,28 @@ local GATES = {
   { "BattleHitFX", "ENABLED" },
 }
 
+-- the costume itself -- the box and HUD reskin -- on for DYNAMIC and
+-- CLASSIC alike, off only for OFF
+local COSTUME_GATES = {
+  { "BattleBoxXY", "ENABLED" },
+  { "BattleHudXY", "ENABLED" },
+}
+
 function BattleDynamic.apply()
   local on = BattleDynamic.wantsDynamic()
   for _, gate in ipairs(GATES) do
     local ok, M = pcall(V.require, gate[1])
     if ok and M then M[gate[2]] = on end
   end
-  -- the capsules keep Unova's bars either way; CLASSIC only sends them
-  -- back to the window corners, and clears the world debug so a probe
-  -- can tell which placement is live rather than reading a stale one
+  local costume = BattleDynamic.wantsCostume()
+  for _, gate in ipairs(COSTUME_GATES) do
+    local ok, M = pcall(V.require, gate[1])
+    if ok and M then M[gate[2]] = costume end
+  end
+  -- the capsules keep Unova's bars either way the costume is up; CLASSIC
+  -- only sends them back to the window corners, and clears the world
+  -- debug so a probe can tell which placement is live rather than
+  -- reading a stale one
   local okC, Cap = pcall(V.require, "BattleCapsule")
   if okC and Cap then
     Cap.WORLD = on

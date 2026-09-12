@@ -26,6 +26,75 @@ Tags and packages:
 
 ## Unreleased
 
+### COMBAT ganhou uma terceira opção, OFF, que tira a fantasia X/Y por completo
+
+> COMBAT gained a third option, OFF, that takes the X/Y costume off entirely
+
+- **`lib/BattleDynamic.lua` agora reconhece três estados** -- `DYNAMIC`,
+  `CLASSIC` e o novo `OFF` -- em vez de dois. `CLASSIC` continua vestindo a
+  fantasia X/Y (a caixa, o HUD, as cápsulas), só que parada; `OFF` desliga
+  `BattleBoxXY.ENABLED` e `BattleHudXY.ENABLED`, os dois interruptores que
+  antes eram constantes fixas em `true` e nunca respondiam a este ajuste,
+  caindo de volta na caixa e no HUD do próprio Game Boy.
+
+  > **`lib/BattleDynamic.lua` now recognizes three states** -- `DYNAMIC`,
+  > `CLASSIC` and the new `OFF` -- instead of two. `CLASSIC` still wears
+  > the X/Y costume (the box, the HUD, the capsules), only held still;
+  > `OFF` switches off `BattleBoxXY.ENABLED` and `BattleHudXY.ENABLED`,
+  > the two switches that used to be fixed `true` constants and never
+  > answered to this row, falling back to the Game Boy's own box and HUD.
+
+### Corrigidos dois defeitos visuais do modo DYNAMIC: a caixa dobrada e a exclamação quebrada
+
+> Fixed two DYNAMIC-mode visual bugs: the doubled box and the broken exclamation mark
+
+- **O menu de comando (`BattlePanelsXY.menu`) podia desenhar duas caixas
+  na mesma cena** -- a flutuante 3D e a plana por baixo dela -- porque o
+  painel de mensagem já tinha ido para a tela antes de as quatro fichas de
+  comando (FIGHT/BAG/RUN/POKÉMON) terminarem de se preparar; se qualquer
+  uma delas falhasse, a função inteira relatava falha e `BattleBoxXY`
+  desenhava a versão plana por cima do que já estava lá. Agora as quatro
+  fichas são preparadas (e a falha, se houver, é detectada) antes de o
+  painel de mensagem tocar a tela.
+
+  > **The command menu (`BattlePanelsXY.menu`) could draw two boxes in
+  > the same scene** -- the floating 3D one and the flat one underneath
+  > it -- because the message panel had already hit the screen before
+  > the four command chips (FIGHT/BAG/RUN/POKEMON) finished preparing; if
+  > any one of them failed, the whole function reported failure and
+  > `BattleBoxXY` drew the flat version on top of what was already there.
+  > Now all four chips are prepared (and any failure caught) before the
+  > message panel touches the screen.
+
+- **O ponto-de-exclamação do "font de nome" (`assets/battlexy/b2w2/name_font.png`)
+  era, na verdade, uma cópia do ponto-de-interrogação** -- as duas células
+  da folha continham o mesmo desenho em espiral, o que lia como um "@" em
+  vez de um "!" sempre que uma mensagem (como "Go! DRAGONITE!") terminava
+  com um. A célula foi repintada com uma barra e um ponto de verdade.
+
+  > **The "name font" sheet's exclamation mark
+  > (`assets/battlexy/b2w2/name_font.png`) was actually a copy of the
+  > question mark** -- both cells held the same spiral artwork, which
+  > read as an "@" instead of a "!" whenever a message (like "Go!
+  > DRAGONITE!") ended with one. The cell has been repainted with a real
+  > bar-and-dot exclamation mark.
+
+- **A seta de avançar, nessa mesma tela, pulava entre dois lugares em vez
+  de piscar num só** -- `showCaret` (a fase do piscar, verdadeira só às
+  vezes enquanto o texto ainda está digitando) decidia sozinha entre a
+  posição junto ao cursor e a posição parada no canto, então cada ciclo
+  de piscar também pulava a seta de lugar. Agora um `typing` separado
+  decide a posição; `showCaret` só decide se ela está visível ou não
+  enquanto digita.
+
+  > **The advance arrow, on that same screen, hopped between two spots
+  > instead of blinking in one** -- `showCaret` (the blink phase, only
+  > sometimes true while the text is still typing) was deciding, by
+  > itself, between the caret-side position and the settled corner
+  > position, so every blink cycle also moved the arrow. A separate
+  > `typing` flag now decides the position; `showCaret` only decides
+  > whether it is visible while typing.
+
 ## 1.37.6-beta
 
 **Beta para testes e nada mais.**
