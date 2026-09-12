@@ -20,11 +20,41 @@ The old `-mobile` channel is retired. Historical tags keep it (`v1.28.0-mobile` 
 
 Tags and packages:
 
-- Git tag: `v1.37.4-beta`
-- Zip asset: `TERRARIUM-1.37.4-beta.zip`
-- `manifest.json` / catalog `version` field: `1.37.4-beta`
+- Git tag: `v1.37.6-beta`
+- Zip asset: `TERRARIUM-1.37.6-beta.zip`
+- `manifest.json` / catalog `version` field: `1.37.6-beta`
 
 ## Unreleased
+
+## 1.37.6-beta
+
+**Beta para testes e nada mais.**
+
+### O texto do mapa 3D cresceu 1.5x -- menos as etiquetas dos pinos, que já estavam do tamanho certo
+
+> The 3D map's text grew 1.5x -- except the pin tags, which were already the right size
+
+- **Novo multiplicador `fs()` em `lib/WorldMap3D.lua`**, empilhado sobre a
+  escala responsiva `S()` que já existia (que reage ao tamanho da janela,
+  não ao gosto por uma fonte maior). Aplicado ao painel de objetivo, ao
+  cartão do lugar selecionado, às dicas do rodapé, à bússola, ao banner do
+  topo e à tela de carregamento — tudo, menos a etiqueta flutuante que
+  `plate()` desenha sobre cada pino no terreno, que o pedido original
+  deixou de fora por já estar correta. Toda a matemática de espaçamento
+  vertical que dependia do tamanho da fonte (altura de linha, altura do
+  painel) cresce junto, lendo da mesma variável ou do mesmo `fs(N)`, para
+  o texto maior não vazar por cima da própria caixa.
+
+  > **New `fs()` multiplier in `lib/WorldMap3D.lua`**, stacked on top of
+  > the responsive `S()` scale that already existed (which reacts to
+  > window size, not to a taste for bigger text). Applied to the
+  > objective panel, the selected-place card, the bottom hints, the
+  > compass, the top banner and the loading screen — everything except
+  > the floating tag `plate()` draws over each pin on the terrain, which
+  > the original request left out as already correctly sized. All the
+  > vertical-spacing math that depended on the font size (line height,
+  > panel height) grows along with it, reading from the same variable or
+  > the same `fs(N)`, so the bigger text does not spill over its own box.
 
 ## 1.37.4-beta
 
