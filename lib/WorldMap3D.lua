@@ -58,6 +58,7 @@ local BattleHudXY = V.require("BattleHudXY")
 local WorldMapQuest = V.require("WorldMapQuest")
 local ModSetting = V.require("ModSetting")
 local DayNight = V.require("DayNight")
+local Lang = V.require("Lang")
 
 local WorldMap3D = {}
 
@@ -167,7 +168,14 @@ local KIND = {
 }
 
 -- ---------------------------------------------------------------- strings
-local STRINGS = {
+--
+-- English by default; STRINGS_PT below carries over this mod's own
+-- original Portuguese wording for the labels that actually HAD one --
+-- everything else here (the card, fly, gym and nest rows; the kind
+-- names) is a later addition with no Portuguese phase to restore, so it
+-- stays English-only in both languages rather than getting a fresh
+-- translation invented for it.
+local STRINGS_EN = {
   objective = "OBJECTIVE",
   next = "NEXT",
   badges = "BADGES",
@@ -197,6 +205,23 @@ local STRINGS = {
     building = "LANDMARK", ship = "SHIP", league = "POKéMON LEAGUE",
   },
 }
+
+local STRINGS_PT = {
+  objective = "OBJETIVO",
+  next = "A SEGUIR",
+  badges = "INSÍGNIAS",
+  you = "VOCÊ",
+}
+
+-- Read fresh per key rather than snapshotted once: `STRINGS_PT` only
+-- covers what this mod's own original Portuguese actually had, so a key
+-- outside it falls through to English even with LANG on Portuguese.
+local STRINGS = setmetatable({}, {
+  __index = function(_, key)
+    if Lang.isPT() and STRINGS_PT[key] ~= nil then return STRINGS_PT[key] end
+    return STRINGS_EN[key]
+  end,
+})
 
 -- ---------------------------------------------------------------- state
 local R = nil          -- the built region, or nil

@@ -26,6 +26,49 @@ Tags and packages:
 
 ## Unreleased
 
+### O mapa mundial recuperou o português original que a tradução para inglês tinha apagado
+
+> The world map recovered the original Portuguese the English pass had erased
+
+- **Toda a cadeia de objetivos (`lib/WorldMapQuest.lua`, 16 etapas) só
+  falava inglês** -- a passada de tradução deste fork reescreveu
+  `title`/`detail` de cada etapa em inglês sem guardar o português
+  original em lugar nenhum, então trocar LANG para português não mudava
+  nada aqui. Comparado contra a cópia de backup do mod original
+  (`TERRARIUM-OG`), cada etapa virou um par `title_en`/`title_pt` e
+  `detail_en`/`detail_pt`; `WorldMapQuest.current()` agora resolve os
+  dois pelo `Lang.isPT()` de cada chamada, lendo o texto certo mesmo se
+  o idioma mudar no meio da sessão.
+
+  > **The whole quest chain (`lib/WorldMapQuest.lua`, 16 steps) only
+  > spoke English** -- this fork's translation pass rewrote every step's
+  > `title`/`detail` into English without keeping the original Portuguese
+  > anywhere, so flipping LANG to Portuguese changed nothing here.
+  > Checked against the backup copy of the original mod (`TERRARIUM-OG`),
+  > every step became a `title_en`/`title_pt` and `detail_en`/`detail_pt`
+  > pair; `WorldMapQuest.current()` now resolves both by `Lang.isPT()` on
+  > every call, reading the right text even if the language changes
+  > mid-session.
+
+- **Four of `lib/WorldMap3D.lua`'s `STRINGS` labels had the same problem**
+  -- `OBJECTIVE`, `NEXT`, `BADGES` and `YOU` were "OBJETIVO", "A SEGUIR",
+  the "X/Y INSÍGNIAS" wording and "VOCÊ" in the original mod, with no
+  Portuguese path left after the rewrite. Split into `STRINGS_EN` plus a
+  small `STRINGS_PT` covering just these four, behind a metatable that
+  falls through to English for every OTHER key -- the card, fly, gym and
+  nest rows, and the location-kind names, are all later additions with
+  no Portuguese phase to restore, so nothing was invented for them.
+
+  > **Four of `lib/WorldMap3D.lua`'s `STRINGS` labels had the same
+  > problem** -- `OBJECTIVE`, `NEXT`, `BADGES` and `YOU` were "OBJETIVO",
+  > "A SEGUIR", the "X/Y INSÍGNIAS" wording and "VOCÊ" in the original
+  > mod, with no Portuguese path left after the rewrite. Split into
+  > `STRINGS_EN` plus a small `STRINGS_PT` covering just these four,
+  > behind a metatable that falls through to English for every OTHER key
+  > -- the card, fly, gym and nest rows, and the location-kind names, are
+  > all later additions with no Portuguese phase to restore, so nothing
+  > was invented for them.
+
 ### As descrições de item da mochila, no menu X/Y, agora seguem o LANG
 
 > The bag's item descriptions, in the X/Y menu, now follow LANG
