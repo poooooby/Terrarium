@@ -1,11 +1,11 @@
 -- Probe: does one row really hold the whole costume?
 --
 -- Four measurable claims:
---   1. DINAMICA (the default): every module's gate is open and the
+--   1. DYNAMIC (the default): every module's gate is open and the
 --      capsules hang in the WORLD (fresh world debug).
---   2. Flipping to CLASSICA mid-battle closes every gate, clears the
+--   2. Flipping to CLASSIC mid-battle closes every gate, clears the
 --      world placement and sends the capsules to the window corners.
---   3. A whole round fought under CLASSICA never re-enters the world
+--   3. A whole round fought under CLASSIC never re-enters the world
 --      path -- the corner record stays the live one throughout.
 --   4. Flipping back mid-battle reopens everything and the world
 --      placement returns fresh.
@@ -118,24 +118,24 @@ return function(game)
 
   -- ------- claim 1: the default is the full costume
   local row = Dyn.setting:row()
-  verdict(row and row.label == "COMBAT" and row.value() == "DINAMICA",
-          "the COMBAT row exists and reads DINAMICA",
+  verdict(row and row.label == "COMBAT" and row.value() == "DYNAMIC",
+          "the COMBAT row exists and reads DYNAMIC",
           ("label=%s value=%s"):format(tostring(row and row.label),
                                        tostring(row and row.value())))
   local open, closed = gates()
   local d = Capsule.debug()
-  verdict(open == 7 and closed == 0, "every gate is open under DINAMICA",
+  verdict(open == 7 and closed == 0, "every gate is open under DYNAMIC",
           ("open=%d closed=%d"):format(open, closed))
   verdict(d and d.player ~= nil, "the capsules hang in the world", "")
 
-  -- ------- claim 2: CLASSICA mid-battle
+  -- ------- claim 2: CLASSIC mid-battle
   Dyn.setting:sync("classic")
   Dyn.apply()
   wait(20)
   open, closed = gates()
   d = Capsule.debug()
   local corner = OverworldBattle._lastXY and OverworldBattle._lastXY.player
-  verdict(open == 0 and closed == 7, "every gate closed under CLASSICA",
+  verdict(open == 0 and closed == 7, "every gate closed under CLASSIC",
           ("open=%d closed=%d"):format(open, closed))
   verdict(not (d and d.player), "the world placement cleared", "")
   verdict(corner and corner.world ~= true and corner.x ~= nil,
@@ -144,7 +144,7 @@ return function(game)
                                    tostring(corner and corner.x)))
   shot("dyn_classic.png")
 
-  -- ------- claim 3: a whole round under CLASSICA stays classic
+  -- ------- claim 3: a whole round under CLASSIC stays classic
   battle.menuIndex = 1
   if press("a", "moveSelect") then wait(8); tap("a") end
   local sawWorld = false
@@ -169,7 +169,7 @@ return function(game)
   open, closed = gates()
   d = Capsule.debug()
   local rec = OverworldBattle._lastXY and OverworldBattle._lastXY.player
-  verdict(open == 7 and closed == 0, "every gate reopened under DINAMICA",
+  verdict(open == 7 and closed == 0, "every gate reopened under DYNAMIC",
           ("open=%d closed=%d"):format(open, closed))
   verdict(d and d.player ~= nil and rec and rec.world == true,
           "the world placement returned fresh", "")

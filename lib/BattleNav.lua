@@ -24,7 +24,7 @@
 -- BattleState update starts on RUN and A confirms RUN. Held lives until a
 -- new step or the phase/kind leaves the remapped screen.
 --
--- CLASSICA still remaps the command cluster (flat BattleBoxXY uses the same
+-- CLASSIC still remaps the command cluster (flat BattleBoxXY uses the same
 -- BOTTOM_ORDER). The fan is remapped only while BattleFanXY.ENABLED. The
 -- party 2x3 is remapped whenever BattleScreenXY is costuming PartyMenu.
 

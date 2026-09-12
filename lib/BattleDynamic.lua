@@ -5,7 +5,7 @@
 -- ribbon's, the capsules' WORLD flag -- and every draw path behind those
 -- gates already degrades to the classic presentation it replaced (flat
 -- rows, corner capsules, the plain rig). This module is one hand on all
--- of them: DINAMICA is the costume as built, CLASSICA is a fight that
+-- of them: DYNAMIC is the costume as built, CLASSIC is a fight that
 -- stands still -- the camera holds the rig, the menu and the box lie
 -- flat on the glass, the capsules pin to the window corners (still
 -- wearing Unova's bars: the ART is not what this row is about), and
@@ -14,7 +14,7 @@
 -- The flip is safe mid-battle by construction: every gate is consulted
 -- per frame, and the classic paths are the fallbacks the dynamic ones
 -- were built over. Applied at every battle's door too, so a persisted
--- CLASSICA holds from the first frame.
+-- CLASSIC holds from the first frame.
 
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
@@ -25,7 +25,7 @@ local BattleDynamic = {}
 
 BattleDynamic.setting = ModSetting.new("battledyn", "COMBAT",
                                        { "dynamic", "classic" },
-                                       { "DINAMICA", "CLASSICA" })
+                                       { "DYNAMIC", "CLASSIC" })
 
 function BattleDynamic.wantsDynamic()
   return BattleDynamic.setting:get() ~= "classic"
@@ -48,7 +48,7 @@ function BattleDynamic.apply()
     local ok, M = pcall(V.require, gate[1])
     if ok and M then M[gate[2]] = on end
   end
-  -- the capsules keep Unova's bars either way; CLASSICA only sends them
+  -- the capsules keep Unova's bars either way; CLASSIC only sends them
   -- back to the window corners, and clears the world debug so a probe
   -- can tell which placement is live rather than reading a stale one
   local okC, Cap = pcall(V.require, "BattleCapsule")

@@ -16,7 +16,7 @@
 --   7. TILT: some pane turned during the wave (maxTilt > 0.02 rad).
 --   8. SHADOWS: the arena pass drew the panes' contact shadows
 --      (debug.shadows > 0 at the menu).
---   9. CLASSICA: flipping the COMBAT row stops all of it (no spot, no
+--   9. CLASSIC: flipping the COMBAT row stops all of it (no spot, no
 --      shadows, no splash after a second hit).
 --
 --   POKEPORT_VERSION=yellow DS_PROBE_DIR=<dir> \
@@ -404,7 +404,7 @@ return function(game)
     end
   end
 
-  -- ------- claim 9: CLASSICA closes every gate
+  -- ------- claim 9: CLASSIC closes every gate
   Dyn.setting:sync("classic"); Dyn.apply()
   wait(20)
   local hd3 = Hit.debug()
@@ -416,7 +416,7 @@ return function(game)
     if d.shadows and d.shadows > 0 then shadowsOff = false end
     coroutine.yield()
   end
-  verdict(closed and shadowsOff, "CLASSICA closes the gates",
+  verdict(closed and shadowsOff, "CLASSIC closes the gates",
           ("hit=%s glass=%s shadowsOff=%s"):format(tostring(Hit.ENABLED),
                                                    tostring(FX.ENABLED),
                                                    tostring(shadowsOff)))

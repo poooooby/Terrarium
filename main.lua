@@ -852,12 +852,12 @@ local SETTINGS = {
   -- Not a diorama knob either: like 3D-BTL, this decides how a FIGHT is
   -- presented, so FULL sets nothing here and the row stays offered.
   { BattleDynamic.setting,
-    "The whole dynamic battle package on one row. DINAMICA is the staged "
+    "The whole dynamic battle package on one row. DYNAMIC is the staged "
     .. "fight as built: the camera swings in behind whoever throws a move, "
     .. "the menu, the dialog box and the move cards float in the arena on "
     .. "real glass, the HP capsules hang beside their own mons, hits send "
     .. "a shockwave rolling through the panels, the move's element rains "
-    .. "on the glass, and the turn ribbon arcs between the two. CLASSICA "
+    .. "on the glass, and the turn ribbon arcs between the two. CLASSIC "
     .. "holds the camera on the plain rig and lays every panel flat and "
     .. "still -- the capsules keep their Unova bars, pinned to the window "
     .. "corners. Safe to flip mid-battle; every piece falls back on its "

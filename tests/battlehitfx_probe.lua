@@ -1,13 +1,13 @@
 -- Probe: do attacks actually hit the costume?
 --
 -- Four measurable claims:
---   1. DINAMICA (the default): BattleHitFX.ENABLED is open.
+--   1. DYNAMIC (the default): BattleHitFX.ENABLED is open.
 --   2. THROWING A MOVE: while animPlaying, debug reports playing (or a
 --      tagged battle Vfx is live / lastKey is set). lastKey is a bt_*
 --      authored sheet, not an OGA impact/smallhit.
 --   3. THE HIT: on flash / shake / HP drain, a battle Vfx or lastKey is
 --      set, and GlassFX is carrying a wave (telegraph or hit).
---   4. CLASSICA: flipping the COMBAT row closes the gate.
+--   4. CLASSIC: flipping the COMBAT row closes the gate.
 --
 -- Screenshots are taken at the anim and the hit, but a screenshot that
 -- races must never fail the boot -- the numbers are the test.
@@ -100,14 +100,14 @@ return function(game)
   battle.menuIndex = 1
   wait(40)
 
-  -- ------- claim 1: DINAMICA leaves the gate open
+  -- ------- claim 1: DYNAMIC leaves the gate open
   local row = Dyn.setting:row()
-  if row and row.value and row.value() ~= "DINAMICA" then
+  if row and row.value and row.value() ~= "DYNAMIC" then
     Dyn.setting:sync("dynamic")
     Dyn.apply()
     wait(8)
   end
-  verdict(HitFX.ENABLED == true, "DINAMICA: BattleHitFX.ENABLED is open",
+  verdict(HitFX.ENABLED == true, "DYNAMIC: BattleHitFX.ENABLED is open",
           ("ENABLED=%s COMBAT=%s"):format(tostring(HitFX.ENABLED),
             tostring(row and row.value and row.value())))
 
@@ -187,11 +187,11 @@ return function(game)
                   tostring(lastDbg and lastDbg.hitKey)))
   verdict(sawWave, "GlassFX is carrying a wave (telegraph or hit)", "")
 
-  -- ------- claim 4: CLASSICA closes the gate
+  -- ------- claim 4: CLASSIC closes the gate
   Dyn.setting:sync("classic")
   Dyn.apply()
   wait(12)
-  verdict(HitFX.ENABLED == false, "CLASSICA: BattleHitFX.ENABLED is closed",
+  verdict(HitFX.ENABLED == false, "CLASSIC: BattleHitFX.ENABLED is closed",
           ("ENABLED=%s"):format(tostring(HitFX.ENABLED)))
 
   logf:close()

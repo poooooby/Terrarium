@@ -420,7 +420,7 @@ function OverworldBattle.begin(state, battle)
   BattleShot.reset()
   -- live battle Vfx must not leak from the last fight into this one
   pcall(BattleHitFX.clear)
-  -- and the COMBAT row applies at the door, so a persisted CLASSICA holds
+  -- and the COMBAT row applies at the door, so a persisted CLASSIC holds
   -- from this battle's first frame (see BattleDynamic)
   pcall(function() V.require("BattleDynamic").apply() end)
   return true
