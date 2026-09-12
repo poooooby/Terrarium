@@ -61,14 +61,24 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json, os, re, subprocess, sys
 
-          SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+          # Terrarium's own convention (CHANGELOG.md, "Versioning") is
+          # X.Y.Z with an optional -beta / -mobile[.tag] suffix -- not bare
+          # semver. The suffix rides along for formatting but is ignored
+          # when comparing versions: this project never ships two releases
+          # at the same X.Y.Z differing only by suffix, so precedence
+          # between e.g. "1.0.0" and "1.0.0-beta" is not a case that
+          # actually arises here.
+          SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z.]+)?$")
 
           def sh(*args):
               return subprocess.run(args, capture_output=True, text=True).stdout.strip()
 
           def parse(text):
               m = SEMVER.match(text)
-              return tuple(int(p) for p in m.groups()) if m else None
+              if not m:
+                  return None
+              major, minor, patch, suffix = m.groups()
+              return (int(major), int(minor), int(patch), suffix or "")
 
           def die(msg):
               print(f"::error::{msg}", file=sys.stderr)
@@ -78,34 +88,38 @@ jobs:
               manifest_version = str(json.load(fh).get("version", ""))
 
           released = sorted(
-              v for v in (parse(tag[1:]) for tag in sh("git", "tag", "-l", "v*").splitlines()) if v
+              (v for v in (parse(tag[1:]) for tag in sh("git", "tag", "-l", "v*").splitlines()) if v),
+              key=lambda v: v[:3],
           )
           latest = released[-1] if released else None
 
           override = os.environ.get("DISPATCH_VERSION", "").strip()
           if not override:
-              found = re.search(r"\[release\s+(\d+\.\d+\.\d+)\]", sh("git", "log", "-1", "--pretty=%B"))
+              found = re.search(
+                  r"\[release\s+(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)\]",
+                  sh("git", "log", "-1", "--pretty=%B"))
               override = found.group(1) if found else ""
 
           manifest_ver = parse(manifest_version)
           if override:
-              version = parse(override) or die(f"invalid version override {override!r} (expected X.Y.Z)")
+              version = parse(override) or die(
+                  f"invalid version override {override!r} (expected X.Y.Z or X.Y.Z-suffix)")
               source = "the override"
-          elif manifest_ver and (latest is None or manifest_ver > latest):
+          elif manifest_ver and (latest is None or manifest_ver[:3] > latest[:3]):
               version = manifest_ver
               source = "manifest.json"
           elif latest:
-              major, minor, patch = latest
+              major, minor, patch, suffix = latest
               patch += 1
               if patch > 99:
                   minor, patch = minor + 1, 0
-              version = (major, minor, patch)
-              source = "a patch bump on v%d.%d.%d" % latest
+              version = (major, minor, patch, suffix)
+              source = "a patch bump on v%d.%d.%d%s" % latest
           else:
-              die(f"manifest.json version {manifest_version!r} is not X.Y.Z "
-                  "and there is no vX.Y.Z tag to count from")
+              die(f"manifest.json version {manifest_version!r} is not X.Y.Z[-suffix] "
+                  "and there is no vX.Y.Z[-suffix] tag to count from")
 
-          text = "%d.%d.%d" % version
+          text = "%d.%d.%d%s" % version
           print(f"Releasing {text}, from {source}.", file=sys.stderr)
           print(f"version={text}")
           print(f"tag=v{text}")
