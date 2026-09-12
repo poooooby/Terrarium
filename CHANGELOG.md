@@ -26,6 +26,50 @@ Tags and packages:
 
 ## Unreleased
 
+### O texto do mapa 3D subiu para 1.3x, e os painéis OBJECTIVE/ROUTE encolheram para 4/5 da largura
+
+> The 3D map's text moved up to 1.3x, and the OBJECTIVE/ROUTE panels shrank to 4/5 width
+
+- **`FONT_UP` em `lib/WorldMap3D.lua` subiu de `1.25` para `1.3`.**
+
+  > **`FONT_UP` in `lib/WorldMap3D.lua` moved from `1.25` to `1.3`.**
+
+- **A largura dos painéis OBJECTIVE (canto superior) e do cartão do lugar
+  selecionado (canto inferior, "ROUTE 1" etc.) caiu para 4/5 da conta
+  original** -- `drawObjective`/`drawCard` multiplicam seu `pw` por
+  `0.8` depois do `math.min(..., w * fração)` de sempre; a altura de
+  ambos já era calculada a partir do número de linhas embrulhadas, então
+  ela cresce sozinha para caber o texto mais estreito e maior sem se
+  sobrepor.
+
+  > **The OBJECTIVE panel (top corner) and the selected-place card
+  > (bottom corner, "ROUTE 1" etc.) both had their width cut to 4/5 of
+  > what it was** -- `drawObjective`/`drawCard` multiply their `pw` by
+  > `0.8` after the usual `math.min(..., w * fraction)`; both panels'
+  > height was already computed from the wrapped line count, so it grows
+  > on its own to fit the narrower, bigger text without overlapping.
+
+- **`lib/WorldMap3D.lua`'s exported `strings()` and `tests/worldmap_new_probe.lua`
+  needed a follow-up fix** after the Portuguese-restoration work above:
+  `STRINGS` became an empty table behind a metatable, so `pairs()` on it
+  directly returned nothing; `strings()` now returns a real snapshot.
+  The probe's own English-purity scan was rewritten to check LANG=en and
+  LANG=pt separately (the quest chain's steps carry `_en`/`_pt` fields
+  now, not a bare `title`/`detail`), and gained an explicit check that
+  the four restored `STRINGS_PT` labels and all sixteen quest steps'
+  `_pt` text are still there.
+
+  > **`lib/WorldMap3D.lua`'s exported `strings()` and
+  > `tests/worldmap_new_probe.lua` needed a follow-up fix** after the
+  > Portuguese-restoration work above: `STRINGS` became an empty table
+  > behind a metatable, so `pairs()` on it directly returned nothing;
+  > `strings()` now returns a real snapshot. The probe's own
+  > English-purity scan was rewritten to check LANG=en and LANG=pt
+  > separately (the quest chain's steps carry `_en`/`_pt` fields now, not
+  > a bare `title`/`detail`), and gained an explicit check that the four
+  > restored `STRINGS_PT` labels and all sixteen quest steps' `_pt` text
+  > are still there.
+
 ### O mapa mundial recuperou o português original que a tradução para inglês tinha apagado
 
 > The world map recovered the original Portuguese the English pass had erased

@@ -1481,7 +1481,7 @@ local function S(px) return math.floor(px * UI + 0.5) end
 -- rather than replacing it. NOT applied inside plate() below: the floating
 -- name tag over each pin on the terrain was sized correctly already, and
 -- FONT_UP growing it too would make it fight the pin it sits on.
-local FONT_UP = 1.25
+local FONT_UP = 1.3
 local function fs(px) return px * FONT_UP end
 
 local function text(s, x, y, size, r, g, b, a)
@@ -1739,7 +1739,7 @@ end
 local function drawObjective(w, h)
   if not quest then return end
   local pad, x, y = S(12), S(18), S(18)
-  local pw = math.min(S(470), w * 0.36)
+  local pw = math.min(S(470), w * 0.36) * 0.8  -- 4/5 width, per request
   local size = fs(16)
   local dsize = fs(13)
   local lines = wrap(quest.step.title, size, pw - pad * 2)
@@ -1791,7 +1791,7 @@ local function drawCard(screen, w, h, game)
   if not loc then return end
   local L = R.byName[loc.name]
   local pad = S(12)
-  local pw = math.min(S(440), w * 0.34)
+  local pw = math.min(S(440), w * 0.34) * 0.8  -- 4/5 width, per request
   local x, y = S(18), h - S(18)
   local rows = {}
   local kind = L and (STRINGS.kinds[L.kind] or "") or ""
@@ -2149,7 +2149,24 @@ function WorldMap3D.debugPlaces()
   return out
 end
 
-function WorldMap3D.strings() return STRINGS end
+-- A real, enumerable snapshot -- `STRINGS` itself is an empty table
+-- behind a metatable (see above), so `pairs()` on it directly would see
+-- nothing. Named for the suite: walks STRINGS_EN's own keys (kinds'
+-- sub-table included) and reads each through STRINGS, so a scalar comes
+-- back resolved for whichever language is live right now.
+function WorldMap3D.strings()
+  local snap = {}
+  for k, v in pairs(STRINGS_EN) do
+    if type(v) == "table" then
+      local sub = {}
+      for k2 in pairs(v) do sub[k2] = STRINGS[k][k2] end
+      snap[k] = sub
+    else
+      snap[k] = STRINGS[k]
+    end
+  end
+  return snap
+end
 
 function WorldMap3D.invalidate()
   if R then

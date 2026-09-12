@@ -61,6 +61,7 @@ return function(game)
   local WorldMapQuest = lib.require("WorldMapQuest")
   local DayNight = lib.require("DayNight")
   local Weather = lib.require("Weather")
+  local Lang = lib.require("Lang")
   local TownMap = require("src.ui.TownMap")
 
   DayNight.setting:sync("day")
@@ -70,22 +71,79 @@ return function(game)
   wait(120)
 
   -- ------- 1. the strings, before a pixel
+  --
+  -- LANG=en carries no Portuguese anywhere -- STRINGS (via its EN/PT
+  -- split, see WorldMap3D.lua) and the quest chain's own _en fields.
+  -- LANG=pt is checked the other way: the handful of labels this mod's
+  -- own original Portuguese actually had (STRINGS_PT's keys, and every
+  -- quest step's _pt fields) must still say so -- restoring them was
+  -- the point, not something a future edit should silently regress.
   local pt = { "ç", "ã", "õ", "INSÍGNIA", "Derrote", "Recupere", "Ginásio", "OBJETIVO", "VOCÊ", "SAIR", "GIRAR" }
-  local function scan(tag, s)
-    for _, w in ipairs(pt) do
-      if s:find(w, 1, true) then log(("  FAIL: %s still carries %q"):format(tag, w)) return false end
-    end
-    return true
+  local function hasPT(s)
+    for _, w in ipairs(pt) do if s:find(w, 1, true) then return w end end
+    return nil
   end
   local okS = true
+
+  Lang.setting:sync("en")
   for k, v in pairs(WorldMap3D.strings()) do
-    if type(v) == "string" then okS = scan("strings." .. k, v) and okS
-    elseif type(v) == "table" then for k2, v2 in pairs(v) do okS = scan("strings." .. k .. "." .. k2, v2) and okS end end
+    if type(v) == "string" then
+      local hit = hasPT(v)
+      if hit then log(("  FAIL: strings.%s still carries %q"):format(k, hit)) okS = false end
+    elseif type(v) == "table" then
+      for k2, v2 in pairs(v) do
+        local hit = hasPT(v2)
+        if hit then log(("  FAIL: strings.%s.%s still carries %q"):format(k, k2, hit)) okS = false end
+      end
+    end
   end
   for _, st in ipairs(WorldMapQuest.CHAIN) do
-    okS = scan("quest " .. st.id, st.title .. " " .. (st.detail or "")) and okS
+    local hit = hasPT(st.title_en .. " " .. (st.detail_en or ""))
+    if hit then log(("  FAIL: quest %s (en) still carries %q"):format(st.id, hit)) okS = false end
   end
   log("english strings:", okS and "PASS" or "FAIL")
+
+  -- Exact matches, not a Portuguese-looking-word heuristic: some of the
+  -- restored originals ("OBJETIVO", "A SEGUIR") carry no accent at all,
+  -- so a heuristic scan would false-negative on them. These are the
+  -- literal values lib/WorldMap3D.lua's STRINGS_PT and
+  -- lib/WorldMapQuest.lua's CHAIN _pt fields were set to.
+  Lang.setting:sync("pt")
+  local ptStrings = { objective = "OBJETIVO", next = "A SEGUIR",
+                      badges = "INSÍGNIAS", you = "VOCÊ" }
+  for k, want in pairs(ptStrings) do
+    local got = WorldMap3D.strings()[k]
+    if got ~= want then
+      log(("  FAIL: strings.%s under LANG=pt: wanted %q, got %q")
+          :format(k, want, tostring(got)))
+      okS = false
+    end
+  end
+  for _, st in ipairs(WorldMapQuest.CHAIN) do
+    if st.title ~= nil then
+      log(("  FAIL: quest %s has a bare .title field; only _en/_pt should exist")
+          :format(st.id))
+      okS = false
+    end
+    if type(st.title_pt) ~= "string" or st.title_pt == "" then
+      log(("  FAIL: quest %s has no title_pt"):format(st.id))
+      okS = false
+    end
+  end
+  local qpt = WorldMapQuest.current(game.save)
+  if qpt then
+    local src = nil
+    for _, st in ipairs(WorldMapQuest.CHAIN) do
+      if st.id == qpt.step.id then src = st break end
+    end
+    if not (src and qpt.step.title == src.title_pt and qpt.step.detail == src.detail_pt) then
+      log(("  FAIL: WorldMapQuest.current() under LANG=pt did not resolve to %s's title_pt/detail_pt")
+          :format(tostring(qpt.step.id)))
+      okS = false
+    end
+  end
+  log("portuguese carried over under LANG=pt:", okS and "PASS" or "FAIL")
+  Lang.setting:sync("en")
 
   -- ------- 2. the build, through the real screen
   local function openMap(opts)
