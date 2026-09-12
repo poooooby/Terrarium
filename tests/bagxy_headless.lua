@@ -28,6 +28,13 @@ function V.require(n)
       _art = function() return nil end,
     }
   end
+  if n == "Lang" then
+    return {
+      get = function() return "en" end,
+      isPT = function() return false end,
+      pick = function(en) return en end,
+    }
+  end
   error("unexpected require " .. tostring(n))
 end
 
@@ -49,10 +56,10 @@ expect(BattleScreenXY.POCKET_ORDER[2], "cura", "pocket 2 cura")
 expect(BattleScreenXY.POCKET_ORDER[3], "balls", "pocket 3 balls")
 expect(BattleScreenXY.POCKET_ORDER[4], "tm", "pocket 4 tm")
 expect(#BattleScreenXY.POCKET_ORDER, 4, "four pockets")
-expect(BattleScreenXY.POCKET_LABEL.items, "ITENS", "label ITENS")
-expect(BattleScreenXY.POCKET_LABEL.cura, "CURA", "label CURA")
-expect(BattleScreenXY.POCKET_LABEL.balls, "BOLAS", "label BOLAS")
-expect(BattleScreenXY.POCKET_LABEL.tm, "TM/HM", "label TM/HM")
+expect(BattleScreenXY.pocketLabel("items"), "ITEMS", "label ITEMS")
+expect(BattleScreenXY.pocketLabel("cura"), "MEDICINE", "label MEDICINE")
+expect(BattleScreenXY.pocketLabel("balls"), "BALLS", "label BALLS")
+expect(BattleScreenXY.pocketLabel("tm"), "TM/HM", "label TM/HM")
 expect(type(BattleScreenXY.BAG_GOLD), "table", "BAG_GOLD")
 
 local BattleNav = assert(loadfile(HERE .. "/../lib/BattleNav.lua"))(V)

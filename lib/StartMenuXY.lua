@@ -114,9 +114,34 @@ end
 -- the mod rather than two copies of one font.
 local BattleHudXY = V.require("BattleHudXY")
 
+-- Whether a world pipeline (VOXEL, or another mod's drawWorld-capable one)
+-- is actually rendering this frame -- the one condition under which either
+-- of StartMenuXY.present's two call sites (main.lua, PIPE_VOXEL's `present`
+-- and PIPE_TILT's `worldPresent`) can fire at all.
+--
+-- T-SHIFT alone is NOT enough, even though its own worldPresent hook is
+-- where this file's SECOND call site lives: src/render/Pipelines.lua says
+-- worldPresent is "only reachable once some pipeline rendered the world,"
+-- gated on drawWorld the same as VOXEL's own `present` is gated on VOXEL
+-- being eligible. T-SHIFT with VOXEL off blurs nothing and calls neither
+-- hook -- it only matters for repaint TIMING (before or after the blur)
+-- once VOXEL is already the one drawing the world.
+--
+-- Found the hard way: `available()` used to answer only ENABLED / font /
+-- icon-art questions, so it stayed true with VOXEL off (T-SHIFT on or off
+-- made no difference). The instance draw below silenced the engine's own
+-- flat menu on that answer alone, and neither present hook ever ran to
+-- replace it -- the menu was still genuinely open (input kept going to
+-- it), just invisible.
+local function worldCanvasThisFrame()
+  local okP, Pipelines = pcall(require, "src.render.Pipelines")
+  return okP and Pipelines.worldPipeline and Pipelines.worldPipeline() ~= nil
+end
+
 function StartMenuXY.available()
   if not StartMenuXY.ENABLED then return false end
   if not BattleHudXY.available() then return false end
+  if not worldCanvasThisFrame() then return false end
   return art("icon_dex") ~= nil
 end
 
@@ -178,7 +203,7 @@ function StartMenuXY.present(canvas)
   if not okBind then return canvas end
   pcall(g.setBlendMode, "alpha")
 
-  pcall(function()
+  local okDraw, drawErr = pcall(function()
     local items = menu.items
     local n = #items
     local w = math.max(StartMenuXY.MIN_W,
@@ -240,6 +265,10 @@ function StartMenuXY.present(canvas)
     end
     g.setColor(1, 1, 1, 1)
   end)
+  if not okDraw and V.mod and V.mod.log then
+    pcall(V.mod.log.warn, V.mod.log, "StartMenuXY.present draw failed: %s",
+          tostring(drawErr))
+  end
 
   if prevCanvas then pcall(g.setCanvas, prevCanvas) else pcall(g.setCanvas) end
   pcall(g.setBlendMode, prevBlend or "alpha", prevAlpha)

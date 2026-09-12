@@ -66,7 +66,7 @@ return function(game)
   for i = 1, #menu.items do
     local label = menu.items[i] and menu.items[i].label
     log(("  [%d] %s"):format(i, tostring(label)))
-    if label == StartMenuMap.LABEL then at = i end
+    if label == StartMenuMap.label() then at = i end
   end
   log(("MAP row: %s (menu has %d rows, cursor starts at %s)")
       :format(at and ("row " .. at) or "ABSENT", #menu.items,
@@ -75,7 +75,7 @@ return function(game)
     log("FAIL: the row was not inserted")
     logf:close(); love.event.quit(); return
   end
-  -- it has to be under ITENS, not merely present
+  -- it has to be under ITEM, not merely present
   local above = menu.items[at - 1] and menu.items[at - 1].label
   log("row above it: " .. tostring(above))
 

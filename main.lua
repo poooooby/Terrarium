@@ -142,6 +142,7 @@ local DayTint = V.require("DayTint")
 local Quality = V.require("Quality")
 local Device = V.require("Device")
 local Diag = V.require("Diag")
+local Lang = V.require("Lang")
 local Wind = V.require("Wind")
 local Trees3D = V.require("Trees3D")
 local BattleDynamic = V.require("BattleDynamic")
@@ -784,6 +785,18 @@ local SETTINGS = {
     .. "took, what the rows resolve to and how many models the map built -- "
     .. "over the top left of the screen. It is there so a bug report from a "
     .. "phone can be a screenshot instead of a guess.",
+    full = true },
+  -- Cosmetic to this mod's OWN glass-panel overlays only (the start menu,
+  -- the bag, the battle command buttons) -- see lib/Lang.lua. `full = true`
+  -- because a display preset owning the diorama's LOOK has nothing to do
+  -- with which language this mod's menus print in.
+  { Lang.setting,
+    "The language this mod's own menus print in -- the start menu, the "
+    .. "battle command buttons and the bag's pocket tabs. ENGLISH matches "
+    .. "what a stock gen1recomp checkout prints everywhere else; "
+    .. "PORTUGUÊS is for a save actually running under a Portuguese "
+    .. "translation. Nothing the engine itself prints -- dialogue, item "
+    .. "names, the flat menus this mod silences -- is affected either way.",
     full = true },
   { Quality.setting,
     "How much of the panel's resolution the 3D pass renders at, before it "
@@ -1565,9 +1578,12 @@ do
           if key == KEY_VOXEL then
             self.save.options.tilt = 0
             self.save.options.gbcfx = 0
-            require("src.render.GBCFX").setLevel(0)
+            -- Some engine builds do not ship GBCFX at all; see pinEngineFx.
+            local okG, GBCFX = pcall(require, "src.render.GBCFX")
+            if okG then pcall(GBCFX.setLevel, 0) end
           end
-          require("src.render.Tilt").setLevel(self.save.options.tilt or 0)
+          local okT, Tilt = pcall(require, "src.render.Tilt")
+          if okT then pcall(Tilt.setLevel, self.save.options.tilt or 0) end
           self:writeOptions()
           return
         end
@@ -1722,15 +1738,18 @@ end
 local function pinEngineFx(game)
   game = game or require("src.core.Game")
   local opts = game and game.save and game.save.options
-  local Tilt = require("src.render.Tilt")
-  local GBCFX = require("src.render.GBCFX")
+  local okT, Tilt = pcall(require, "src.render.Tilt")
+  -- Some engine builds do not ship GBCFX at all (probed: only GbcPalette.lua
+  -- present); pcall the require itself, not just the call below, or a build
+  -- without it crashes every save.created/save.loaded and every OPTIONS open.
+  local okG, GBCFX = pcall(require, "src.render.GBCFX")
   local changed = false
   if opts then
     changed = (opts.tilt or 0) ~= 0 or (opts.gbcfx or 0) ~= 0
     opts.tilt, opts.gbcfx = 0, 0
   end
-  pcall(Tilt.setLevel, 0)
-  pcall(GBCFX.setLevel, 0)
+  if okT then pcall(Tilt.setLevel, 0) end
+  if okG then pcall(GBCFX.setLevel, 0) end
   if changed and game.writeOptions then pcall(game.writeOptions, game) end
 end
 

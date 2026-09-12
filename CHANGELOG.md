@@ -26,6 +26,109 @@ Tags and packages:
 
 ## Unreleased
 
+### O idioma da interface virou opção: inglês por padrão, português à escolha
+
+> The interface's language became a setting: English by default, Portuguese on request.
+
+- **A interface do mod sempre assumiu português, e estava errada.** Os
+  botões de comando da batalha (`LUTAR`, `ITENS`, `FUGIR`), as abas da
+  bolsa (`ITENS`, `CURA`, `BOLAS`) e a etiqueta da linha `MAPA` no menu
+  inicial eram literais fixos em português — não vinham do jogo. Conferido
+  direto no gen1recomp: `src/core/Strings.lua` é uma função identidade
+  sem nenhum mod de tradução carregado, e o texto extraído da ROM
+  (`data/generated/text.lua`) é o roteiro original em inglês (o item é
+  "TOWN MAP", a linha do menu é "ITEM", no singular). Português nunca foi
+  um segundo idioma que o mod precisasse detectar — era só uma suposição
+  errada, herdada de uma instalação pessoal do autor original.
+
+  > **The mod's UI always assumed Portuguese, and it was wrong.** The
+  > battle command buttons (`LUTAR`, `ITENS`, `FUGIR`), the bag pocket
+  > tabs (`ITENS`, `CURA`, `BOLAS`), and the MAP row's label in the start
+  > menu were hardcoded Portuguese literals — none of them came from the
+  > game. Confirmed directly against gen1recomp: `src/core/Strings.lua`
+  > is an identity function with no translation mod loaded, and the
+  > extracted ROM text (`data/generated/text.lua`) is the original
+  > English script (the item is "TOWN MAP", the menu row is "ITEM",
+  > singular). Portuguese was never a second language the mod needed to
+  > detect — it was just a wrong assumption, carried over from the
+  > original author's own personal setup.
+
+- **Nova opção `UI LANG`** (`lib/Lang.lua`), inglês por padrão, português
+  à escolha, cobrindo só o que este mod desenha por conta própria — os
+  botões de batalha, as abas da bolsa, a etiqueta MAP. Nada que o próprio
+  jogo imprime (diálogo, nome de item, os menus planos que este mod
+  silencia) muda com ela.
+
+  > **New `UI LANG` setting** (`lib/Lang.lua`), English by default,
+  > Portuguese on request, covering only what this mod draws on its
+  > own — the battle buttons, the bag tabs, the MAP label. Nothing the
+  > game itself prints (dialogue, item names, the flat menus this mod
+  > silences) changes with it.
+
+- **A linha MAP agora entra no lugar certo.** `StartMenuMap.AFTER`
+  comparava contra `"ITENS"`, que nunca bate com o `"ITEM"` real do
+  engine — a linha sempre caía no fim do menu em vez de embaixo de ITEM.
+  Agora compara contra `{"ITEM", "ITENS"}`.
+
+  > **The MAP row now lands in the right place.** `StartMenuMap.AFTER`
+  > was matching against `"ITENS"`, which never matches the engine's
+  > real `"ITEM"` — the row always fell to the end of the menu instead
+  > of under ITEM. It now matches against `{"ITEM", "ITENS"}`.
+
+### Três consertos no menu inicial, achados só ao religar o mod
+
+> Three start-menu fixes, found only by switching the mod back on
+
+- **`StartMenuXY.available()` não conferia se havia canvas de mundo para
+  pintar.** A troca pelo visual X/Y silenciava o desenho plano do engine
+  sempre que os recursos estavam prontos, mas a substituição só é pintada
+  de dentro dos hooks `present`/`worldPresent` do VOXEL e do T-SHIFT
+  (`main.lua`) — que só rodam com um desses dois de fato ativo. Com os
+  dois desligados, o menu continuava abrindo (a entrada ainda ia para
+  ele), só que invisível: nem o desenho plano nem o X/Y rodavam. Agora
+  `available()` também confere `Pipelines.worldPipeline()`.
+
+  > **`StartMenuXY.available()` never checked whether there was a world
+  > canvas to paint onto.** Switching to the X/Y look silenced the
+  > engine's own flat draw whenever assets were ready, but the
+  > replacement is only painted from inside VOXEL's and T-SHIFT's own
+  > `present`/`worldPresent` hooks (`main.lua`) — which only run while
+  > one of the two is actually active. With both off, the menu still
+  > opened (input still went to it), just invisible: neither the flat
+  > draw nor the X/Y one ran. `available()` now also checks
+  > `Pipelines.worldPipeline()`.
+
+- **A caixa do menu não crescia para a linha MAP.** `Menu.new` mede a
+  altura da caixa uma vez, na hora de criar
+  (`src/ui/Menu.lua`, `visible * rowStep + 2`) — e a linha MAP entra
+  DEPOIS dessa conta, então a caixa ficava uma linha mais baixa do que a
+  lista pedia, e o item do topo (POKéMON) vazava por cima da moldura.
+  `StartMenuMap.install()` agora refaz essa conta depois de inserir a
+  linha.
+
+  > **The menu's box never grew for the MAP row.** `Menu.new` measures
+  > the box height once, at construction
+  > (`src/ui/Menu.lua`, `visible * rowStep + 2`) — and the MAP row is
+  > inserted AFTER that math already ran, so the box stayed one row
+  > shorter than the list needed, and the top item (POKéMON) spilled out
+  > above the frame.
+  > `StartMenuMap.install()` now redoes that math after inserting the
+  > row.
+
+- **Um `require` sem proteção travava em builds sem `GBCFX`.**
+  `pinEngineFx` e a tecla do VOXEL exigiam `src/render/GBCFX` direto, sem
+  `pcall`; um build do engine que só tem `GbcPalette.lua` derrubava os
+  dois a cada save carregado e a cada tecla de VOXEL. Os dois `require`
+  agora são protegidos, do mesmo jeito que o resto do arquivo já protege
+  os seus.
+
+  > **An unguarded `require` crashed on builds without `GBCFX`.**
+  > `pinEngineFx` and the VOXEL hotkey both required `src/render/GBCFX`
+  > directly, with no `pcall`; an engine build carrying only
+  > `GbcPalette.lua` brought both down on every save load and every
+  > VOXEL keypress. Both requires are now guarded, the same way the rest
+  > of the file already guards its own.
+
 ## 1.36.0-beta
 
 **Beta para testes e nada mais.**

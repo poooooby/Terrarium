@@ -1,9 +1,9 @@
 -- The start menu's MAP row.
 --
 -- The town map is the one thing in this game you look at constantly and reach
--- most slowly: Start, ITENS, scroll to the MAPA key item, A, and only then the
--- map -- five inputs and two menus deep to answer "where am I". Every other
--- thing on that menu is one input from the top.
+-- most slowly: Start, ITEM, scroll to the TOWN MAP key item, A, and only then
+-- the map -- five inputs and two menus deep to answer "where am I". Every
+-- other thing on that menu is one input from the top.
 --
 -- So it gets a row of its own. Nothing about the map SCREEN changes: the row
 -- pushes `src.ui.TownMap`, which is the same screen the key item opens, built
@@ -11,7 +11,7 @@
 -- and the screen it returns pushes onto the stack and runs). This file only
 -- shortens the route to it.
 --
--- WHERE IT SITS. Directly under ITENS, which is where the map lives today --
+-- WHERE IT SITS. Directly under ITEM, which is where the map lives today --
 -- somebody who knows the old route finds the new one on the way to the old
 -- one. Not at the top: the first row is POKeDEX and moving it would make a
 -- menu people navigate by muscle memory lie to them.
@@ -19,19 +19,29 @@
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
 
+local Lang = V.require("Lang")
+
 local StartMenuMap = {}
 
 StartMenuMap.ENABLED = true
 
--- What the row says. The engine's own item is called MAPA in this build's
--- strings (data item TOWN_MAP, name = "MAPA"), so the row borrows that rather
--- than inventing a second word for the same object.
-StartMenuMap.LABEL = "MAPA"
+-- What the row says. gen1recomp's own TOWN_MAP item is named "TOWN MAP" in
+-- English (data/generated/text.lua, the original cartridge script -- see
+-- lib/Lang.lua for why this build assumed Portuguese here for a while and
+-- was wrong to). MAP is short enough to read as this row's own word rather
+-- than a restatement of the item's full name; Lang.setting swaps it to the
+-- Portuguese MAPA the previous build printed unconditionally.
+function StartMenuMap.label()
+  return Lang.pick("MAP", "MAPA")
+end
 
--- The row this one goes under, matched case-insensitively against the menu's
--- own labels. A build whose ITENS row is spelled differently gets the row
--- appended at the end instead of not at all -- see insertAt.
-StartMenuMap.AFTER = "ITENS"
+-- The row this one goes under, matched case-insensitively against the
+-- menu's own labels (see insertAt). "ITEM" is what a stock gen1recomp start
+-- menu actually prints (src/ui/StartMenu.lua); "ITENS" is kept alongside it
+-- for a save running under a Portuguese translation mod. A build whose row
+-- matches neither gets the MAP row appended at the end instead of not
+-- inserted at all.
+StartMenuMap.AFTER = { "ITEM", "ITENS" }
 
 -- Whether the row appears only when the town map is actually carried.
 --
@@ -73,17 +83,18 @@ end
 -- the last -- an index outside the list is a menu that crashes on open, and
 -- this is the menu the player opens most.
 function StartMenuMap.insertAt(items)
-  local want = StartMenuMap.AFTER:lower()
+  local want = {}
+  for _, w in ipairs(StartMenuMap.AFTER) do want[w:lower()] = true end
   for i = 1, #items do
     local label = items[i] and items[i].label
-    if type(label) == "string" and label:lower() == want then return i + 1 end
+    if type(label) == "string" and want[label:lower()] then return i + 1 end
   end
   return #items + 1
 end
 
 function StartMenuMap.row(game)
   return {
-    label = StartMenuMap.LABEL,
+    label = StartMenuMap.label(),
     onSelect = function() StartMenuMap.open(game) end,
   }
 end
@@ -117,7 +128,7 @@ function StartMenuMap.install()
     end
     -- never twice on the same menu, whatever else wraps this
     for i = 1, #menu.items do
-      if menu.items[i] and menu.items[i].label == StartMenuMap.LABEL then
+      if menu.items[i] and menu.items[i].label == StartMenuMap.label() then
         return menu
       end
     end
@@ -126,6 +137,23 @@ function StartMenuMap.install()
     -- The menu sizes and scrolls off its own list. maxVisible and the cursor
     -- clamp are the two things a longer list can break, and the class already
     -- has the answer to the second -- so ask it rather than reimplementing it.
+    --
+    -- The BOX HEIGHT is not one of the things the class fixes on its own,
+    -- though: `th` is set once, in Menu.new, from the item count at
+    -- construction (src/ui/Menu.lua:50, `visible * rowStep + 2`). This row
+    -- is inserted AFTER that math already ran, so without recomputing it
+    -- here the frame stays sized for one row fewer than the list now holds
+    -- -- the topmost item then prints above the frame's own top edge
+    -- instead of inside it. Same formula the class uses, applied only to
+    -- the one screen this file ever touches (src.ui.StartMenu), so a
+    -- caller elsewhere that passed its own fixed `opts.th` is never in
+    -- scope to second-guess.
+    if type(menu.rowStep) == "number" then
+      local visible = (menu.maxVisible
+                        and math.min(menu.maxVisible, #menu.items))
+        or #menu.items
+      menu.th = visible * menu.rowStep + 2
+    end
     if menu.clampScroll then pcall(menu.clampScroll, menu) end
     return menu
   end
