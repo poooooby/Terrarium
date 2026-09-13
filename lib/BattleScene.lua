@@ -124,6 +124,36 @@ function BattleScene.letterboxFov(fovGB, ph, s)
   return 2 * math.atan(math.tan(fovGB / 2) * ph / span)
 end
 
+-- ------- letting a narrow window see as much horizontally as a
+-- comfortable one would
+--
+-- The widen above keeps the VERTICAL fov pinned to the GB reference
+-- regardless of window shape -- but the HORIZONTAL fov purely falls out
+-- of that (aspect = pw/ph, by way of vw/vh where this is used), so a
+-- narrow window gets a narrower slice of world horizontally too, with
+-- nothing compensating the way the vertical axis is. Every floating
+-- panel hung beside a mon (BattleCapsule, BattlePanelsXY, BattleFanXY)
+-- is a fixed WORLD-space offset from that mon, tuned against a
+-- comfortably wide window -- so narrower horizontal room pushes them
+-- toward (and past) the frame's own edge, and BattleShot's attack
+-- camera punching in only tightens it further.
+--
+-- Rather than reposition or shrink each of those panels individually --
+-- which only trades a clipped edge for elements crowding each other, or
+-- the whole layout reading as squeezed -- this widens the CAMERA's own
+-- horizontal room on a narrow window, the way pulling a lens back would:
+-- `pw` is floored at 1.5 whole GB-reference widths (see fitScale) -- the
+-- window this was tuned against clears that comfortably -- so a
+-- narrower window is treated as if it were that wide for how much WORLD
+-- its actual pw pixels show, which shrinks everything in frame (the
+-- mons included) exactly the way stepping the camera back does. A
+-- window already that wide or wider is returned unchanged.
+function BattleScene.horizontalRoom(pw, s)
+  local ref = 1.5 * BattleScene.GB_W * s
+  if pw >= ref then return pw end
+  return ref
+end
+
 -- ------- palette
 --
 -- The world palette a map draws under, in the shape VoxelScene's colour
@@ -398,7 +428,7 @@ function BattleScene.render(state, arena, textures, token)
   -- the world extents the sun frustum is fitted to; the camera itself is
   -- framed by cam.fov, so these only have to describe the ground in shot
   local vh = BattleCam.rigFor(arena).frameH * ph / (BattleScene.GB_H * s)
-  local vw = vh * pw / ph
+  local vw = vh * BattleScene.horizontalRoom(pw, s) / ph
 
   -- the cards need the camera's eye to face it, so the rig has to be live
   -- before they are built; Voxel3D.eye is set by viewProjection, which

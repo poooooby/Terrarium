@@ -219,6 +219,43 @@ local function fromSpherical(focus, dist, yaw, elev)
            focus[3] + h * math.sin(yaw) }
 end
 
+-- ------- how much room a narrow window leaves the swing/punch to work in
+--
+-- The envelope above (SWING, PUNCH, STOOP, FOCUS_PULL) was sized against a
+-- comfortably wide window: the swing moves a mon about half a cell
+-- laterally, which a wide frame absorbs without pushing anything toward
+-- its own edge. On a narrow one there is less frame to absorb it in, and
+-- the mons (and everything hung on them -- the name capsules, the message
+-- panel) can end up pushed toward or past the edge purely from the
+-- camera's own framing -- on top of BattleScene.horizontalRoom's own
+-- widening of the BASE rig's view, this keeps the attack camera's own
+-- swing/punch from re-narrowing that room back down while a move plays.
+--
+-- A window close to the reference only needs a light touch, but a tight
+-- one needs the swing/punch essentially OFF -- a punch that is 88% of
+-- its full strength instead of 85% is still a punch, and an AYN Thor's
+-- own reported ratio (1.125, well under the 1.5 reference) measurably
+-- still clipped at that light a touch. So this ramps steeply rather
+-- than linearly: room is 0 (attack camera holds the base framing
+-- exactly, the same one the idle "what will X do" screen already uses
+-- cleanly) at or below LOW, 1 (full, untouched drama) at or above HIGH,
+-- and linear between the two -- a window already at HIGH or past it
+-- keeps the exact drama it always had.
+local LOW, HIGH = 1.3, 1.5
+local function roomScale()
+  local okS, Scene = pcall(V.require, "BattleScene")
+  if not (okS and Scene and Scene.pixelSize and Scene.GB_W) then return 1 end
+  local okR, Renderer = pcall(require, "src.render.Renderer")
+  if not (okR and Renderer) then return 1 end
+  local okP, pw = pcall(Scene.pixelSize)
+  local okFit, s = pcall(Renderer.fitScale, Renderer)
+  if not (okP and okFit and pw and s and s > 0) then return 1 end
+  local ratio = pw / (Scene.GB_W * s)
+  if ratio <= LOW then return 0 end
+  if ratio >= HIGH then return 1 end
+  return (ratio - LOW) / (HIGH - LOW)
+end
+
 -- ------- the goal: what the director asks for this frame
 --
 -- `cam` is BattleCam.rig's answer, drift included -- the drift stays part of
@@ -227,6 +264,7 @@ local function attackGoal(cam, arena, groundY)
   local mx, mz = arena.mid[1], arena.mid[2]
   local att = S.attackerIsPlayer and arena.player or arena.enemy
   local def = S.attackerIsPlayer and arena.enemy or arena.player
+  local room = roomScale()
 
   -- swing about the arena's vertical axis, in the direction that carries
   -- the eye toward the ATTACKER's end. Computed from the cells rather than
@@ -236,26 +274,30 @@ local function attackGoal(cam, arena, groundY)
   local oz = cam.eye[3] - mz
   local toward = wrapAngle(math.atan2(att[2] - mz, att[1] - mx)
                            - math.atan2(oz, ox))
-  local swing = (toward < 0) and -BattleShot.SWING or BattleShot.SWING
+  local swingAmt = BattleShot.SWING * room
+  local swing = (toward < 0) and -swingAmt or swingAmt
   local c, s = math.cos(swing), math.sin(swing)
 
+  local focusPull = BattleShot.FOCUS_PULL * room
   local focus = {
     -- the aim leans toward the defender: the impact is the subject
-    cam.focus[1] + (def[1] - mx) * BattleShot.FOCUS_PULL,
+    cam.focus[1] + (def[1] - mx) * focusPull,
     cam.focus[2],
-    cam.focus[3] + (def[2] - mz) * BattleShot.FOCUS_PULL,
+    cam.focus[3] + (def[2] - mz) * focusPull,
   }
+  local stoop = 1 - (1 - BattleShot.STOOP) * room
   local eye = {
     mx + ox * c - oz * s,
     -- stoop measured from the arena floor, so a fight on a ledge stoops
     -- over THAT floor rather than toward sea level
-    groundY + (cam.eye[2] - groundY) * BattleShot.STOOP,
+    groundY + (cam.eye[2] - groundY) * stoop,
     mz + ox * s + oz * c,
   }
   -- the punch is the last word: pull the eye in along its own line to the
   -- new aim, so the stoop and the swing keep their proportions
+  local punch = 1 - (1 - BattleShot.PUNCH) * room
   for i = 1, 3 do
-    eye[i] = focus[i] + (eye[i] - focus[i]) * BattleShot.PUNCH
+    eye[i] = focus[i] + (eye[i] - focus[i]) * punch
   end
   return { eye = eye, focus = focus, fov = cam.fov }
 end

@@ -26,6 +26,61 @@ Tags and packages:
 
 ## Unreleased
 
+### Fixed: 1.40.2-beta's per-panel clamp still clipped mid-attack, and crowded the layout doing it
+
+- **`BattleFanXY.clampLateral()` (1.40.2-beta) checked a panel's position
+  BEFORE the "pull toward the camera" step every caller applies after
+  it** (`c = eye + (c - eye) * close`, in `BattleCapsule.hang`,
+  `hangPanel`, and this file's own fan anchor) -- fine when the eye is
+  far away (idle framing), but BattleShot's attack camera punches the
+  eye dramatically closer while a move plays, and that pull moves the
+  actually-drawn point far enough that the clamp was validating the
+  wrong point. Fixing that (checking the post-pull point) surfaced the
+  real shape of the problem: even perfectly centred, the message panel's
+  own width could exceed what the punched-in camera's frustum had room
+  for -- no amount of repositioning fixes a panel that is simply too
+  wide for the space, and clamping every panel toward centre independently
+  also started crowding them into each other rather than into the
+  frame's edge.
+
+  Replaced the whole per-panel approach with two camera-side fixes
+  instead of a UI-side one, matching what a narrow screen actually
+  needs -- more of the scene in view, not a more tightly packed one:
+
+  - **`BattleScene.horizontalRoom(pw, s)`**: the horizontal FOV used to
+    fall out purely of the window's raw aspect (`vw = vh * pw / ph`),
+    with nothing widening it for a narrow window the way
+    `letterboxFov` already does for the vertical axis. This floors `pw`
+    at 1.5 whole GB-reference widths (see `fitScale`) before it feeds
+    the aspect calculation, so a narrower window is treated as if it
+    were that wide for how much WORLD its pixels show -- shrinking
+    everything in frame, mons included, the way stepping the camera
+    back does -- while a window already that wide is untouched.
+  - **`BattleShot`'s attack camera** (the swing/punch/stoop/focus-pull
+    that swings toward the attacker and zooms in while a move plays)
+    now reads the same ratio and stands down entirely -- holding the
+    exact base framing the idle "what will X do" screen already uses
+    cleanly -- on any window at or under a 1.3 ratio, ramping up to its
+    full, untouched drama by 1.5. A partial reduction (scaling the
+    punch by the same ratio) measurably still clipped at the Thor's own
+    1.125; standing all the way down does not.
+
+  `BattleFanXY.clampLateral()` and its callers in `BattleCapsule.lua`,
+  `BattlePanelsXY.lua` and `BattleFanXY.lua` are removed -- those three
+  files are back to exactly their pre-1.40.1-beta form, offsets
+  unclamped, since the camera now gives them enough room that nothing
+  needs repositioning.
+
+  Verified with a headless probe holding the Thor's exact ratio (1.125)
+  through an entire thrown move, not just the resting menu: the message
+  panel shows its full text and both name capsules stay fully separate
+  at every frame from the swing-in through the punch-in and back, real
+  landscape and the idle "what will X do" screen are both bit-for-bit
+  unaffected (both new functions are exact no-ops at or above the 1.5
+  reference ratio), and the whole fix nets out simpler than 1.40.2-beta's
+  -- two camera-level reads instead of a bisection run per panel per
+  frame.
+
 ## 1.40.2-beta
 
 ### Fixed: the 1.40.1-beta HUD fix still under-corrected on a real AYN Thor
