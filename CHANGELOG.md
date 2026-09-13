@@ -26,6 +26,39 @@ Tags and packages:
 
 ## Unreleased
 
+### Fixed: DYNAMIC's floating HUD clipping off-screen on portrait/narrow windows
+
+- **`BattleCapsule.lua`, `BattlePanelsXY.lua` and `BattleFanXY.lua` hang the
+  message panel, the name capsules and the move-selection fan at fixed
+  WORLD-space offsets along the camera's own right axis**, tuned by eye
+  against a comfortably wide window. `BattleScene.letterboxFov` already
+  keeps the *vertical* framing pinned to the GB reference regardless of
+  window shape, but the horizontal axis had no matching pin -- on a
+  narrow (portrait/phone) window those same offsets could walk clean
+  past the frame's own edge before the edge reached them, cutting off
+  the enemy name capsule, part of the message box, and the low end of
+  the move fan.
+
+  Added `BattleScene.lateralScale()`: it reads `pw / (GB_W * fitScale())`
+  -- how many whole GB-reference widths the real window covers, 1.0 at
+  the tightest a fit ever gets -- against the ~1.5 the reference window
+  clears, and returns a 0..1 factor (cubed below the reference, floored
+  at 0.3) that `BattleCapsule.hang()`, `BattlePanelsXY.msgPanel()` and
+  `BattleFanXY`'s fan anchor multiply their own lateral offsets by. The
+  command menu's own chip row (`BTN_RIGHT`/`ROW_STEP`) is deliberately
+  left unscaled -- it already clears the edge at every aspect this was
+  tested against, and shrinking it too pulled it into the message panel
+  moving the other way rather than the frame's edge.
+
+  Verified with a headless probe faking several narrow aspect ratios
+  (9:16, 9:21, and a synthetic worst case at exactly the reference
+  floor): the message panel, name capsules and command menu all sit
+  fully on-screen with no overlap at 9:16/9:21, real landscape windows
+  are pixel-identical to before (`lateralScale()` returns exactly 1
+  there), and even the synthetic floor case -- narrower than any real
+  phone aspect -- only trims a couple of characters off the message
+  text rather than losing whole capsules off the frame's edge.
+
 ### Fixed: DYNAMIC MINIMAL kept the frosted glass the fifth level was supposed to drop
 
 - **`lib/OverworldBattle.lua`'s frost-removal checks were hardcoded to

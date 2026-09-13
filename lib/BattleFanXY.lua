@@ -142,6 +142,17 @@ local function glassFX()
   return GlassFX or nil
 end
 
+local Scene = nil
+local function lateralScale()
+  if Scene == nil then
+    local ok, S = pcall(V.require, "BattleScene")
+    Scene = (ok and S) or false
+  end
+  if not Scene or not Scene.lateralScale then return 1 end
+  local ok, v = pcall(Scene.lateralScale)
+  return (ok and v) or 1
+end
+
 -- the B2W2 kit, for its name font (see BattleCapsule.text): the cards
 -- speak the same Unova as the capsules and the dialog box
 local Cap = nil
@@ -666,10 +677,12 @@ function BattleFanXY.draw(battle, shot)
   local R = BattleFanXY.rig(shot)
   if not R then return false end
   local dir, right, up = R.dir, R.right, R.up
+  local lateral = lateralScale()
+  local step = BattleFanXY.STEP * lateral
   local anchor = vadd(vadd(R.base, up, BattleFanXY.UP_OFF),
-                      right, BattleFanXY.RIGHT_OFF)
+                      right, BattleFanXY.RIGHT_OFF * lateral)
   -- the deal flies FROM the player's mon: anchor minus STEP, minus UP
-  local origin = vadd(vadd(anchor, right, -BattleFanXY.STEP),
+  local origin = vadd(vadd(anchor, right, -step),
                       up, -BattleFanXY.UP_OFF)
 
   -- ------- lay the hand out
@@ -716,7 +729,7 @@ function BattleFanXY.draw(battle, shot)
     local te = (i - centre)
     local lift = -BattleFanXY.ARC_DROP * te * te
                  + BattleFanXY.RAISE_UP * visRaise
-    local rest = vadd(anchor, right, te * BattleFanXY.STEP)
+    local rest = vadd(anchor, right, te * step)
     rest = vadd(rest, up, lift)
     -- selected steps toward the camera; unselected recede
     rest = vadd(rest, dir, -BattleFanXY.RAISE_FWD * visRaise
