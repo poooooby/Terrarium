@@ -231,11 +231,8 @@ end
 -- widening of the BASE rig's view, this keeps the attack camera's own
 -- swing/punch from re-narrowing that room back down while a move plays.
 --
--- A window close to the reference only needs a light touch, but a tight
--- one needs the swing/punch essentially OFF -- a punch that is 88% of
--- its full strength instead of 85% is still a punch, and an AYN Thor's
--- own reported ratio (1.125, well under the 1.5 reference) measurably
--- still clipped at that light a touch. So this ramps steeply rather
+-- A partial reduction still leaves a real swing/punch, and still
+-- clipped on a genuinely tight window -- so this ramps steeply rather
 -- than linearly: room is 0 (attack camera holds the base framing
 -- exactly, the same one the idle "what will X do" screen already uses
 -- cleanly) at or below LOW, 1 (full, untouched drama) at or above HIGH,

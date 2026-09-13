@@ -130,32 +130,20 @@ end
 -- regardless of window shape -- but the HORIZONTAL fov purely falls out
 -- of that through the projection's own aspect (vw/vh, where this is
 -- used), so a narrow window gets a narrower slice of world horizontally
--- too, with nothing compensating the way the vertical axis is. Every
--- floating panel hung beside a mon (BattleCapsule, BattlePanelsXY,
--- BattleFanXY) is a fixed WORLD-space offset from that mon, tuned
--- against a comfortably wide window -- so narrower horizontal room
--- pushes them toward (and past) the frame's own edge, and BattleShot's
--- attack camera punching in only tightens it further.
+-- too. Every floating panel hung beside a mon (BattleCapsule,
+-- BattlePanelsXY, BattleFanXY) is a fixed WORLD-space offset from that
+-- mon, tuned against a comfortably wide window -- so narrower
+-- horizontal room pushes them toward (and past) the frame's own edge.
 --
--- An earlier version of this fix fed a WIDER pw into the aspect ratio
--- (vw/vh) than the window's own, to try to widen the horizontal fov
--- only -- but the render target is still the window's true pw x ph, so
--- a projection built for a different aspect than the surface it lands
--- on stretches everything drawn through it: circles came out as ovals,
--- and text got visibly compressed. A perspective projection's fov and
--- aspect are not independent knobs; the aspect MUST stay pw/ph, always,
--- or the picture distorts.
---
--- The only distortion-free way to show more is to widen the ANGLE
--- itself, on both axes at once (an actual lens pulled back, not a
--- fudged number) -- which necessarily shows more vertically too, but
--- that is a fair trade for staying undistorted, and reads as the
--- camera genuinely stepping back rather than the picture being stretched
--- to fit. `pw` is floored at 1.5 whole GB-reference widths (see
--- fitScale) -- the window this was tuned against clears that
--- comfortably -- and short of that, the fov widens by exactly the
--- factor needed to make up the difference. A window already that wide
--- is returned unchanged.
+-- This widens the fov ANGLE itself, on both axes at once (an actual
+-- lens pulled back), rather than feeding a wider `pw` into just the
+-- aspect ratio -- vw/vh has to stay exactly the window's own pw/ph
+-- everywhere it is used, or the render distorts (a perspective
+-- projection's fov and aspect are not independent knobs). `pw` is
+-- floored at 1.5 whole GB-reference widths (see `fitScale`) -- the
+-- window this was tuned against clears that comfortably -- and short of
+-- that, the fov widens by exactly the factor needed to make up the
+-- difference. A window already that wide is returned unchanged.
 function BattleScene.narrowRoomFov(fov, pw, s)
   local ref = 1.5 * BattleScene.GB_W * s
   if pw >= ref then return fov end
@@ -166,21 +154,17 @@ end
 --
 -- The rig's own composition is solved to put the player's mon well LEFT
 -- and the enemy toward the right (see BattleCam.lua's own doc -- an
--- over-the-shoulder shot, not a centred one, tuned exactly against a
+-- over-the-shoulder shot, not a centred one, tuned against a
 -- comfortably wide window). narrowRoomFov's zoom-out keeps that same
--- composition in the same PROPORTION of the frame at any width -- it
--- does not, and should not, touch the solved pins on their own -- but on
--- a narrow window the leftover margin past the enemy and the command
--- menu reads as ovewhelmingly empty precisely because there is so much
--- more FRAME (tall rather than wide) around a composition that was
--- never meant to be centred in the first place.
+-- composition in the same PROPORTION of the frame at any width, so on a
+-- much taller than wide window the margin past the enemy and the
+-- command menu reads as overwhelmingly empty -- there is simply more
+-- FRAME around a composition that was never meant to be centred.
 --
 -- This nudges the whole rig -- eye AND focus together, a dolly rather
 -- than a re-aim, so the picture does not also rotate -- sideways along
--- its own screen-right axis, moving the same composition closer to the
--- middle of a narrow frame without changing its zoom or its shape. Only
--- active under the same 1.5 reference ratio narrowRoomFov uses, and
--- zero at or past it, so a comfortably wide window is untouched.
+-- its own screen-right axis. Gated on the same 1.5 reference ratio
+-- narrowRoomFov uses, zero at or past it.
 function BattleScene.narrowRoomShift(cam, pw, s)
   local ref = 1.5 * BattleScene.GB_W * s
   if pw >= ref then return cam end
@@ -198,10 +182,8 @@ function BattleScene.narrowRoomShift(cam, pw, s)
   return cam
 end
 
--- World-pixel dolly at the narrowest window this ever fires for (a 0.35
--- floor's worth of shrink relative to the 1.5 reference, the same floor
--- BattleShot's own room-scale used before it went to a hard cutoff);
--- tune by eye against a real narrow window, not derived from anything.
+-- World-pixel dolly at the narrowest window this ever fires for -- tuned
+-- by eye against a real narrow window, not derived from anything.
 BattleScene.NARROW_SHIFT = 13.0
 
 -- ------- palette
