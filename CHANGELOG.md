@@ -16,15 +16,39 @@ MAJOR.MINOR.PATCH
 
 The old `-mobile` channel is retired. Historical tags keep it (`v1.28.0-mobile` and earlier). New tags do not.
 
+The `-beta` suffix is retired too, as of 1.40.5. Historical tags keep it (`v1.40.4-beta` and earlier). New tags do not.
+
 **Do not** encode features in the version string (no `.water`, `.rain`, `.grass`, …). Feature names live in this changelog and in release notes.
 
 Tags and packages:
 
-- Git tag: `v1.40.4-beta`
-- Zip asset: `TERRARIUM-1.40.4-beta.zip`
-- `manifest.json` / catalog `version` field: `1.40.4-beta`
+- Git tag: `v1.40.5`
+- Zip asset: `TERRARIUM-1.40.5.zip`
+- `manifest.json` / catalog `version` field: `1.40.5`
 
 ## Unreleased
+
+## 1.40.5
+
+**Fixes a SCREEN FX crash on real devices, and drops the `-beta` version suffix.**
+
+### Fixed: SCREEN FX's shader-compile stall guard crashed under the mod sandbox
+
+- **`RayFX.lua`'s `getShader()` calls `love.event.pump()` before a long
+  shader compile**, to keep Windows' Application Hang 1002 watchdog from
+  killing the app. The guard read `if love and love.event and
+  love.event.pump then`, which looks safe and is not: gen1recomp's mod
+  sandbox does not omit `love.event` for mods -- it installs a `love`
+  facade whose `__index` raises on the mere access ("love.event is not
+  available to mods"). The bare `love.event` in the condition threw
+  before the guard could even decide, outside any `pcall` -- so the
+  first shader compile (SCREEN FX on) crashed the render pipeline on any
+  real device instead of silently skipping the pump.
+
+  `StreetLamps.lua` and `Trees3D.lua` already carry this exact lesson
+  for `love.filesystem`. Applied the same fix here: the whole guard now
+  runs inside one `pcall`, using `rawget(love, "event")` to read the
+  facade's own backing table instead of triggering its `__index`.
 
 ## 1.40.4-beta
 
