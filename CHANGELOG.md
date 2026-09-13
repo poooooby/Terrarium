@@ -26,6 +26,29 @@ Tags and packages:
 
 ## Unreleased
 
+### Fixed: "learnedBUBBL" -- text swallowed the space at a \v or \f line marker
+
+- **`BattleBoxXY.lua`'s message-line splitter only broke on `\n`**, but
+  pokered's own extracted text uses three line markers
+  (`src/render/TextBox.lua`'s own doc: `\n` is a second line, `\v` scrolls
+  the two-line box up a line, `\f` is a page break). A message built as
+  `"{USER}\nlearned\v{MOVE}!"` split into `"SQUIRTLE"` and
+  `"learned\vBUBBLE!"` -- correct for `\n`, but the `\v` stayed inside
+  that second line as a literal, unprinted byte sitting where a line
+  break (and the visual separation it gives two words) belonged, reading
+  on screen as "learnedBUBBL" with no space and the tail clipped by
+  the panel's own edge.
+
+  Widened the split to `[\n\v\f]` -- all three now start a new row in a
+  panel that isn't limited to the original two-line box.
+
+  Verified directly: pulled the exact ROM text this scenario produces
+  (`battle:romText("_MimicLearnedMoveText", ...)` for "SQUIRTLE" +
+  "BUBBLE") and confirmed it, character for character, contains the
+  literal `\v` (byte 11) the bug turned on; ran the fixed splitter
+  against that exact string in a Lua interpreter and confirmed it now
+  reads as three clean lines, `"SQUIRTLE"`, `"learned"`, `"BUBBLE!"`.
+
 ### Fixed: 1.40.2-beta's per-panel clamp still clipped mid-attack, and crowded the layout doing it
 
 - **`BattleFanXY.clampLateral()` (1.40.2-beta) checked a panel's position
