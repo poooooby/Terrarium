@@ -235,20 +235,11 @@ end
 
 BattleBoxXY._revealed = revealed     -- named for the suite
 
--- The message, split on the engine's own line markers. No re-wrapping: the
--- engine decided where the breaks go and it knows about the box it wrote
--- them for. Three markers count (src/render/TextBox.lua's own doc): \n is
--- a second line, \v scrolls the two-line box up a line, \f is a page break
--- -- all three just start a new row in a panel that isn't limited to two
--- lines at a time. Missing \v/\f here left them as literal, unprinted
--- bytes inside a line's own text -- invisible, but still sitting between
--- two words with no space of their own, e.g. "learned\v{MOVE}!" reading
--- as "learnedBUBBLE!" instead of "learned" / "BUBBLE!" on their own rows.
+-- The message, split on the engine's own newlines. No re-wrapping: the engine
+-- decided where the breaks go and it knows about the box it wrote them for.
 local function lines(text)
   local out = {}
-  for line in (text .. "\n"):gmatch("([^\n\v\f]*)[\n\v\f]") do
-    out[#out + 1] = line
-  end
+  for line in (text .. "\n"):gmatch("([^\n]*)\n") do out[#out + 1] = line end
   -- a trailing empty line is an artefact of the pattern, not a blank row
   if #out > 0 and out[#out] == "" then out[#out] = nil end
   return out
