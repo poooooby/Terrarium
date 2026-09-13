@@ -3,7 +3,7 @@
   "title": "TerrariumVoxel",
   "author": "poooooby -- a fork of BrenoBertucci's Terrarium",
   "summary": "3D voxel diorama for Gen 1 (Red/Blue/Yellow). Gold is an early first pass — not recommended yet. Own id, folder, pipelines and letter hotkeys; installs beside DRAMATIC_SHAPE. A fork of BrenoBertucci's Terrarium (itself a fork of DramaticShape's Dramatic Shape Voxel Mod), with an English-default/Portuguese-toggle UI and assorted fixes on top.",
-  "version": "1.40.0-beta",
+  "version": "1.40.1-beta",
   "categories": [
     "ART",
     "GAMEPLAY"

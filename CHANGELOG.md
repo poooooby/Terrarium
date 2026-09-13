@@ -20,13 +20,13 @@ The old `-mobile` channel is retired. Historical tags keep it (`v1.28.0-mobile` 
 
 Tags and packages:
 
-- Git tag: `v1.40.0-beta`
-- Zip asset: `TERRARIUM-1.40.0-beta.zip`
-- `manifest.json` / catalog `version` field: `1.40.0-beta`
+- Git tag: `v1.40.1-beta`
+- Zip asset: `TERRARIUM-1.40.1-beta.zip`
+- `manifest.json` / catalog `version` field: `1.40.1-beta`
 
 ## Unreleased
 
-## 1.40.0-beta
+## 1.40.1-beta
 
 **DYNAMIC MINIMAL joins the roster, and DYNAMIC's floating HUD learns to behave on portrait screens.**
 
