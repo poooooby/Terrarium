@@ -162,6 +162,48 @@ function BattleScene.narrowRoomFov(fov, pw, s)
   return 2 * math.atan((ref / pw) * math.tan(fov / 2))
 end
 
+-- ------- re-centring the frame on a narrow window
+--
+-- The rig's own composition is solved to put the player's mon well LEFT
+-- and the enemy toward the right (see BattleCam.lua's own doc -- an
+-- over-the-shoulder shot, not a centred one, tuned exactly against a
+-- comfortably wide window). narrowRoomFov's zoom-out keeps that same
+-- composition in the same PROPORTION of the frame at any width -- it
+-- does not, and should not, touch the solved pins on their own -- but on
+-- a narrow window the leftover margin past the enemy and the command
+-- menu reads as ovewhelmingly empty precisely because there is so much
+-- more FRAME (tall rather than wide) around a composition that was
+-- never meant to be centred in the first place.
+--
+-- This nudges the whole rig -- eye AND focus together, a dolly rather
+-- than a re-aim, so the picture does not also rotate -- sideways along
+-- its own screen-right axis, moving the same composition closer to the
+-- middle of a narrow frame without changing its zoom or its shape. Only
+-- active under the same 1.5 reference ratio narrowRoomFov uses, and
+-- zero at or past it, so a comfortably wide window is untouched.
+function BattleScene.narrowRoomShift(cam, pw, s)
+  local ref = 1.5 * BattleScene.GB_W * s
+  if pw >= ref then return cam end
+  local dx, dz = cam.focus[1] - cam.eye[1], cam.focus[3] - cam.eye[3]
+  local dlen = math.sqrt(dx * dx + dz * dz)
+  if dlen < 1e-6 then return cam end
+  -- the horizontal-plane right vector for a camera looking along (dx,dz)
+  -- with +Y world-up: right = normalize(dir x up) => (dz, -dx)/|dir|
+  local rx, rz = dz / dlen, -dx / dlen
+  local amt = BattleScene.NARROW_SHIFT * (1 - pw / ref)
+  cam.eye[1] = cam.eye[1] + rx * amt
+  cam.eye[3] = cam.eye[3] + rz * amt
+  cam.focus[1] = cam.focus[1] + rx * amt
+  cam.focus[3] = cam.focus[3] + rz * amt
+  return cam
+end
+
+-- World-pixel dolly at the narrowest window this ever fires for (a 0.35
+-- floor's worth of shrink relative to the 1.5 reference, the same floor
+-- BattleShot's own room-scale used before it went to a hard cutoff);
+-- tune by eye against a real narrow window, not derived from anything.
+BattleScene.NARROW_SHIFT = 13.0
+
 -- ------- palette
 --
 -- The world palette a map draws under, in the shape VoxelScene's colour
@@ -423,6 +465,7 @@ function BattleScene.render(state, arena, textures, token)
 
   local groundY = BattleScene.groundY(host, arena)
   local cam, pitch = BattleCam.rig(arena, groundY)
+  cam = BattleScene.narrowRoomShift(cam, pw, s)
   -- the attack camera: a pursuer with inertia between the rig and the
   -- render, swung while a move is thrown (see BattleShot). Guarded so a
   -- confused director never costs the frame -- the rig is always a valid

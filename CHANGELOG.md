@@ -90,6 +90,28 @@ Tags and packages:
   the whole fix nets out simpler than 1.40.2-beta's -- two camera-level
   reads instead of a bisection run per panel per frame.
 
+### Added: re-centred DYNAMIC's frame on narrow windows
+
+- **`narrowRoomFov`'s zoom-out keeps the rig's own composition in the
+  same PROPORTION of the frame at any width, and that composition is
+  deliberately off-centre** -- `BattleCam.lua` documents it as an
+  over-the-shoulder shot solved to put the player's mon well left and
+  the enemy toward the right, tuned against a comfortably wide window.
+  On a much taller than wide one, the same proportional margin past the
+  enemy and the command menu reads as overwhelmingly empty, because
+  there is so much more FRAME around a composition that was never meant
+  to be centred in the first place -- confirmed against a real AYN
+  Thor screenshot next to a widescreen one of the same fight.
+
+  Added `BattleScene.narrowRoomShift()`: a sideways dolly of the whole
+  rig (eye AND focus together, so the picture does not also rotate)
+  along its own screen-right axis, under the same 1.5 reference ratio
+  `narrowRoomFov` uses and zero at or past it. Landed on `13.0` world
+  pixels at the reference floor by eye against a real narrow window --
+  enough to give the message panel visible breathing room on its own
+  left edge and pull the command menu in from the right edge too,
+  without the composition reading as recentred outright.
+
 ## 1.40.2-beta
 
 ### Fixed: the 1.40.1-beta HUD fix still under-corrected on a real AYN Thor
