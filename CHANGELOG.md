@@ -26,6 +26,22 @@ Tags and packages:
 
 ## Unreleased
 
+### Fixed: DYNAMIC MINIMAL kept the frosted glass the fifth level was supposed to drop
+
+- **`lib/OverworldBattle.lua`'s frost-removal checks were hardcoded to
+  `mode == "classic"` / `mode == "minimal"`**, so adding `dynamic_minimal`
+  didn't register with either: the empty glass pane behind where the
+  command menu would be (already fixed for MINIMAL) came back for
+  DYNAMIC MINIMAL specifically, since its own name string never matched.
+  Reworked to read off `BattleDynamic.wantsMinimal()` instead of a mode
+  list, and simplified the name/HP frost check to unconditional -- the
+  `enemy`/`player` keys only ever reach this code when the capsules are
+  corner-pinned to begin with (`BattleCapsule.worldReady()` keeps them
+  out of `live` for the world-hung levels), so there was never a real
+  case where that frost should stay. Verified with a headless probe:
+  DYNAMIC MINIMAL's menu phase shows no glass at all, and CLASSIC/MINIMAL
+  are unaffected.
+
 ### COMBAT grows a fifth level: DYNAMIC MINIMAL
 
 - **`lib/BattleDynamic.lua`'s COMBAT row gains `DYNAMIC MINIMAL`**,

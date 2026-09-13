@@ -1567,21 +1567,31 @@ function OverworldBattle.snapHUDs(battle, shot)
     if BattleBoxXY.covers(battle) and BattleBoxXY.claim(battle) then
       xyBox = live.box
     end
-    -- OFF shows no HUD block at all, so no glass belongs under one;
-    -- CLASSIC and MINIMAL keep the corner-pinned name/HP/EXP reading but
-    -- lose the frost specifically behind it (see BattleDynamic) -- the
+    -- OFF shows no HUD block at all, so no glass belongs under one; every
+    -- OTHER level keeps the name/HP/EXP reading (corner-pinned for
+    -- CLASSIC/MINIMAL, world-hung for DYNAMIC/DYNAMIC MINIMAL) but loses
+    -- the frost specifically behind it (see BattleDynamic) -- the
     -- box/moves rect's own glass, when BattleBoxXY is not the one
-    -- covering it, is untouched by either. MINIMAL additionally hides
-    -- the box's own glass during "menu"/"moveSelect": nothing is drawn
-    -- on it there (BattleBoxXY.HIDE_COMMANDS), so a pane of glass with
-    -- nothing on it is the one artefact left behind otherwise.
-    local minimalNoCommands = mode == "minimal"
+    -- covering it, is untouched by this. Read off the actual predicates
+    -- rather than a hardcoded mode list, so a future level composes into
+    -- this correctly instead of quietly keeping its frost (`enemy`
+    -- and `player` keys only ever exist here when the capsules are
+    -- corner-pinned to begin with -- BattleCapsule.worldReady() already
+    -- keeps them out of `live` for the world-hung levels above -- so
+    -- this is belt-and-suspenders for a capsule that fails to go world
+    -- and falls back to the corner instead).
+    --
+    -- MINIMAL and DYNAMIC MINIMAL additionally hide the box's own glass
+    -- during "menu"/"moveSelect": nothing is drawn on it there
+    -- (BattleBoxXY.HIDE_COMMANDS), so a pane of glass with nothing on it
+    -- is the one artefact left behind otherwise.
+    local wantsMinimal = (okD and Dyn and Dyn.wantsMinimal()) or false
+    local minimalNoCommands = wantsMinimal
       and (battle.phase == "menu" or battle.phase == "moveSelect")
     for key, rect in pairs(live) do
       local noFrost = mode == "off"
         or (xyBox and (key == "box" or key == "moves"))
-        or ((key == "enemy" or key == "player")
-            and (mode == "classic" or mode == "minimal"))
+        or (key == "enemy" or key == "player")
         or (minimalNoCommands and (key == "box" or key == "moves"))
       if not noFrost then
         BattleHud.panel(rect, shot, dark, true)
