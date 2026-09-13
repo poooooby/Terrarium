@@ -140,7 +140,7 @@ function StartMenuMap.install()
     --
     -- The BOX HEIGHT is not one of the things the class fixes on its own,
     -- though: `th` is set once, in Menu.new, from the item count at
-    -- construction (src/ui/Menu.lua:50, `visible * rowStep + 2`). This row
+    -- construction (src/ui/Menu.lua, `visible * rowStep + 2`). This row
     -- is inserted AFTER that math already ran, so without recomputing it
     -- here the frame stays sized for one row fewer than the list now holds
     -- -- the topmost item then prints above the frame's own top edge

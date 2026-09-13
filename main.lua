@@ -159,6 +159,7 @@ local StepFX = V.require("StepFX")
 local SnowFallFX = V.require("SnowFallFX")
 local BreathFX = V.require("BreathFX")
 local RainOnFX = V.require("RainOnFX")
+local SnowOnFX = V.require("SnowOnFX")
 local VegFX = V.require("VegFX")
 local LeafFallFX = V.require("LeafFallFX")
 local SprayFX = V.require("SprayFX")
@@ -427,6 +428,10 @@ mod.content.render_pipelines:register(PIPE_VOXEL, {
     BreathFX.update(dt, Voxel.active())
     -- and the rain running down the people in it: how much reaches each
     RainOnFX.update(dt, Voxel.active())
+    -- and the snow lying on them: the same question for the other sky, and
+    -- behind SnowFallFX because a branch's load lands on a figure in that
+    -- update and this one decides what that figure then sheds
+    SnowOnFX.update(dt, Voxel.active())
     -- and what the wind takes off the plants. Behind WindFX because it
     -- emits INTO that module's field, which the update above has just
     -- capped, cleared or stepped for this frame.
@@ -882,14 +887,16 @@ local SETTINGS = {
   -- it: this is the row that costs the most per rung, so FULL -- the
   -- heaviest thing the mod does -- is exactly when it has to be reachable.
   { RayFX.setting,
-    "Fake ray tracing: everything here is a ray marched across the depth "
-    .. "buffer the 3D pass already filled, so it costs fetches rather than "
-    .. "geometry. AO darkens the corners the sky cannot reach -- doorways, "
-    .. "the foot of a wall, the gap between two trees. RT adds real "
+    "Screen-space effects -- not ray tracing, and no RTX hardware is "
+    .. "involved: everything here is walked across the depth buffer the 3D "
+    .. "pass already filled, so it costs fetches rather than geometry. AO "
+    .. "darkens the corners the sky cannot reach -- doorways, the foot of "
+    .. "a wall, the gap between two trees. SSR adds screen-space "
     .. "reflections on the water: the ray leaves along the swell's own "
-    .. "normal and lands on whatever is actually standing there, so the "
-    .. "reflection travels with the crest carrying it. MAX adds light "
-    .. "shafts through the gaps, marched toward the sun's own disc.",
+    .. "normal and lands on whatever is on screen there, so the reflection "
+    .. "travels with the crest carrying it (what is off screen cannot be "
+    .. "reflected). MAX adds light shafts through the gaps, marched toward "
+    .. "the sun's own disc.",
     full = true },
   -- `full = true` for the reason WATER and LIGHT have it: this is a row
   -- about the LOOK, and FULL is the preset the look is watched from.
@@ -900,8 +907,9 @@ local SETTINGS = {
     .. "painted shape with an edge instead of a gradient. FULL adds the "
     .. "other two halves of a drawn frame: a cool rim light along every "
     .. "silhouette, and an ink line closing every shape, both read off the "
-    .. "surface normal the RTX pass already recovers. Because they are read "
-    .. "off that pass, FULL needs RTX above OFF -- with it off, FULL draws "
+    .. "surface normal the SCREEN FX pass already recovers. Because they "
+    .. "are read off that pass, FULL needs SCREEN FX above OFF -- with it "
+    .. "off, FULL draws "
     .. "as CEL. Both rungs reach the overworld and the battle arena "
     .. "together: they share one scene shader.",
     full = true },
@@ -1606,12 +1614,14 @@ do
           if key == KEY_VOXEL then
             self.save.options.tilt = 0
             self.save.options.gbcfx = 0
-            -- Some engine builds do not ship GBCFX at all; see pinEngineFx.
+            -- GBC FX is not on every engine build (the 0.2.57 PC build has
+            -- SHADER FX in its place and no src.render.GBCFX at all), and a
+            -- require that throws here would kill the key
             local okG, GBCFX = pcall(require, "src.render.GBCFX")
-            if okG then pcall(GBCFX.setLevel, 0) end
+            if okG and GBCFX and GBCFX.setLevel then pcall(GBCFX.setLevel, 0) end
           end
           local okT, Tilt = pcall(require, "src.render.Tilt")
-          if okT then pcall(Tilt.setLevel, self.save.options.tilt or 0) end
+          if okT and Tilt and Tilt.setLevel then pcall(Tilt.setLevel, self.save.options.tilt or 0) end
           self:writeOptions()
           return
         end
@@ -1763,21 +1773,26 @@ end
 --
 -- Everything they did is still reachable: uninstall the mod and both rows are
 -- back, at whatever they were last set to.
+--
+-- Both modules are asked for with pcall: GBC FX does not exist on every
+-- engine build (the PC 0.2.57 build ships SHADER FX instead, and has no
+-- src.render.GBCFX), and this runs INSIDE the ui.options.rows hook, after
+-- next() -- a require that throws here is caught by the engine's hook
+-- chain, which keeps the vanilla rows and only warns in its log. That is
+-- how every row of this mod silently vanished from the OPTIONS menu on
+-- that build while the mod manager's page still showed them all.
 local function pinEngineFx(game)
   game = game or require("src.core.Game")
   local opts = game and game.save and game.save.options
   local okT, Tilt = pcall(require, "src.render.Tilt")
-  -- Some engine builds do not ship GBCFX at all (probed: only GbcPalette.lua
-  -- present); pcall the require itself, not just the call below, or a build
-  -- without it crashes every save.created/save.loaded and every OPTIONS open.
   local okG, GBCFX = pcall(require, "src.render.GBCFX")
   local changed = false
   if opts then
     changed = (opts.tilt or 0) ~= 0 or (opts.gbcfx or 0) ~= 0
     opts.tilt, opts.gbcfx = 0, 0
   end
-  if okT then pcall(Tilt.setLevel, 0) end
-  if okG then pcall(GBCFX.setLevel, 0) end
+  if okT and Tilt and Tilt.setLevel then pcall(Tilt.setLevel, 0) end
+  if okG and GBCFX and GBCFX.setLevel then pcall(GBCFX.setLevel, 0) end
   if changed and game.writeOptions then pcall(game.writeOptions, game) end
 end
 
