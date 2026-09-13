@@ -20,11 +20,23 @@ The old `-mobile` channel is retired. Historical tags keep it (`v1.28.0-mobile` 
 
 Tags and packages:
 
-- Git tag: `v1.40.3-beta`
-- Zip asset: `TERRARIUM-1.40.3-beta.zip`
-- `manifest.json` / catalog `version` field: `1.40.3-beta`
+- Git tag: `v1.40.4-beta`
+- Zip asset: `TERRARIUM-1.40.4-beta.zip`
+- `manifest.json` / catalog `version` field: `1.40.4-beta`
 
 ## Unreleased
+
+## 1.40.4-beta
+
+**Reverts the 1.40.3-beta `\v`/`\f` message-splitter change.**
+
+`BattleBoxXY.lua`'s message-line splitter goes back to breaking only on
+`\n`, undoing the "learnedBUBBL" fix below.
+
+### Reverted: "learnedBUBBL" -- text swallowed the space at a \v or \f line marker
+
+- **Reverts the 1.40.3-beta widening of `BattleBoxXY.lua`'s message-line
+  splitter to `[\n\v\f]`.** Back to splitting on `\n` alone.
 
 ## 1.40.3-beta
 
