@@ -20,11 +20,24 @@ The old `-mobile` channel is retired. Historical tags keep it (`v1.28.0-mobile` 
 
 Tags and packages:
 
-- Git tag: `v1.38.0-beta`
-- Zip asset: `TERRARIUM-1.38.0-beta.zip`
-- `manifest.json` / catalog `version` field: `1.38.0-beta`
+- Git tag: `v1.39.0-beta`
+- Zip asset: `TERRARIUM-1.39.0-beta.zip`
+- `manifest.json` / catalog `version` field: `1.39.0-beta`
 
 ## Unreleased
+
+## 1.39.0-beta
+
+**Beta para testes e nada mais.**
+
+Merged in from `upstream/main` (BrenoBertucci/Terrarium): the Porygonal
+renderer adapter, the snow-off-the-drawing rework, wake FX for anyone
+swimming, the OPTIONS-menu row fix (RTX renamed to SCREEN FX along the
+way), and everything else below this point up to `1.36.0-beta`. Nothing
+of this fork's own work changed in the process -- verified with a
+headless probe: `BattleDynamic`'s four COMBAT levels, the `Lang` toggle,
+the 3D map's build and its 1.3x text all still work exactly as they did
+before the merge.
 
 ### The snow came off the drawing
 
