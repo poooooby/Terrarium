@@ -857,15 +857,21 @@ local SETTINGS = {
   -- Not a diorama knob either: like 3D-BTL, this decides how a FIGHT is
   -- presented, so FULL sets nothing here and the row stays offered.
   { BattleDynamic.setting,
-    "The whole dynamic battle package on one row. DYNAMIC is the staged "
-    .. "fight as built: the camera swings in behind whoever throws a move, "
-    .. "the menu, the dialog box and the move cards float in the arena on "
-    .. "real glass, the HP capsules hang beside their own mons, hits send "
-    .. "a shockwave rolling through the panels, the move's element rains "
-    .. "on the glass, and the turn ribbon arcs between the two. CLASSIC "
-    .. "holds the camera on the plain rig and lays every panel flat and "
-    .. "still -- the capsules keep their Unova bars, pinned to the window "
-    .. "corners. Safe to flip mid-battle; every piece falls back on its "
+    "The whole dynamic battle package on one row, five levels deep. "
+    .. "DYNAMIC is the staged fight as built: the camera swings in "
+    .. "behind whoever throws a move, the menu, the dialog box and the "
+    .. "move cards float in the arena on real glass, the HP capsules "
+    .. "hang beside their own mons, hits send a shockwave rolling "
+    .. "through the panels, the move's element rains on the glass, and "
+    .. "the turn ribbon arcs between the two. DYNAMIC MINIMAL is all of "
+    .. "that except the menu and the move cards, left blank for another "
+    .. "battle-UI mod to draw its own over. CLASSIC holds the camera on "
+    .. "the plain rig and lays every panel flat and still -- the "
+    .. "capsules keep their Unova bars, pinned to the window corners. "
+    .. "MINIMAL is CLASSIC minus the menu and move cards, same as "
+    .. "DYNAMIC MINIMAL is DYNAMIC minus them. OFF draws none of this "
+    .. "mod's own battle UI at all -- just the diorama, the mons, and "
+    .. "hit FX. Safe to flip mid-battle; every piece falls back on its "
     .. "own.",
     full = true, when = function() return OverworldBattle.enabled() end },
   { Water.setting,

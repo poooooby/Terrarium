@@ -26,6 +26,27 @@ Tags and packages:
 
 ## Unreleased
 
+### COMBAT grows a fifth level: DYNAMIC MINIMAL
+
+- **`lib/BattleDynamic.lua`'s COMBAT row gains `DYNAMIC MINIMAL`**,
+  between `DYNAMIC` and `CLASSIC`. It carries everything `DYNAMIC` has
+  -- the moving attack camera, the floating world-hung capsules, the
+  fan, the ribbon, the floating message panel -- except the command
+  menu and the move-selection screen, which it hides the same way
+  `MINIMAL` already does (`BattleBoxXY.HIDE_COMMANDS`), leaving that
+  phase for another battle-UI mod to draw over. `wantsDynamic()` and
+  `wantsMinimal()` both now recognize two modes apiece
+  (`dynamic`/`dynamic_minimal` and `minimal`/`dynamic_minimal`), which
+  is the whole change -- every gate this row already drives reads off
+  those two predicates, so DYNAMIC MINIMAL composes for free rather
+  than needing its own new wiring.
+
+  Verified with a headless probe across all five levels: DYNAMIC
+  MINIMAL's flags match DYNAMIC's exactly (camera, panels, world-hung
+  capsules all on) except `HIDE_COMMANDS`, which matches MINIMAL's; a
+  screenshot confirms the floating name tags and camera work render
+  with no command buttons on screen.
+
 ## 1.39.0-beta
 
 **Beta para testes e nada mais.**
