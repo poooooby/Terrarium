@@ -84,6 +84,12 @@ assets/mc/*.glb
 publish-zip/
 probe_out_atm/
 
+# Local test builds -- packaged by hand for a tester (or a device the
+# repo owner is testing on directly) before a real tagged release goes
+# out through the GitHub Actions workflow. Not a build artifact anyone
+# else needs, and definitely not a release.
+releases/
+
 # Save data: a player's own progress, and on some platforms their name.
 *.sav
 *.srm
