@@ -20,11 +20,23 @@ The old `-mobile` channel is retired. Historical tags keep it (`v1.28.0-mobile` 
 
 Tags and packages:
 
-- Git tag: `v1.39.0-beta`
-- Zip asset: `TERRARIUM-1.39.0-beta.zip`
-- `manifest.json` / catalog `version` field: `1.39.0-beta`
+- Git tag: `v1.40.0-beta`
+- Zip asset: `TERRARIUM-1.40.0-beta.zip`
+- `manifest.json` / catalog `version` field: `1.40.0-beta`
 
 ## Unreleased
+
+## 1.40.0-beta
+
+**DYNAMIC MINIMAL joins the roster, and DYNAMIC's floating HUD learns to behave on portrait screens.**
+
+COMBAT gains a fifth level between DYNAMIC and CLASSIC: DYNAMIC MINIMAL,
+which keeps the moving attack camera, the floating world-hung capsules,
+the fan and the message panel, but hands the command menu and
+move-selection screen to another battle-UI mod. Its own frosted-glass
+regression is fixed, and DYNAMIC's whole floating HUD -- message panel,
+name capsules, move fan -- no longer walks off the frame's edge on
+narrow/portrait windows.
 
 ### Fixed: DYNAMIC's floating HUD clipping off-screen on portrait/narrow windows
 
