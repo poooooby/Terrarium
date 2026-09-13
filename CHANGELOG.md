@@ -20,11 +20,28 @@ The old `-mobile` channel is retired. Historical tags keep it (`v1.28.0-mobile` 
 
 Tags and packages:
 
-- Git tag: `v1.40.2-beta`
-- Zip asset: `TERRARIUM-1.40.2-beta.zip`
-- `manifest.json` / catalog `version` field: `1.40.2-beta`
+- Git tag: `v1.40.3-beta`
+- Zip asset: `TERRARIUM-1.40.3-beta.zip`
+- `manifest.json` / catalog `version` field: `1.40.3-beta`
 
 ## Unreleased
+
+## 1.40.3-beta
+
+**DYNAMIC's floating HUD gets a real fix for narrow/portrait screens, and a small message-text bug along the way.**
+
+The lateral clamp 1.40.1-beta/1.40.2-beta shipped for the floating HUD
+never quite held up on real narrow hardware (an AYN Thor) -- it fought
+individual panel positions instead of the actual problem, a camera
+framed for a wide window. Replaced it with two camera-level reads
+(`BattleScene.narrowRoomFov` widens the fov itself rather than faking
+the aspect ratio it's fed, `BattleScene.narrowRoomShift` dollies the
+rig toward the middle of a narrow frame) plus a matching stand-down for
+`BattleShot`'s attack camera, all gated on the same reference ratio and
+exact no-ops on anything at or above it. Also fixes a small,
+independent bug: message text using a `\v` or `\f` line marker (e.g.
+"X learned Y!") lost the space between the two words it was supposed
+to separate.
 
 ### Fixed: "learnedBUBBL" -- text swallowed the space at a \v or \f line marker
 
