@@ -20,11 +20,13 @@ The old `-mobile` channel is retired. Historical tags keep it (`v1.28.0-mobile` 
 
 Tags and packages:
 
-- Git tag: `v1.40.1-beta`
-- Zip asset: `TERRARIUM-1.40.1-beta.zip`
-- `manifest.json` / catalog `version` field: `1.40.1-beta`
+- Git tag: `v1.40.2-beta`
+- Zip asset: `TERRARIUM-1.40.2-beta.zip`
+- `manifest.json` / catalog `version` field: `1.40.2-beta`
 
 ## Unreleased
+
+## 1.40.2-beta
 
 ### Fixed: the 1.40.1-beta HUD fix still under-corrected on a real AYN Thor
 
