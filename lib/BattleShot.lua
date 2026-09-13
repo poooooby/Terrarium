@@ -227,7 +227,7 @@ end
 -- its own edge. On a narrow one there is less frame to absorb it in, and
 -- the mons (and everything hung on them -- the name capsules, the message
 -- panel) can end up pushed toward or past the edge purely from the
--- camera's own framing -- on top of BattleScene.horizontalRoom's own
+-- camera's own framing -- on top of BattleScene.narrowRoomFov's own
 -- widening of the BASE rig's view, this keeps the attack camera's own
 -- swing/punch from re-narrowing that room back down while a move plays.
 --

@@ -47,15 +47,24 @@ Tags and packages:
   instead of a UI-side one, matching what a narrow screen actually
   needs -- more of the scene in view, not a more tightly packed one:
 
-  - **`BattleScene.horizontalRoom(pw, s)`**: the horizontal FOV used to
-    fall out purely of the window's raw aspect (`vw = vh * pw / ph`),
+  - **`BattleScene.narrowRoomFov(fov, pw, s)`**: the horizontal fov used
+    to fall out purely of the window's raw aspect (`vw = vh * pw / ph`),
     with nothing widening it for a narrow window the way
-    `letterboxFov` already does for the vertical axis. This floors `pw`
-    at 1.5 whole GB-reference widths (see `fitScale`) before it feeds
-    the aspect calculation, so a narrower window is treated as if it
-    were that wide for how much WORLD its pixels show -- shrinking
-    everything in frame, mons included, the way stepping the camera
-    back does -- while a window already that wide is untouched.
+    `letterboxFov` already does for the vertical axis. This widens
+    `cam.fov` itself -- a real angle, on BOTH axes at once -- by
+    whatever factor makes up the difference between the window's own
+    width and 1.5 whole GB-reference widths (see `fitScale`), the way
+    physically stepping a lens back would, while a window already that
+    wide is untouched. **A first version of this instead fed a WIDER
+    `pw` into the `vw/vh` aspect ratio alone, leaving `vh` (and the
+    render target's own true `pw x ph`) untouched -- which stretched
+    everything drawn through the mismatched projection: circles came
+    out as visibly flattened ovals, and text read compressed. A
+    perspective projection's fov and aspect are not independent knobs;
+    `vw/vh` has to stay exactly `pw/ph`, always, or the picture
+    distorts.** Caught on the Thor itself before this ever reached a
+    release -- widening the actual angle instead avoids the trap
+    entirely, since the aspect fed to the projection never changes.
   - **`BattleShot`'s attack camera** (the swing/punch/stoop/focus-pull
     that swings toward the attacker and zooms in while a move plays)
     now reads the same ratio and stands down entirely -- holding the
@@ -74,12 +83,12 @@ Tags and packages:
   Verified with a headless probe holding the Thor's exact ratio (1.125)
   through an entire thrown move, not just the resting menu: the message
   panel shows its full text and both name capsules stay fully separate
-  at every frame from the swing-in through the punch-in and back, real
-  landscape and the idle "what will X do" screen are both bit-for-bit
-  unaffected (both new functions are exact no-ops at or above the 1.5
-  reference ratio), and the whole fix nets out simpler than 1.40.2-beta's
-  -- two camera-level reads instead of a bisection run per panel per
-  frame.
+  at every frame from the swing-in through the punch-in and back, a
+  capsule ring measures round rather than ovoid, real landscape and the
+  idle "what will X do" screen are both bit-for-bit unaffected (both new
+  functions are exact no-ops at or above the 1.5 reference ratio), and
+  the whole fix nets out simpler than 1.40.2-beta's -- two camera-level
+  reads instead of a bisection run per panel per frame.
 
 ## 1.40.2-beta
 

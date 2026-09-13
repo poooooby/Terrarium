@@ -124,34 +124,42 @@ function BattleScene.letterboxFov(fovGB, ph, s)
   return 2 * math.atan(math.tan(fovGB / 2) * ph / span)
 end
 
--- ------- letting a narrow window see as much horizontally as a
--- comfortable one would
+-- ------- letting a narrow window see as much as a comfortable one would
 --
 -- The widen above keeps the VERTICAL fov pinned to the GB reference
 -- regardless of window shape -- but the HORIZONTAL fov purely falls out
--- of that (aspect = pw/ph, by way of vw/vh where this is used), so a
--- narrow window gets a narrower slice of world horizontally too, with
--- nothing compensating the way the vertical axis is. Every floating
--- panel hung beside a mon (BattleCapsule, BattlePanelsXY, BattleFanXY)
--- is a fixed WORLD-space offset from that mon, tuned against a
--- comfortably wide window -- so narrower horizontal room pushes them
--- toward (and past) the frame's own edge, and BattleShot's attack
--- camera punching in only tightens it further.
+-- of that through the projection's own aspect (vw/vh, where this is
+-- used), so a narrow window gets a narrower slice of world horizontally
+-- too, with nothing compensating the way the vertical axis is. Every
+-- floating panel hung beside a mon (BattleCapsule, BattlePanelsXY,
+-- BattleFanXY) is a fixed WORLD-space offset from that mon, tuned
+-- against a comfortably wide window -- so narrower horizontal room
+-- pushes them toward (and past) the frame's own edge, and BattleShot's
+-- attack camera punching in only tightens it further.
 --
--- Rather than reposition or shrink each of those panels individually --
--- which only trades a clipped edge for elements crowding each other, or
--- the whole layout reading as squeezed -- this widens the CAMERA's own
--- horizontal room on a narrow window, the way pulling a lens back would:
--- `pw` is floored at 1.5 whole GB-reference widths (see fitScale) -- the
--- window this was tuned against clears that comfortably -- so a
--- narrower window is treated as if it were that wide for how much WORLD
--- its actual pw pixels show, which shrinks everything in frame (the
--- mons included) exactly the way stepping the camera back does. A
--- window already that wide or wider is returned unchanged.
-function BattleScene.horizontalRoom(pw, s)
+-- An earlier version of this fix fed a WIDER pw into the aspect ratio
+-- (vw/vh) than the window's own, to try to widen the horizontal fov
+-- only -- but the render target is still the window's true pw x ph, so
+-- a projection built for a different aspect than the surface it lands
+-- on stretches everything drawn through it: circles came out as ovals,
+-- and text got visibly compressed. A perspective projection's fov and
+-- aspect are not independent knobs; the aspect MUST stay pw/ph, always,
+-- or the picture distorts.
+--
+-- The only distortion-free way to show more is to widen the ANGLE
+-- itself, on both axes at once (an actual lens pulled back, not a
+-- fudged number) -- which necessarily shows more vertically too, but
+-- that is a fair trade for staying undistorted, and reads as the
+-- camera genuinely stepping back rather than the picture being stretched
+-- to fit. `pw` is floored at 1.5 whole GB-reference widths (see
+-- fitScale) -- the window this was tuned against clears that
+-- comfortably -- and short of that, the fov widens by exactly the
+-- factor needed to make up the difference. A window already that wide
+-- is returned unchanged.
+function BattleScene.narrowRoomFov(fov, pw, s)
   local ref = 1.5 * BattleScene.GB_W * s
-  if pw >= ref then return pw end
-  return ref
+  if pw >= ref then return fov end
+  return 2 * math.atan((ref / pw) * math.tan(fov / 2))
 end
 
 -- ------- palette
@@ -423,12 +431,15 @@ function BattleScene.render(state, arena, textures, token)
                                      arena, groundY)
   if okShot and sCam then cam, pitch = sCam, sPitch end
   cam.fov = BattleScene.letterboxFov(cam.fov, ph, s)
+  cam.fov = BattleScene.narrowRoomFov(cam.fov, pw, s)
 
   local cx, cy = arena.mid[1], arena.mid[2]
   -- the world extents the sun frustum is fitted to; the camera itself is
-  -- framed by cam.fov, so these only have to describe the ground in shot
+  -- framed by cam.fov, so these only have to describe the ground in shot.
+  -- vw/vh MUST stay pw/ph, exactly the window's own aspect -- see
+  -- narrowRoomFov's own comment for what feeding it anything else does.
   local vh = BattleCam.rigFor(arena).frameH * ph / (BattleScene.GB_H * s)
-  local vw = vh * BattleScene.horizontalRoom(pw, s) / ph
+  local vw = vh * pw / ph
 
   -- the cards need the camera's eye to face it, so the rig has to be live
   -- before they are built; Voxel3D.eye is set by viewProjection, which
