@@ -20,11 +20,15 @@ The old `-mobile` channel is retired. Historical tags keep it (`v1.28.0-mobile` 
 
 Tags and packages:
 
-- Git tag: `v1.37.6-beta`
-- Zip asset: `TERRARIUM-1.37.6-beta.zip`
-- `manifest.json` / catalog `version` field: `1.37.6-beta`
+- Git tag: `v1.38.0-beta`
+- Zip asset: `TERRARIUM-1.38.0-beta.zip`
+- `manifest.json` / catalog `version` field: `1.38.0-beta`
 
 ## Unreleased
+
+## 1.38.0-beta
+
+**Beta para testes e nada mais.**
 
 ### O texto do mapa 3D subiu para 1.3x, e os painéis OBJECTIVE/ROUTE encolheram para 4/5 da largura
 
