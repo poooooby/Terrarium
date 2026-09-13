@@ -385,17 +385,6 @@ local function fan()
   return Fan or nil
 end
 
-local Scene = nil
-local function lateralScale()
-  if Scene == nil then
-    local ok, S = pcall(V.require, "BattleScene")
-    Scene = (ok and S) or false
-  end
-  if not Scene or not Scene.lateralScale then return 1 end
-  local ok, v = pcall(Scene.lateralScale)
-  return (ok and v) or 1
-end
-
 local GlassFX = nil
 local function glassFX()
   if GlassFX == nil then
@@ -468,7 +457,12 @@ function BattleCapsule.hang(shot, side, info, expFrac)
   local P = isP and BattleCapsule.W_PLAYER or BattleCapsule.W_ENEMY
   local cell = isP and shot.playerCell or shot.enemyCell
   local base = { cell[1], shot.groundY or 0, cell[2] }
-  local c = F.vadd(F.vadd(base, R.up, P.up), R.right, P.right * lateralScale())
+  -- Fan.clampLateral asks the shot's own camera how far this can lean
+  -- before the capsule's own outer edge walks past the frame, rather
+  -- than a resolution-guessed shrink (see its own comment for why the
+  -- guess undershoots on a real, higher-resolution screen).
+  local capRight = F.clampLateral(shot, R, base, P.up, P.right, P.w * 0.5)
+  local c = F.vadd(F.vadd(base, R.up, P.up), R.right, capRight)
   -- the glass physics: the capsule bobs on its own phase and rocks when
   -- a landed hit's wave reaches it -- it hangs nearest the mons, so it
   -- is the first glass the wave arrives at

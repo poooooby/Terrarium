@@ -142,17 +142,6 @@ local function glassFX()
   return GlassFX or nil
 end
 
-local Scene = nil
-local function lateralScale()
-  if Scene == nil then
-    local ok, S = pcall(V.require, "BattleScene")
-    Scene = (ok and S) or false
-  end
-  if not Scene or not Scene.lateralScale then return 1 end
-  local ok, v = pcall(Scene.lateralScale)
-  return (ok and v) or 1
-end
-
 -- the B2W2 kit, for its name font (see BattleCapsule.text): the cards
 -- speak the same Unova as the capsules and the dialog box
 local Cap = nil
@@ -503,6 +492,51 @@ function BattleFanXY.rig(shot)
   return { base = base, dir = dir, right = right, up = up, project = proj }
 end
 
+-- Pulls a lateral (camera-right-axis) offset back toward the centreline,
+-- just enough that a panel's own OUTER edge -- offR plus half its own
+-- width, in whichever direction offR already leans -- still projects
+-- onto the shot's screen with at least `marginPx` of clearance.
+--
+-- An earlier version of this fix scaled every lateral offset by one
+-- factor guessed from the window's aspect and its own integer GB-pixel
+-- scale; that guess held up on a desktop test window but under-corrected
+-- on an AYN Thor's actual 1080x1920 panel, because a bigger absolute
+-- resolution leaves a smaller PROPORTIONAL remainder past its own
+-- nearest whole GB-pixel multiple (see fitScale) than a small test
+-- window happens to. This asks the ACTUAL camera the shot is drawn with
+-- instead of a guess, so it holds at any resolution: the outer edge is
+-- projected at the full offset and at zero, and if the full-offset edge
+-- is past the margin, a handful of bisection steps (screen position is
+-- monotonic in a straight-line world offset for any point in front of
+-- the camera, so this always converges) finds the largest offset short
+-- of it.
+function BattleFanXY.clampLateral(shot, R, base, offU, offR, halfWidth,
+                                  marginPx)
+  if not (R and R.project and shot and shot.pw) then return offR end
+  if offR == 0 then return 0 end
+  local pw = shot.pw
+  marginPx = marginPx or pw * 0.02
+  local sign = offR < 0 and -1 or 1
+  local function edgeX(t)
+    local anchor = vadd(vadd(base, R.up, offU), R.right, t)
+    local edge = vadd(anchor, R.right, halfWidth * sign)
+    local x = R.project(edge)
+    return x
+  end
+  local function outside(x)
+    if not x then return false end
+    if sign < 0 then return x < marginPx end
+    return x > pw - marginPx
+  end
+  if not outside(edgeX(offR)) then return offR end
+  local lo, hi = 0, offR
+  for _ = 1, 10 do
+    local mid = (lo + hi) * 0.5
+    if outside(edgeX(mid)) then hi = mid else lo = mid end
+  end
+  return lo
+end
+
 -- One world panel, projected and handed back as a drawable mesh -- the
 -- shared half of "hang a canvas in the arena". The caller owns the slot
 -- (its canvas and mesh live there), the placement and the draw.
@@ -677,10 +711,18 @@ function BattleFanXY.draw(battle, shot)
   local R = BattleFanXY.rig(shot)
   if not R then return false end
   local dir, right, up = R.dir, R.right, R.up
-  local lateral = lateralScale()
-  local step = BattleFanXY.STEP * lateral
+  local step = BattleFanXY.STEP
+  -- the whole hand spans centre +/- half its own width (see the `te`
+  -- spread below): clamp the anchor itself so the outermost card's own
+  -- edge, not just its centre, stays clear of the frame (see
+  -- BattleFanXY.clampLateral for why this asks the camera directly
+  -- rather than guessing a shrink from the window's resolution).
+  local halfSpan = (nMoves - 1) * 0.5 * step + BattleFanXY.CARD_W * 0.5
+  local rightOff = BattleFanXY.clampLateral(shot, R, R.base,
+                                            BattleFanXY.UP_OFF,
+                                            BattleFanXY.RIGHT_OFF, halfSpan)
   local anchor = vadd(vadd(R.base, up, BattleFanXY.UP_OFF),
-                      right, BattleFanXY.RIGHT_OFF * lateral)
+                      right, rightOff)
   -- the deal flies FROM the player's mon: anchor minus STEP, minus UP
   local origin = vadd(vadd(anchor, right, -step),
                       up, -BattleFanXY.UP_OFF)

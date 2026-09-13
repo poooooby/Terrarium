@@ -113,17 +113,6 @@ local function glassFX()
   return GlassFX or nil
 end
 
-local Scene = nil
-local function lateralScale()
-  if Scene == nil then
-    local ok, S = pcall(V.require, "BattleScene")
-    Scene = (ok and S) or false
-  end
-  if not Scene or not Scene.lateralScale then return 1 end
-  local ok, v = pcall(Scene.lateralScale)
-  return (ok and v) or 1
-end
-
 -- the B2W2 kit, for its name font: the dialog box and the chips speak
 -- the same Unova the capsules do (available() gates per draw, so a
 -- missing sheet falls back to the HUD glyphs)
@@ -619,8 +608,15 @@ local function msgPanel(shot, R, B, msgLines, battle)
   end
   local enterT = (now - (S.msgEnterAt or now)) / BattlePanelsXY.MSG_ENTER
   local msgMul = msgEnterMul(enterT)
+  -- Ask the shot's own camera how far this can lean before its outer
+  -- (left) edge walks past the frame, rather than a resolution-guessed
+  -- shrink (see BattleFanXY.clampLateral for why the guess undershoots
+  -- on real, higher-resolution screens).
+  local msgRight = Fan.clampLateral(shot, R, R.base, BattlePanelsXY.MSG_UP,
+                                    BattlePanelsXY.MSG_RIGHT,
+                                    BattlePanelsXY.MSG_W * 0.5)
   return hangPanel(S.msg, shot, R,
-                   BattlePanelsXY.MSG_RIGHT * lateralScale(), BattlePanelsXY.MSG_UP,
+                   msgRight, BattlePanelsXY.MSG_UP,
                    BattlePanelsXY.MSG_W,
                    BattlePanelsXY.MSG_FACE_W, BattlePanelsXY.MSG_FACE_H,
                    BattlePanelsXY.MSG_YAW, BattlePanelsXY.MSG_CLOSE, 1, msgMul,
@@ -659,10 +655,10 @@ function BattlePanelsXY.menu(battle, shot, msgLines)
   -- cursor's). Each entry carries its face dimensions too -- FIGHT's
   -- capsule is cut larger than the row's.
   -- BTN_RIGHT/ROW_STEP stay put: the chip cluster sits well clear of the
-  -- frame's own edge at every aspect this was tested against (see
-  -- BattleScene.lateralScale) -- the piece that actually walks off is the
-  -- message panel opposite it (MSG_RIGHT, in msgPanel below), and shrinking
-  -- both toward the centre at once just trades an edge clip for the two
+  -- frame's own edge at every aspect this was tested against -- the piece
+  -- that actually walks off is the message panel opposite it (MSG_RIGHT,
+  -- clamped in msgPanel below via Fan.clampLateral), and pulling both
+  -- toward the centre at once just trades an edge clip for the two
   -- colliding in the middle.
   local place = { [1] = { BattlePanelsXY.BTN_RIGHT, BattlePanelsXY.FIGHT_UP,
                           BattlePanelsXY.FIGHT_W,

@@ -26,6 +26,38 @@ Tags and packages:
 
 ## Unreleased
 
+### Fixed: the 1.40.1-beta HUD fix still under-corrected on a real AYN Thor
+
+- **The lateral fix in 1.40.1-beta guessed a shrink factor from the
+  window's aspect and its own integer GB-pixel scale (`fitScale`)**,
+  tuned against small desktop test windows. Real hardware exposed the
+  gap: an AYN Thor at 1080x1920 reported the message box's left edge
+  still cut off ("What will SQUIRTLE do?" missing its first couple of
+  characters) even in the orientation it calls landscape. A bigger
+  absolute resolution leaves a smaller PROPORTIONAL remainder past its
+  own nearest whole GB-pixel multiple than a small test window happens
+  to, so the guessed factor under-corrected exactly the real-world case
+  it was meant to cover.
+
+  Replaced the guess with `BattleFanXY.clampLateral()`: instead of
+  scaling every lateral offset by one aspect-derived number, it asks the
+  shot's OWN camera directly -- projecting the panel/capsule/fan's own
+  outer edge through the shot's real view-projection matrix, and (via a
+  few bisection steps, since screen position is monotonic in a
+  straight-line world offset) pulling the offset back only as far as
+  that edge needs to clear the frame with a small margin. This holds at
+  any resolution by construction rather than by tuning, and replaces
+  `BattleScene.lateralScale()` entirely (removed, along with the three
+  modules' own cached lookups of it).
+
+  Verified with a headless probe at the Thor's exact reported ratio
+  (`pw / (GB_W * fitScale()) = 1.125`, reproduced by holding the same
+  width-to-scale relationship rather than the literal 1080x1920, since
+  the dev window's own height differs): the message panel, both name
+  capsules and the command menu all sit fully on-screen with margin to
+  spare, and true landscape and the earlier 9:16 desktop test are both
+  unaffected.
+
 ## 1.40.1-beta
 
 **DYNAMIC MINIMAL joins the roster, and DYNAMIC's floating HUD learns to behave on portrait screens.**
