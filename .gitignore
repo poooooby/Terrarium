@@ -286,3 +286,6 @@ tools/_kit_out/
 # round), not source. The audit lives in the notes; the frames stay here.
 assets/docs/shop/audit/
 assets/docs/shop/audit2/
+
+# Other
+Terrarium.code-workspace

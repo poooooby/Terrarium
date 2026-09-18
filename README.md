@@ -1,18 +1,16 @@
-# TerrariumVoxel
+# Terrarium - Wooble's English Fork
 
-A little world under glass: it has its own weather, its own hours, and things
-living in it.
+"A little world under glass: it has its own weather, its own hours, and things
+living in it."
+
+Before downloading, check out [BrenoBertucci's Terrarium](https://github.com/BrenoBertucci/Terrarium) first. This is Wooble's personal fork, and an attempt at an English translation plus other minor bug fixes, and is not a replacement for the original.
 
 > ### Gen 2 (Pokémon Gold) is an early first pass — play Gen 1
 >
+> [!CAUTION]
 > Terrarium is recommended on **Gen 1 only** (Red / Blue / Yellow).
 > **Do not use it on Gold / Johto yet.**
->
-> A first-pass Gold boot is in this tree so the port can keep moving: the
-> diorama can load and draw. Most of what this fork is known for (wild
-> roamers, ecology, shelter, routines, the XY battle UI, horizon, minimap)
-> is unported or untested there. If you want the finished experience, stay
-> on Kanto.
+
 
 > ### This is a fork of a fork, and neither original is mine
 >
@@ -23,13 +21,15 @@ living in it.
 > occlusion, the shadow map, the tilt-shift pass and the over-the-shoulder
 > battles are Dramatic Shape's original work; the low-end-hardware tuning,
 > the weather, the ecology, the wild Pokemon you can see, and everything
-> else under "What Terrarium adds to the original" below is BrenoBertucci's.
-> This tree's own additions sit on top of THAT, and are narrower: this mod's
-> own menus default to English rather than the hardcoded Portuguese they
-> shipped with (a Portuguese option is kept), plus a start-menu
-> visibility/sizing fix, an engine-compat crash guard, and wiring in two
-> options rows (SHOP / SHOP-FX) that existed in the code but were never
-> reachable from the menu -- see "What this fork adds on top of Terrarium"
+> else under
+> ["What Terrarium adds to the original"](#what-terrarium-adds-to-the-original)
+> below is BrenoBertucci's. This tree's own additions sit on top of THAT,
+> and are narrower: this mod's own menus default to English rather than the
+> hardcoded Portuguese they shipped with (a Portuguese option is kept), plus
+> a start-menu visibility/sizing fix, an engine-compat crash guard, and
+> wiring in two options rows (SHOP / SHOP-FX) that existed in the code but
+> were never reachable from the menu -- see
+> **["What this fork adds on top of Terrarium"](#what-this-fork-adds-on-top-of-terrarium)**
 > further down.
 >
 > **If you are choosing between them, go and look at the originals first:**
@@ -143,8 +143,9 @@ Two new rows on the OPTIONS menu, both visible under every preset:
 
 | row | values | default | what it does |
 | --- | --- | --- | --- |
-| **RES** | 1/2 | 1/3 | 1/4 | FULL | **1/2** | divides the resolution the 3D pass rasterises at before it is scaled back up. Every cost in the pass is quadratic in it: 1/2 is four times less of everything, 1/3 is nine. Upscaled *nearest*, so the result is chunkier, not blurrier — the right defect for this art. |
-| **SHADOWS** | LOW | OFF | HIGH | SOFT | **LOW** | LOW keeps real cast shadows on a 512–1024 texel map instead of 2048, one tap instead of four, no neighbouring maps casting, redrawn every second frame while walking. |
+| **RES** | 1/2 \| 1/3 \| 1/4 \| FULL | **1/2** | divides the resolution the 3D pass rasterises at before it is scaled back up. Every cost in the pass is quadratic in it: 1/2 is four times less of everything, 1/3 is nine. Upscaled *nearest*, so the result is chunkier, not blurrier — the right defect for this art. |
+| **SHADOWS** | LOW \| OFF \| HIGH \| SOFT | **LOW** | LOW keeps real cast shadows on a 512–1024 texel map instead of 2048, one tap instead of four, no neighbouring maps casting, redrawn every second frame while walking. |
+| **PFX** | ON \| LOW \| HIGH \| MAX | **ON** | how much air there is: dust and seeds on the wind, rain's falling shafts and splashes, snow, water still coming off the eaves. Its own row because it used to hang off RES, so asking for more weather also asked the grass, shadows and cloud raymarch to get heavier. LOW gives the frame back; HIGH doubles the counts, MAX quadruples them. |
 
 Plus spatial culling, and a shadow-map size ladder chosen per frame from how
 much world is actually in view.
@@ -165,8 +166,10 @@ rolls its dice precisely as it always did.**
 | row | what it is |
 | --- | --- |
 | **SCREEN FX** (was RTX) | not ray tracing: a screen-space row walked through the depth buffer the 3D pass already filled: ambient occlusion in corners the sky cannot reach, reflections marched across the water's own swell, light shafts toward the sun. OFF is byte-for-byte the old frame. |
-| **CITY** | Pokemon loose in the streets of every town, and civilian NPCs that glance as you pass |
-| **ROUTINES / SHELTER** | civilians look around, turn toward the sign they are standing beside, talk in pairs — and walk to the nearest doorway when a shower comes down hard |
+| **TOWN** | Pokemon loose in the streets of every town: trainers' companions and strays, wandering in their own art. About one in three stares you down and wants to battle at your own lead's level. |
+| **AMBIENT** | butterflies and ground birds by day, dragonflies over the water, fireflies through the night, a flock crossing the sky, leaves on the wind -- and civilian NPCs glance at you as you pass, then go back to what they were doing |
+| **SOUNDS** | the sound of the place: crickets after dark, birdsong through the day, water moving near any water, rain and thunder after the flash -- crossfaded beds rather than one-shot beeps, and quieter indoors |
+| **ROUTINES / SHELTER** | civilians look around, turn toward the sign they are standing beside, talk in pairs — and walk to the nearest doorway when a shower comes down hard. AGENDA (grouped with ROUTINES) decides whether that departure reaches DAY (a post to keep) or FULL (a doorway at night, street Pokemon included) |
 | **WEATHER** | rain and snow, folded into the light rather than drawn over it |
 | **WIND** | the tall grass is geometry, so wind is a bend and not a slid picture: the base stays planted, the tip gives and drops as it goes over, each tuft has its own stiffness, and the gust travels across a meadow. Rain weighs the blades down and damps them; settled snow bows them and piles white on the crowns; walkers lay them flat and they spring back, leaving a trail you can turn round and see. AUTO hands the row to the climate -- calm night, breeze by day, gale under a front, no menu trips. Plus the air itself: dust and spray streaks, and a gust front crossing the frame as a line |
 | **GROUND** | what the weather leaves behind: puddles that gather through a shower and are still there ten minutes later wearing the sky's own colour, snow settling in drifts, footprints behind everyone walking on it |
@@ -174,8 +177,26 @@ rolls its dice precisely as it always did.**
 | **WATER** | a cel-shaded swell: two crossing wave trains, analytic normals, depth-rung colour and binary foam (toon water ideas, hard steps only — not PBR). CALM / SWELL / FLAT. Rain and wind feed chop energy; freeze turns the surface into walkable ice when the party can Surf |
 | **QOL** | type-effectiveness hints on the FIGHT menu, auto-repel, and HMs on an A press (CUT at a tree, SURF at water, STRENGTH at a boulder) |
 | **BAG / STACK** | twenty item slots and ninety-nine per stack were Game Boy save-RAM limits, not design. Raise both. |
+| **EXP** | TEAM pays every Pokemon still standing what the fighters earned; SPLIT divides that same total among them instead. OFF is the original's one-fighter-only rule. |
 | **AUTO-FARM** | pick a party slot and a bot trains it, always picking the strongest move against what it faces |
 | **GLINT** | a thin reflection sweeping across window panes as you walk |
+| **IMPACT** | hand-drawn CC0 sprite-sheet hit effects composited into the world; press J in free roam to fire the next sheet at your feet |
+| **ANIME** | cel animation: a cool rim light along every silhouette and an ink line closing every shape, on top of the SCREEN FX pass's own normals (needs SCREEN FX above OFF) |
+| **TREES** | which trees stand on the round-tree sites: VOXEL is the blocky hand-modelled tree, 3D is a smoother canopy under photographed leaf cards |
+| **LIGHT** | SKY lights the world with sun (warm, directional) and sky (cool, ambient) separately, so a shadow reads as somewhere the sky is lighting rather than just dimmer. FLAT is the single tint it used to be. |
+| **DAYTIME** | pin the sky to DAY / NIGHT / DUSK / DAWN, let CYCLE run all six phases on its own clock, or SYNC it to the clock on the wall |
+| **N-DARK** | how dark night is: DEEP drops the sky and the world's tint further so a town reads as lit windows and lamps in real darkness; SOFT is the older, more readable blue night |
+| **CLOUDS** | volumetric clouds in the sky pass: ON keeps a few fair-weather puffs that thicken into a deck as a shower builds, THICK is a heavy sky even on a clear hour, OFF is bands only |
+| **LAMPS** | street lamps in towns and cities -- three models of post, deterministic per map, burning in the hour's own lamp colour after dusk |
+| **MAP** (corner radar) | player + facing + Center/Gym/Gate icons on free-roam; FULL adds a local walkability grid |
+| **MAP** (Town Map item) | 3D builds Kanto as a diorama from the classic map's own data -- sea, clouds, the hour's light, your objective routed along the roads; CLASSIC is the original 160x144 screen |
+| **3D-BTL** | fight on the map itself: the battle draws over the nearest clear ground instead of cutting to the classic flat screen |
+| **BACK SPRITES** | with 3D-BTL on, puts your own Pokemon's back view into the shot too, big in the foreground the way Gen 1's own battle screen frames it. OFF by default. |
+| **SM64CAM** | the Super Mario 64 camera: turns to look at you rather than staying fixed, takes its height from the ground, and changes how movement itself is read (D-pad walks you away from the camera, not due north) |
+| **V-HAZE** | distance haze -- far ground fades into the hour's own sky colour instead of reading as a hard edge |
+| **HORIZON** | the rest of Kanto on the skyline: every connected map out to a chosen distance, drawn as a bare silhouette |
+| **Building kits** (TOWER / CRYPT / CRYPT-FX / SHOP / SHOP-FX / LEDGES / HAUNT / HEARTH / INDOOR) | NEW-vs-CLASSIC pairs for individual buildings and props -- the Pokemon Tower, its crypt interior and haunted lighting, the Poke Mart and its shader pass, hop-down ledges, Lavender's haunted glass, chimney smoke, and sleeping Pokemon/steaming mugs indoors. See [`FEATURES.md`](FEATURES.md) for each. |
+| **COMBAT** | DYNAMIC (Modern JRPG), DYNAMIC MINIMAL (For Kanto Gear), CLASSIC (static rig, flat still panels), MINIMAL (CLASSIC without the menu/cards), OFF (none of this mod's own battle UI -- just the diorama, the mons and hit FX) |
 
 ### A interface deste mod fala inglês por padrão, e português à escolha
 
