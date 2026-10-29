@@ -712,16 +712,30 @@ local function tileAt(x, y)
   return gt[y * gw + x + 1]
 end
 
+local walkSet = {}
+for _, id in ipairs(job.map.walkable or {}) do walkSet[id] = true end
+
 local map = { def = { id = job.map.id, name = job.map.id,
-                      width = job.map.width, height = job.map.height },
+                      width = job.map.width, height = job.map.height,
+                      connections = job.map.connections or {} },
               id = job.map.id,
               tileset = { id = job.tileset, image = job.atlas.image,
                           imageWidth = job.atlas.w, imageHeight = job.atlas.h,
                           tilesPerRow = job.atlas.perRow } }
+-- Map:isWalkableCell, transcribed: a cell is walkable by its BOTTOM-LEFT
+-- tile (Map:cellTile is tileAt(cx * 2, cy * 2 + 1)). BridgeKit asks it.
+function map:isWalkableCell(cx, cy)
+  return walkSet[tileAt(cx * 2, cy * 2 + 1)] or false
+end
 
-local Kit = V.require(job.kit)
-if type(Kit) ~= "table" or type(Kit.model) ~= "function" then
-  error(("kit_headless: lib/%s.lua exposes no model()"):format(job.kit), 0)
+-- TOWN mode (`--kit Town`): no one kit. Every template on the map goes
+-- through the same dispatch lib/Buildings.lua runs -- see townPick below.
+local Kit = nil
+if job.kit then
+  Kit = V.require(job.kit)
+  if type(Kit) ~= "table" or type(Kit.model) ~= "function" then
+    error(("kit_headless: lib/%s.lua exposes no model()"):format(job.kit), 0)
+  end
 end
 -- `signature` is OPTIONAL. A kit that decides its model per PLACEMENT
 -- (CryptKit: which sides face the room, how tall the row stands) has
@@ -729,15 +743,22 @@ end
 -- band per template, out of one room function) does not, and its
 -- signature is just the template's id -- one model per template, which
 -- is what Buildings.build's plain branch caches anyway.
-local hasSig = type(Kit.signature) == "function"
+local hasSig = Kit ~= nil and type(Kit.signature) == "function"
 
 -- The authored sheets the config named, by mod-relative path, with the
 -- index the face dump records so the render knows which image an ax/ay
 -- belongs to (0 is the map's own tileset).
 local sheets = {}
+local texIndex = {}            -- rel -> dump index, for sheets read or not
 for k, s in ipairs(job.sheets or {}) do
-  local d = imageData(s.path, s.w, s.h, s.chan)
-  if d then
+  texIndex[s.rel] = k
+  -- `texOnly`: a ground plan (LavenderGroundKit). Buildings never READS
+  -- one -- its sprite is arithmetic, see townPick -- so only the render
+  -- needs its pixels, and they never cross into Lua.
+  local d = (not s.texOnly) and imageData(s.path, s.w, s.h, s.chan)
+  if s.texOnly then
+    -- nothing to read
+  elseif d then
     local sp = readSheet(d, s.rel)
     if sp then
       sp.__tex = k
@@ -755,7 +776,7 @@ end
 -- stand the tiles instead). Reproduced so `--set crypt=classic` answers
 -- the way the game does.
 local kitOn = true
-if type(Kit.enabled) == "function" then
+if Kit and type(Kit.enabled) == "function" then
   local okE, on = pcall(Kit.enabled)
   kitOn = (not okE) or (on ~= false)
 end
@@ -776,6 +797,116 @@ local function placedOn(t)
   return t.maps[job.map.id] and true or false
 end
 
+-- ------------------------------------------------------- town dispatch --
+--
+-- Transcribed from Buildings.build's per-placement chain, in its order:
+-- the two pre-chain kits (Lavender's Centre/Mart/Tower, Vermilion's
+-- houses), then bridge, reef, fence, the painted ground, the homes, and
+-- Lavender's cottages. This is the second place the harness can drift
+-- from the game (kit_headless.md); when Buildings grows a branch, so must
+-- this.
+--
+-- Returns nil for a template no kit owns (it CLAIMS its cells, as the
+-- classic model would, but the harness cannot draw the classic fold), or
+--   { label, key (nil = never cached), sp, call(sp) -> ok, model, why,
+--     empty (stamps and claims nothing), fallback (a failed build leaves
+--     the classic model standing, so the cells stay claimed) }
+
+local function town(name) local ok, K = pcall(V.require, name) return ok and K or nil end
+local function sheetFor(rel)
+  local sp = sheets[rel]
+  if not sp then note("sheet not loaded: %s", tostring(rel)) end
+  return sp
+end
+local mapId = job.map.id
+local tw0, th0 = job.map.width * 4, job.map.height * 4
+
+local function townPick(index, t, tx, ty)
+  -- pre-chain: Lavender's Centre, Mart and (TOWER row on NEW) Tower
+  if mapId == "LAVENDER_TOWN" then
+    local lav = ((t.id == "pokecenter" or t.id == "pokemart") and "LavenderCivicKit")
+    if t.id == "pokemon_tower" then
+      local TK = town("TowerKit")
+      local on = TK and TK.enabled and select(2, pcall(TK.enabled))
+      if on ~= false and TK then lav = "LavenderTowerKit" end
+    end
+    if lav then
+      local K = town(lav)
+      return K and { label = lav, key = index .. "@lavender-civic",
+                     sp = sheetFor(K.SHEET), fallback = true,
+                     call = function(sp) return pcall(K.model, sp, t) end }
+    end
+  end
+  -- pre-chain: Vermilion's six houses, one model per PLACEMENT
+  if mapId == "VERMILION_CITY"
+     and (t.id == "flat_commercial" or t.id == "flat_block_4x4") then
+    local K = town("VermilionHouseKit")
+    return K and { label = "VermilionHouseKit",
+                   key = index .. "@vermilion:" .. tx .. ":" .. ty,
+                   sp = sheetFor(K.SHEET), fallback = true,
+                   call = function(sp) return pcall(K.model, sp, t, tx, ty) end }
+  end
+  if t.bridge then
+    local K = town("BridgeKit")
+    local sig = K and K.signature(tileAt, tx, ty, function(cx, cy)
+      -- past the map's edge it is the next map's land: a way on
+      if cx < 0 or cy < 0 or cx * 2 >= tw0 or cy * 2 >= th0 then return true end
+      return map:isWalkableCell(cx, cy)
+    end)
+    if not sig then return { label = "BridgeKit", empty = true } end
+    return { label = "BridgeKit", key = "bridge@" .. sig, sp = sheetFor(K.SHEET),
+             call = function(sp) return pcall(K.model, sp, sig) end }
+  elseif t.reef then
+    local K = town("ReefKit")
+    local seed = 0
+    for ch in tostring(mapId):gmatch(".") do seed = (seed * 31 + ch:byte()) % 9973 end
+    local key = K and K.spec and K.spec(tileAt, tx, ty, seed)
+    if not key then return { label = "ReefKit", empty = true } end
+    -- (the game then PACKS each corner's shade for the reef's motion
+    -- shader; a still render wants the plain shade, so that is skipped)
+    return { label = "ReefKit", key = "reef@" .. key, sp = sheetFor(K.SHEET),
+             call = function(sp) return pcall(K.model, sp, key) end }
+  elseif t.fence then
+    local K = town("FenceKit")
+    local joined = map.def.connections
+    local sig = K and K.signature(tileAt, tx, ty, function(x, y)
+      return (x < 0 and joined.west ~= nil) or (x >= tw0 and joined.east ~= nil)
+          or (y < 0 and joined.north ~= nil) or (y >= th0 and joined.south ~= nil)
+    end)
+    if not sig then return { label = "FenceKit", empty = true } end
+    return { label = "FenceKit", key = "fence@" .. sig, sp = sheetFor(K.SHEET),
+             call = function(sp) return pcall(K.model, sp, sig) end }
+  elseif t.lavground then
+    local K = town("LavenderGroundKit")
+    local lay = K and K.spec and K.spec(tileAt, tx, ty, mapId)
+    if not lay then return { label = "LavenderGroundKit", empty = true } end
+    -- Buildings' arithmetic sprite: texel i is at (i % W, i / W), and the
+    -- sheet itself is never read into Lua
+    local SW = lay.w
+    local sp = { W = SW, H = lay.h, __tex = texIndex[lay.sheet] or 0,
+      ax = setmetatable({}, { __index = function(_, i) return i % SW end }),
+      ay = setmetatable({}, { __index = function(_, i) return floor(i / SW) end }) }
+    if not texIndex[lay.sheet] then note("ground sheet not passed: %s", lay.sheet) end
+    return { label = "LavenderGroundKit", key = nil, sp = sp,
+             call = function() return pcall(K.model, lay) end }
+  elseif t.home then
+    local VK = town("VermilionHomeKit")
+    local name = (VK and VK.MAPS and VK.MAPS[mapId]) and "VermilionHomeKit"
+                 or "LavenderHomeKit"
+    local K = town(name)
+    return K and { label = name, key = index .. "@home:" .. mapId,
+                   sp = sheetFor(K.SHEET),
+                   call = function(sp) return pcall(K.model, sp, t, mapId) end }
+  elseif t.id == "gabled_cottage" and mapId == "LAVENDER_TOWN" then
+    local K = town("LavenderHouseKit")
+    return K and { label = "LavenderHouseKit",
+                   key = index .. "@lavender:" .. tx .. ":" .. ty,
+                   sp = sheetFor(K.SHEET), fallback = true,
+                   call = function(sp) return pcall(K.model, sp, t, tx, ty) end }
+  end
+  return nil
+end
+
 local built = {}               -- key -> { faces = {...}, stats = {...} }
 local mark = job.mark
 local only = job.only
@@ -787,7 +918,8 @@ local t0all = os.clock()
 for index, t in ipairs(list) do
   local mine = (mark == nil) or (t[mark] ~= nil)
   if only and tostring(t.id) ~= only then mine = false end
-  local tstat = { id = tostring(t.id), index = index, mine = mine and 1 or 0,
+  local tstat = { id = tostring(t.id), index = index,
+                  mine = (mine and not job.town) and 1 or 0,
                   placements = 0, models = 0, faces = 0, seconds = 0 }
   report.templates[#report.templates + 1] = tstat
   if type(t.tiles) == "table" and #t.tiles > 0 and placedOn(t) then
@@ -797,11 +929,15 @@ for index, t in ipairs(list) do
     local sp = nil
     for ty = 0, th - bh do
       for tx = 0, tw - bw do
-        local free = tileAt(tx, ty) == first
+        -- `wild`: the template stands for whatever its kit says is there
+        -- (the painted ground), so no tile has to match up front
+        local free = t.wild or tileAt(tx, ty) == first
         if free and where then
           free = tx >= where[1] and ty >= where[2]
                  and tx <= where[3] and ty <= where[4]
         end
+        -- `grid`: a one-cell template lands on the cell grid only
+        if free and t.grid then free = tx % 2 == 0 and ty % 2 == 0 end
         if free then
           for r = 0, bh - 1 do
             for c = 0, bw - 1 do
@@ -810,7 +946,7 @@ for index, t in ipairs(list) do
             if not free then break end
           end
         end
-        if free then
+        if free and not t.wild then
           for r = 1, bh do
             local row = t.tiles[r]
             for c = 1, #row do
@@ -821,7 +957,63 @@ for index, t in ipairs(list) do
         end
         if free then
           local claim, maskOf = true, nil
-          if mine and not kitOn then
+          local pick = job.town and (not only or tostring(t.id) == only)
+                       and townPick(index, t, tx, ty) or nil
+          if job.town and pick and pick.empty then
+            -- Buildings: an empty model stamps nothing and claims nothing
+            claim = false
+            tstat.placements = tstat.placements + 1
+          elseif job.town and pick then
+            local tp = os.clock()
+            tstat.mine = 1
+            local hit = pick.key and built[pick.key] or nil
+            if not hit then
+              local tb = os.clock()
+              local faces, nf = {}, 0
+              local okM, m, why = false, nil, "no sheet"
+              if pick.sp then okM, m, why = pick.call(pick.sp) end
+              if okM and m then
+                local st = emit(m, pick.sp, function(...)
+                  local a = { ... }
+                  for i = 1, 19 do faces[nf + i] = a[i] end
+                  nf = nf + 19
+                end)
+                hit = { faces = faces, stats = st, claimMask = m.claimMask,
+                        seconds = os.clock() - tb, sig = pick.label,
+                        tex = pick.sp.__tex or 0 }
+              else
+                note("%s %s @%d,%d: %s", pick.label, tstat.id, tx, ty,
+                     tostring(okM and why or m))
+                hit = { faces = {}, stats = { voxels = 0, shell = 0, faces = 0 },
+                        seconds = os.clock() - tb, sig = pick.label, tex = 0,
+                        failed = true }
+              end
+              if pick.key then built[pick.key] = hit end
+              tstat.models = tstat.models + 1
+              report.models[#report.models + 1] = {
+                key = pick.key or (tstat.id .. "@" .. tx .. ":" .. ty),
+                id = tstat.id, sig = pick.label .. ":" .. tstat.id,
+                faces = hit.stats.faces, voxels = hit.stats.voxels,
+                shell = hit.stats.shell, seconds = hit.seconds }
+            end
+            -- a failed pre-chain/cottage kit leaves the classic model
+            -- standing (claimed, not drawn here); any other empty model
+            -- claims nothing
+            if #hit.faces == 0 and not (hit.failed and pick.fallback) then
+              claim = false
+            end
+            maskOf = hit.claimMask
+            replay(hit.faces, tx * 8, ty * 8, hit.tex or 0)
+            tstat.faces = tstat.faces + hit.stats.faces
+            tstat.placements = tstat.placements + 1
+            tstat.seconds = tstat.seconds + (os.clock() - tp)
+            report.placements[#report.placements + 1] = {
+              id = tstat.id, tx = tx, ty = ty, sig = pick.label,
+              faces = hit.stats.faces, ms = (os.clock() - tp) * 1000 }
+          elseif job.town then
+            -- no kit owns it: the classic fold would stand and claim here
+            tstat.placements = tstat.placements + 1
+          elseif mine and not kitOn then
             -- the row is off: no model, no claim
             claim = false
             tstat.placements = tstat.placements + 1

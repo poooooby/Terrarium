@@ -162,6 +162,38 @@ ShopKit on VIRIDIAN_MART (tileset MART)
     shop_band_south  kit  placements 1  models 1  faces   9530   737 ms
 ```
 
+## Whole towns: `--kit Town`
+
+```
+python tools/kit_headless.py --kit Town --map LAVENDER_TOWN
+python tools/kit_headless.py --kit Town --map VERMILION_CITY
+python tools/kit_headless.py --kit Town --map ROUTE_12
+python tools/kit_headless.py --kit Town --map MR_FUJIS_HOUSE
+```
+
+Not one kit: every template on the map goes through the same
+per-placement dispatch `Buildings.build` runs, in its order -- Lavender's
+Centre/Mart/Tower (`LavenderCivicKit`, `LavenderTowerKit`) and Vermilion's
+houses (`VermilionHouseKit`) before the chain, then `BridgeKit`,
+`ReefKit`, `FenceKit`, the painted ground (`LavenderGroundKit`, with this
+map's plan from `data/*ground_index.lua`), the homes
+(`LavenderHomeKit` / `VermilionHomeKit`, by map id) and Lavender's
+cottages (`LavenderHouseKit`). That dispatch is `townPick` in
+`kit_headless.lua` -- a transcription, so **when `Buildings.lua` grows a
+branch, `townPick` must too.**
+
+What it does not draw: any template no kit owns (the classic fold --
+Vermilion's Centre, Mart and gym; Lavender's stone terrace; ledges). Those
+still CLAIM their cells, so first-claim-wins holds, but they show as holes.
+The reef's motion packing is skipped (a still render wants the plain
+shade). Bridges ask `Map:isWalkableCell` (bottom-left tile of the cell,
+against the tileset's `walkable`) and fences ask which edges are joined
+(`connections` in the map's def) -- both are passed in from the generated
+data.
+
+Measured on this machine: Lavender 85 535 faces in 2.7 s, Vermilion
+268 429 in 6 s, Route 12 423 633 in 6 s, a home in 0.5 s, no errors.
+
 ## Known limits
 
 **It is geometry only.** No game shader, no lanterns, no point lights,

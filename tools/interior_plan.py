@@ -166,8 +166,32 @@ def plan(map_id):
         "objects": records(ml, "objects"),
         "warps": records(ml, "warps"),
         "blockIds": blocks,
+        "connections": connections(ml),
     }
     return meta, grid
+
+
+def connections(lines):
+    """{ "north": "ROUTE_10", ... } from the map's `connections` block --
+    which edges another map is joined across (FenceKit runs a fence on
+    across a joined edge rather than ending it in a post)."""
+    out, on, side = {}, False, None
+    for ln in lines:
+        if ln == "    connections = {":
+            on = True
+            continue
+        if not on:
+            continue
+        if ln == "    },":
+            break
+        m = re.match(r"^      (\w+) = \{$", ln)
+        if m:
+            side = m.group(1)
+            continue
+        m = re.match(r'^        map = "(\w+)",$', ln)
+        if m and side:
+            out[side] = m.group(1)
+    return out
 
 
 def atlas_png(meta, out, scale=10):

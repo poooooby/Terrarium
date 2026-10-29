@@ -20,6 +20,7 @@ import argparse
 import ctypes
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -101,7 +102,51 @@ KITS = {
         # tileset: Buildings' `spriteBand` path, reproduced as readSheet
         sheet="assets/shop/shop_sheet.png",
     ),
+    # Not one kit: every kit a TOWN is built from, through the same
+    # per-placement dispatch lib/Buildings.lua runs (kit_headless.lua's
+    # townPick). Lavender and Vermilion, their routes, and their homes:
+    #   --kit Town --map LAVENDER_TOWN | VERMILION_CITY | ROUTE_12 | ...
+    #   --kit Town --map MR_FUJIS_HOUSE | VERMILION_OLD_ROD_HOUSE | ...
+    # Templates no kit owns still claim their cells (first claim wins) but
+    # are not drawn: the classic fold lives in Buildings' locals.
+    "Town": dict(
+        module=None,
+        town=True,
+        tileset=None,               # whatever the map's own is
+        map="LAVENDER_TOWN",
+        settings={},
+        stubs=["Voxel3D"],
+        preload=[],
+        sheets=[
+            "assets/buildings/lavender_civic.png",
+            "assets/buildings/lavender_materials.png",
+            "assets/buildings/lavender_home.png",
+            "assets/buildings/vermilion_houses.png",
+            "assets/buildings/vermilion_home.png",
+            "assets/buildings/bridge_kit.png",
+            "assets/buildings/reef_kit.png",
+            "assets/buildings/fence_kit.png",
+        ],
+        # the painted ground plans, read off data/<world>_index.lua at run
+        # time (only this map's goes in, and never into Lua)
+        ground_indexes=["lavground_index", "vermground_index"],
+    ),
 }
+
+
+def ground_sheet(map_id, indexes):
+    """The painted ground plan LavenderGroundKit stands on `map_id`, or
+    None -- read off data/<index>.lua, whose lines are one map each:
+      LAVENDER_TOWN = { ..., sheet = "assets/buildings/lavground_....png" },"""
+    for name in indexes:
+        p = ROOT / "data" / (name + ".lua")
+        if not p.exists():
+            continue
+        for ln in p.read_text(encoding="utf-8").splitlines():
+            m = re.match(r'^\s*(\w+) = \{.*sheet = "([^"]+)"', ln)
+            if m and m.group(1) == map_id:
+                return m.group(2)
+    return None
 
 # ------------------------------------------------------------ lua glue --
 
@@ -322,7 +367,7 @@ def main():
     map_id = args.map or cfg["map"]
     WORK.mkdir(parents=True, exist_ok=True)
 
-    if not (ROOT / "lib" / (cfg["module"] + ".lua")).exists():
+    if cfg["module"] and not (ROOT / "lib" / (cfg["module"] + ".lua")).exists():
         raise SystemExit("lib/%s.lua does not exist" % cfg["module"])
 
     t0 = time.perf_counter()
@@ -331,7 +376,7 @@ def main():
     except KeyError as e:
         raise SystemExit("no such map in the BUILD's generated data: %s\n"
                          "  (%s)" % (map_id, e))
-    if meta["tileset"] != cfg["tileset"]:
+    if cfg["tileset"] and meta["tileset"] != cfg["tileset"]:
         print("note: %s is tileset %s, kit %s expects %s"
               % (map_id, meta["tileset"], args.kit, cfg["tileset"]))
     atlas_path = BUILD / ROM / meta["image"]
@@ -352,8 +397,11 @@ def main():
     # Authored sheets: the kit's default plus anything a template names.
     # Index 0 in the dump is the map's tileset; these start at 1.
     sheets, sheet_imgs = [], []
+    ground = (ground_sheet(map_id, cfg["ground_indexes"])
+              if cfg.get("ground_indexes") else None)
     for rel in dict.fromkeys(list(cfg.get("sheets", []))
-                             + ([cfg["sheet"]] if cfg.get("sheet") else [])):
+                             + ([cfg["sheet"]] if cfg.get("sheet") else [])
+                             + ([ground] if ground else [])):
         src = ROOT / rel
         if not src.exists():
             print("note: sheet missing, the kit will fall back to the "
@@ -362,7 +410,7 @@ def main():
         raw = WORK / ("sheet%d.rgba" % len(sheets))
         w, h, chan = dump_image(src, raw, "RGBA")
         sheets.append(dict(rel=rel, path=str(raw).replace("\\", "/"),
-                           w=w, h=h, chan=chan))
+                           w=w, h=h, chan=chan, texOnly=(rel == ground)))
         sheet_imgs.append(np.asarray(Image.open(src).convert("RGB")))
 
     settings = dict(cfg.get("settings", {}))
@@ -380,7 +428,9 @@ def main():
         mark=cfg.get("mark"),
         tileset=meta["tileset"],
         only=args.template,
-        map=dict(id=map_id, width=meta["w"], height=meta["h"]),
+        town=bool(cfg.get("town")),
+        map=dict(id=map_id, width=meta["w"], height=meta["h"],
+                 walkable=meta["walkable"], connections=meta["connections"]),
         atlas=dict(path=str(atlas_raw).replace("\\", "/"), w=aw, h=ah,
                    perRow=meta["tilesPerRow"], image=meta["image"]),
         grid=dict(w=len(grid[0]), h=len(grid),
