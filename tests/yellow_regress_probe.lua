@@ -1,8 +1,8 @@
--- Probe: Yellow regression sweep after the Gold seams.  The Gen 2 work
--- touched shared files (VoxelScene groundAt/flatTop, TileShape.at,
--- TerrainAtlas, Structures doors, BattleScene palette, OverworldBattle);
--- this walks the same ground the Gold probes walked, on Yellow, and
--- screenshots the voxel pass plus a staged battle.
+-- Probe: Yellow regression sweep over the shared seams (VoxelScene
+-- groundAt/flatTop, TileShape.at, TerrainAtlas, Structures doors,
+-- BattleScene palette, OverworldBattle). Written when the Gold first pass
+-- touched them (removed in 1.41.0); still a useful sweep. Walks the
+-- overworld on Yellow and screenshots the voxel pass plus a staged battle.
 --
 --   POKEPORT_VERSION=yellow DS_PROBE_DIR=<dir> \
 --   POKEPORT_DRIVER=mods/TERRARIUM/tests/yellow_regress_probe.lua gen1recomp

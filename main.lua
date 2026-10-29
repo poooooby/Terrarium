@@ -113,14 +113,6 @@ function V.uncacheData(name)
   dataFiles[name] = nil
 end
 
--- ------- generation bridge
---
--- Before anything renders: on Pokemon Gold the world's neighbor rows have
--- no Map instance, and every module below reads nb.map. The bridge hangs
--- one on each row at the source; on Gen 1 it is a no-op.
-
-V.require("Gen2Bridge").install()
-
 -- ------- pipelines
 
 local Voxel = V.require("VoxelState")

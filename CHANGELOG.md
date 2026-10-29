@@ -75,6 +75,16 @@ values for the old rows are simply ignored.
   follow, RENAME), **A-FARM** and the hidden-item glints.
 - Walking on frozen water with SURF.
 
+### Removed: Gen 2 (Gold)
+
+The mod is Gen 1 only now. `manifest.json` drops `gen2compat` and declares
+`"games": ["gen1"]`, so the engine no longer offers it on a Gold boot. With
+that gone, the Gold first pass (since 1.26.0) was dead code and went with
+it: `lib/Gen2Bridge.lua`, OverworldBattle's Gold battle arm, TerrainAtlas's
+Gold palette bake, the two Johto tileset profiles in
+`data/voxel_heights.lua`, and the four `tests/gold_*` probes. The guards that
+only read a map's shape defensively stay, because they are harmless on Gen 1.
+
 ### From Breno's final build
 
 

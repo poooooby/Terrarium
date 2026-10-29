@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 TerrariumVoxel (mod id `TERRARIUM`; repo `poooooby/Terrarium`) is a Lua mod for the [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp) engine (LÖVE / LuaJIT, so **Lua 5.1 dialect**). It is a fork of BrenoBertucci's Terrarium (itself a fork of the Dramatic Shape Voxel Mod) that turns the Gen 1 overworld into a 3D diorama, with weather, ambient life and a staged battle camera. The original maintainer handed the project over; his last unpushed build was merged in 1.41.0 (commit `import: Breno's final unpushed build`). There is no build step: the engine loads `main.lua` (declared as `entry` in `manifest.json`) from `mods/TERRARIUM/`. The engine's own sources (`src/...`, e.g. `src/mods/Schemas.lua`, `src/core/Input.lua`) are referenced in comments but are **not** in this repo.
 
-Gen 1 (Red/Blue/Yellow) is the supported target; Gen 2 (Gold) support via `lib/Gen2Bridge.lua` is a first pass and mostly untested.
+Gen 1 (Red/Blue/Yellow) is the only target: `manifest.json` declares `"games": ["gen1"]`. The Gold first pass (`Gen2Bridge`) was removed in 1.41.0; don't add Gen 2 branches back.
 
 ## Architecture
 

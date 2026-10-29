@@ -5,11 +5,9 @@ living in it."
 
 Before downloading, check out [BrenoBertucci's Terrarium](https://github.com/BrenoBertucci/Terrarium) first. This is Wooble's personal fork, and an attempt at an English translation plus other minor bug fixes, and is not a replacement for the original.
 
-> ### Gen 2 (Pokémon Gold) is an early first pass — play Gen 1
-
-> [!CAUTION]
-> Terrarium is recommended on **Gen 1 only** (Red / Blue / Yellow).
-> **Do not use it on Gold / Johto yet.**
+> [!NOTE]
+> Terrarium supports **Gen 1 only** (Red / Blue / Yellow). The manifest
+> declares `games: ["gen1"]`, so the engine does not load it on Gold.
 
 
 > ### This is a fork of a fork, and neither original is mine

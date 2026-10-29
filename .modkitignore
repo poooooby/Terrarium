@@ -81,10 +81,6 @@ tests/battlescreen_probe.lua
 tests/flock_size_probe.lua
 tests/walkers_probe.lua
 tests/agenda_shot_probe.lua
-tests/gold_battle_probe.lua
-tests/gold_boot_probe.lua
-tests/gold_mesh_probe.lua
-tests/gold_outdoor_probe.lua
 tests/yellow_regress_probe.lua
 tests/buildings_baseline_probe.lua
 tests/buildings_perf_probe.lua

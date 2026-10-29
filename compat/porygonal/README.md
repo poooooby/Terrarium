@@ -120,8 +120,7 @@ so it collects no still-camera samples.)
 
 ## Not covered
 
-- **Gen 2 (Gold).** Porygonal declares `games: ["gen1"]`, so it does not load
-  on a Gold boot and Terrarium is untouched there.
+- **Gen 2 (Gold).** Neither mod loads there: both declare `games: ["gen1"]`.
 - **Fly, bike, surf, fishing and the seated Pokémon Center figure.** The
   adapter carries upstream's handling for all of these unchanged; none was
   exercised by the probe.
