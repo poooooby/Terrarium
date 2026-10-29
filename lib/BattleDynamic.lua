@@ -93,6 +93,11 @@ local GATES = {
   { "BattlePanelsXY", "ENABLED" },
   { "BattleGlassFX", "ENABLED" },
   { "BattleRibbon", "ENABLED" },
+  -- Where the two HP plates hang. The concept boards put both along the top,
+  -- player left and foe right, with the whole lower half left to the cards
+  -- and the command row; the pack's own frames were cut for the opposite
+  -- diagonal, so CLASSIC gets that back (see BattleHudXY.CONCEPT_CORNERS).
+  { "BattleHudXY", "CONCEPT_CORNERS" },
 }
 
 -- the costume itself -- the box and HUD reskin -- on for every level but

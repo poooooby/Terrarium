@@ -94,6 +94,9 @@ end
 
 function StartMenuMap.row(game)
   return {
+    -- marked, not matched by label: the word changes with the LANGUAGE row
+    -- and the never-twice check below has to hold across a switch
+    terrariumMap = true,
     label = StartMenuMap.label(),
     onSelect = function() StartMenuMap.open(game) end,
   }
@@ -128,7 +131,7 @@ function StartMenuMap.install()
     end
     -- never twice on the same menu, whatever else wraps this
     for i = 1, #menu.items do
-      if menu.items[i] and menu.items[i].label == StartMenuMap.label() then
+      if menu.items[i] and menu.items[i].terrariumMap then
         return menu
       end
     end

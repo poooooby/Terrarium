@@ -432,11 +432,11 @@ end
 local POCKET_ORDER = { "items", "cura", "balls", "tm" }
 BattleScreenXY.POCKET_ORDER = POCKET_ORDER
 
-local POCKET_LABEL_EN = {
-  items = "ITEMS", cura = "MEDICINE", balls = "BALLS", tm = "TM/HM",
-}
 local POCKET_LABEL_PT = {
   items = "ITENS", cura = "CURA", balls = "BOLAS", tm = "TM/HM",
+}
+local POCKET_LABEL_EN = {
+  items = "ITEMS", cura = "MEDICINE", balls = "BALLS", tm = "TM/HM",
 }
 
 -- The pocket tab's own word, in whichever language Lang.setting is on.
