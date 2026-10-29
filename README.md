@@ -1,5 +1,14 @@
 # Terrarium
 
+> ### ⚠️ BETA -- still full of bugs / ainda cheia de bugs
+>
+> **Current version: `1.39.0-beta`.** BETA -- expect bugs. This is a test build, not a finished release: things break, whole features are half done, and a bad frame can drop the 3D mode back to 2D for the session. Keep a copy of your save, and report what you find.
+>
+> **Versão atual: `1.39.0-beta`.** BETA -- cheia de bugs. Esta é uma versão de teste, não um lançamento pronto: coisas quebram, há recursos pela metade, e um erro pode derrubar o modo 3D para o 2D até o fim da sessão. Guarde uma cópia do seu save e avise o que encontrar.
+>
+> Known rough edges are listed at the top of [`CHANGELOG.md`](CHANGELOG.md). Bugs go to
+> [the issue tracker](https://github.com/BrenoBertucci/Terrarium/issues).
+
 A little world under glass: it has its own weather, its own hours, and things
 living in it.
 
@@ -158,10 +167,11 @@ rolls its dice precisely as it always did.**
 | **CITY** | PokÃ©mon loose in the streets of every town, and civilian NPCs that glance as you pass |
 | **ROUTINES / SHELTER** | civilians look around, turn toward the sign they are standing beside, talk in pairs â€” and walk to the nearest doorway when a shower comes down hard |
 | **WEATHER** | rain and snow, folded into the light rather than drawn over it |
-| **WIND** | the tall grass is geometry, so wind is a bend and not a slid picture: the base stays planted, the tip gives and drops as it goes over, each tuft has its own stiffness, and the gust travels across a meadow. Rain weighs the blades down and damps them; settled snow bows them and piles white on the crowns; walkers lay them flat and they spring back, leaving a trail you can turn round and see. AUTO hands the row to the climate -- calm night, breeze by day, gale under a front, no menu trips. Plus the air itself: dust and spray streaks, and a gust front crossing the frame as a line |
+| **WIND** | the tall grass is geometry, so wind is a bend and not a slid picture: the base stays planted, the tip gives and drops as it goes over, each tuft has its own stiffness, and the gust travels across a meadow. Rain weighs the blades down and damps them; settled snow bows them and piles white on the crowns; walkers lay them flat and they spring back, leaving a trail you can turn round and see. AUTO hands the row to the climate -- calm night, breeze by day, gale under a front, no menu trips. Plus the air itself, drawn the way anime draws wind: white strokes that write themselves along the flow and are erased from the tail -- lazy loops in a breeze, a sky of long streaks, twisted pairs and a rank on every gust front in a gale, a pair spiralling round a tree crown -- some carrying a leaf. Twelve kinds of leaf tumbling at three depths (small and high, the middle, big past the lens), and a gale's grit skimming the path |
 | **GROUND** | what the weather leaves behind: puddles that gather through a shower and are still there ten minutes later wearing the sky's own colour, snow settling in drifts, footprints behind everyone walking on it |
 | **ECOLOGY** | Gen 2's time-of-day encounters built out of Gen 1's single table â€” the nocturnal half of the dex comes up after dark, birds and caterpillars by day, by reweighting the map's own ten slot buckets rather than adding or removing anything |
-| **WATER** | a cel-shaded swell: two crossing wave trains, analytic normals, depth-rung colour and binary foam (toon water ideas, hard steps only â€” not PBR). CALM / SWELL / FLAT. Rain and wind feed chop energy; freeze turns the surface into walkable ice when the party can Surf |
+| **WATER** | how much the water MOVES: a swell on crossing wave trains, and a surface that REMEMBERS -- a real wave equation on a grid round the player, so a surfer, a water Pokemon, a raindrop or a fishing float leaves rings that spread, bounce off the bank and cross each other. AUTO (the weather picks the swell) / CALM / SWELL / FLAT. Freeze turns the surface into walkable ice when the party can Surf |
+| **WATER STYLE** | how the water is DRAWN: ANIME paints it like a cel background -- flat light and shadow patches that drift, four-point star glints, rings in clean bands with a white crescent on the sunward flank, bright rings on the bed of the shallows, scribbled whitecaps in a gale, the next wave's line walking in to the shore. CLASSIC is the four-colour dithered sheet. Same physics under both |
 | **QOL** | type-effectiveness hints on the FIGHT menu, auto-repel, and HMs on an A press (CUT at a tree, SURF at water, STRENGTH at a boulder) |
 | **BAG / STACK** | twenty item slots and ninety-nine per stack were Game Boy save-RAM limits, not design. Raise both. |
 | **AUTO-FARM** | pick a party slot and a bot trains it, always picking the strongest move against what it faces |

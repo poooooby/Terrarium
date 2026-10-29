@@ -28,18 +28,32 @@
 -- them. That is also what lets the player's HUD capsule sit still -- it
 -- used to step upward to dodge the grown panel.
 --
--- THE LABELS ARE THE GAME'S. The 5X pack draws its command buttons with the
--- words baked in, in English -- POKéMON, BAG, RUN. This build runs in
--- Portuguese (LUTAR, PKMN, ITENS, FUGIR), so the art's own labels would put
--- two languages in one frame. The buttons here are drawn rather than blitted
--- and the words come from the same place the Game Boy's did.
+-- THE LABELS ARE DRAWN, NOT BLITTED. The 5X pack baked its own words into
+-- its command buttons; that art left the repository with the rest of the
+-- Nintendo-derived assets, so `label` is no longer a fallback -- it is the
+-- button. It is a FUNCTION rather than a string (see `label()` below), so
+-- the LANGUAGE row picks the word at draw time; every reader calls it.
 
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
 
+local Lang = V.require("Lang")
+
 local BattleBoxXY = {}
 
 BattleBoxXY.ENABLED = true
+
+-- MINIMAL (see BattleDynamic): still speaks for "messages" (the intro
+-- text and the like), but gets out of the way for "menu"/"moveSelect" --
+-- neither this mod's own command UI nor the engine's shows, leaving the
+-- phase for another mod's own hook.
+BattleBoxXY.HIDE_COMMANDS = false
+
+-- OFF (see BattleDynamic): suppressed outright. Unlike a plain
+-- `available()==false` (missing assets, say), which falls back to the
+-- engine's own box, SUPPRESS means nothing this mod touches shows at
+-- all -- OFF is a level below "fall back to classic," not classic itself.
+BattleBoxXY.SUPPRESS = false
 
 BattleBoxXY.ASSET_DIR = "assets/battlexy/"
 
@@ -48,16 +62,33 @@ BattleBoxXY.ASSET_DIR = "assets/battlexy/"
 -- to 2, which is a 2x2 read row-first.
 --
 -- The art is the pack's own button for each, so the words on them are the
--- pack's too: FIGHT, POKéMON, BAG, RUN. That does put English on a menu the
--- rest of this build shows in Portuguese, and it is deliberate -- these are
--- the X/Y buttons, and redrawing them to translate the label would make them
--- something else. `label` is kept beside each for the tooltip-less case where
--- the art fails to load and the fallback has to say something.
+-- pack's too: FIGHT, POKéMON, BAG, RUN. That art is gone, so `label` carries
+-- the concept board's own words instead, which are English and were already
+-- an open want (ROADMAP: "EN labels"). Portuguese is the same four commands
+-- in the other language, for a save running under a translation mod -- the
+-- LANGUAGE row picks between them (lib/Lang.lua), and `label` is a function
+-- so that pick happens at draw time rather than at load time.
+--
+-- THREE of the board's four map onto a real command and the fourth does not.
+-- The board reads ATTACK / SKILLS / ITEMS / SWITCH; Generation 1 has no
+-- separate skill list -- the moves ARE the attack menu -- and its fourth slot
+-- is RUN, which runs away. Labelling a button SWITCH when pressing it flees
+-- the battle is the one mistake a relabel can make that costs the player a
+-- fight, so SWITCH sits on the slot that actually swaps the mon (index 2, the
+-- engine's PKMN) and index 4 says what it does. TROCAR and FUGIR keep that
+-- same pairing -- the word says what the press does, in either language.
+local function label(en, pt)
+  return function() return Lang.pick(en, pt) end
+end
 BattleBoxXY.COMMANDS = {
-  { art = "cmd_fight",   label = "LUTAR", color = { 0.86, 0.24, 0.21 } },
-  { art = "cmd_pokemon", label = "PKMN",  color = { 0.24, 0.70, 0.36 } },
-  { art = "cmd_bag",     label = "ITENS", color = { 0.93, 0.66, 0.16 } },
-  { art = "cmd_run",     label = "FUGIR", color = { 0.20, 0.52, 0.86 } },
+  { art = "cmd_fight",   label = label("ATTACK", "ATACAR"),
+    color = { 0.86, 0.24, 0.21 } },
+  { art = "cmd_pokemon", label = label("SWITCH", "TROCAR"),
+    color = { 0.24, 0.70, 0.36 } },
+  { art = "cmd_bag",     label = label("ITEMS",  "ITENS"),
+    color = { 0.93, 0.66, 0.16 } },
+  { art = "cmd_run",     label = label("FLEE",   "FUGIR"),
+    color = { 0.20, 0.52, 0.86 } },
 }
 
 -- X/Y stands FIGHT on its own, big, with the other three along the bottom
@@ -171,6 +202,11 @@ BattleBoxXY.PHASES = {
 
 function BattleBoxXY.covers(battle)
   if not (battle and BattleBoxXY.available()) then return false end
+  if BattleBoxXY.SUPPRESS then return false end
+  if BattleBoxXY.HIDE_COMMANDS
+     and (battle.phase == "menu" or battle.phase == "moveSelect") then
+    return false
+  end
   return BattleBoxXY.PHASES[battle.phase] and true or false
 end
 
@@ -220,8 +256,9 @@ local function lines(text)
 end
 
 local function panel(x, y, w, h)
+  if BattleHudXY.uiSprite("dialogue", x, y, w, h, true) then return end
   local r = math.min(16, h * 0.45, w * 0.45)
-  setColor(BattleBoxXY.PANEL)
+  setColor(BattleHudXY.PANEL)
   love.graphics.rectangle("fill", x, y, w, h, r, r)
   setColor(BattleBoxXY.PANEL_EDGE)
   love.graphics.setLineWidth(2)
@@ -300,6 +337,13 @@ BattleBoxXY.shadowText = shadowText
 -- slot they float with air under them and read as clipped rather than seated.
 -- `mul` is the selection's animated scale (popScale); 1 when still.
 local function button(x, y, w, h, cmd, selected, align, mul)
+  if BattleHudXY.uiSprite(selected and "selected" or "button", x, y, w, h, true) then
+    local word = cmd.label()
+    local th = math.min(h * 0.38, (w - 24) * 84 / math.max(1, BattleHudXY.textWidth(word)))
+    local tw = BattleHudXY.textWidth(word) * th / 84
+    BattleHudXY.text(word, x + (w - tw) * 0.5, y + (h - th) * 0.5, th, BattleHudXY.INK)
+    return
+  end
   local img = art(cmd.art)
   if not img then
     -- the art did not load: a coloured rounded rectangle with the game's own
@@ -309,8 +353,9 @@ local function button(x, y, w, h, cmd, selected, align, mul)
     love.graphics.setColor(c[1], c[2], c[3], selected and 1 or BattleBoxXY.DIM)
     love.graphics.rectangle("fill", x, y, w, h, r, r)
     local th = h * 0.46
-    local tw = BattleHudXY.textWidth(cmd.label) * (th / 84)
-    BattleHudXY.text(cmd.label, x + (w - tw) * 0.5, y + (h - th) * 0.5, th,
+    local text = cmd.label()
+    local tw = BattleHudXY.textWidth(text) * (th / 84)
+    BattleHudXY.text(text, x + (w - tw) * 0.5, y + (h - th) * 0.5, th,
                      BattleBoxXY.TEXT)
     love.graphics.setColor(1, 1, 1, 1)
     return
@@ -370,7 +415,7 @@ local function drawMessage(battle, x, y, w, h, shot)
   local th = h * BattleBoxXY.TEXT_H
   local ly = y + pad
   for _, line in ipairs(shownLines) do
-    BattleHudXY.text(line, x + pad, ly, th, BattleBoxXY.TEXT)
+    BattleHudXY.text(line, x + pad, ly, th, BattleHudXY.INK)
     ly = ly + th * BattleBoxXY.LINE_GAP
   end
 end
@@ -429,7 +474,7 @@ local function drawMenu(battle, x, y, w, h, shot)
   local th = h * BattleBoxXY.TEXT_H
   local ly = my + pad
   for _, line in ipairs(msgLines) do
-    BattleHudXY.text(line, x + pad, ly, th, BattleBoxXY.TEXT)
+    BattleHudXY.text(line, x + pad, ly, th, BattleHudXY.INK)
     ly = ly + th * BattleBoxXY.LINE_GAP
   end
 
@@ -628,6 +673,13 @@ local function drawMoves(battle, x, y, w, h, shot)
   -- With the hand up, the selected move's info card stays DOWN: every card
   -- already wears its own type, power and PP, so the panel would repeat
   -- the raised card word for word -- over the player's mon.
+  -- The board's prompt, in the message pane the menu already owns. Authored
+  -- here: the engine prints "What will X do?" from its own layout and has
+  -- nothing to say once the move list is up, so this row is the mod's own
+  -- sentence rather than a string lifted from anywhere.
+  local P = panels3d()
+  if P and shot then pcall(P.message, battle, shot, { "Choose a move." }) end
+
   local F = fan()
   if F and shot then
     local okFan, drew = pcall(F.draw, battle, shot)
@@ -742,7 +794,20 @@ function BattleBoxXY.install()
     -- `dramaticShapeShot` is how the rest of the mod asks "is this battle
     -- being drawn over the diorama": on the plain battle background the
     -- engine's own box is right and nothing here should run.
-    if self.dramaticShapeShot and BattleBoxXY.available() then return end
+    if self.dramaticShapeShot then
+      -- OFF: nothing this mod touches shows, ever -- not even the
+      -- engine's own box, which a plain `available()==false` falls back
+      -- to below.
+      if BattleBoxXY.SUPPRESS then return end
+      -- MINIMAL (HIDE_COMMANDS): this file speaks for "messages" (handled
+      -- in OverworldBattle.snapHUDs) but draws nothing at all for the
+      -- command phases -- not its own UI, and not the engine's either.
+      -- A mod meaning to supply its own menu here has to reach the
+      -- screen some other way (its own render hook, not this chain),
+      -- since falling through to `inner` would show the engine's box
+      -- exactly when this level means to hide it.
+      if BattleBoxXY.available() then return end
+    end
     return inner(self, ...)
   end
   BattleState.terrariumXYBox = true

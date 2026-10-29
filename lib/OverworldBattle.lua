@@ -411,6 +411,12 @@ function OverworldBattle.begin(state, battle)
   -- optional any more (see forceOG)
   OverworldBattle.forceOG()
 
+  -- The free creature shelf needs the species table to pair against, and the
+  -- battle is the first place in the frame that reliably HAS one (it is
+  -- extracted from the player's ROM, so there is no build-time copy of it).
+  -- Cheap after the first fight: bind returns the map it already built.
+  pcall(function() V.require("CreaturePack").bind(battle and battle.data) end)
+
   session = { state = state, arena = arena, battle = battle, shot = nil,
               armed = false, token = 0 }
   cullCast(state)
@@ -420,7 +426,7 @@ function OverworldBattle.begin(state, battle)
   BattleShot.reset()
   -- live battle Vfx must not leak from the last fight into this one
   pcall(BattleHitFX.clear)
-  -- and the COMBAT row applies at the door, so a persisted CLASSICA holds
+  -- and the COMBAT row applies at the door, so a persisted CLASSIC holds
   -- from this battle's first frame (see BattleDynamic)
   pcall(function() V.require("BattleDynamic").apply() end)
   return true
@@ -1064,7 +1070,7 @@ function OverworldBattle.install()
                    and MonPack.has(species, side == "back")
     local snapped = math.max(1, math.floor((tonumber(base) or 1) + 0.5))
     if texturing then
-      if packed then return MonPack.SCALE end
+      if packed then return MonPack.scaleFor(species, side == "back") end
       -- the back view stands at the GB's own 2x (BACK SPRITES): the pack's
       -- back art lands at the same 64 px through SCALE, so either road puts
       -- the same-sized mon on the cell and BACK_HERO means the same thing
@@ -1077,7 +1083,9 @@ function OverworldBattle.install()
       return 1
     end
     if not OverworldBattle.shot() then return base end
-    if packed then return snapped * MonPack.MENU_SCALE end
+    if packed then
+      return snapped * MonPack.scaleFor(species, side == "back", true)
+    end
     return snapped
   end
 
@@ -1301,6 +1309,10 @@ function OverworldBattle.install()
     -- window's edges and composited into the world image (snapHUDs). Drawing
     -- them here as well would show each block twice, once in each place.
     if self.dramaticShapeShot and snapped() then return end
+    -- OFF (see BattleDynamic): nothing this mod touches shows, ever --
+    -- not even the engine's own HUD, which the plain fallback below
+    -- would otherwise draw.
+    if self.dramaticShapeShot and BattleHudXY.SUPPRESS then return end
     if not (self.dramaticShapeShot and self.dramaticShapeDark) then
       return innerHUDs(self, slide)
     end
@@ -1309,6 +1321,15 @@ function OverworldBattle.install()
       innerHUDs(battle, slide)
     end)
   end
+
+  -- The two RULE modules, installed last and each behind its own guard, so a
+  -- throw in either leaves the costume above it wired. They patch the same
+  -- table this block does and nothing else -- the parry defers executeAction
+  -- and scales applyDamage, the charge meter gates chooseMove and pays out on
+  -- endOfTurn. Both answer "off" from their own OPTIONS row without being
+  -- uninstalled, which is what makes flipping either row mid-battle safe.
+  pcall(function() V.require("BattleParry").install(BattleState) end)
+  pcall(function() V.require("BattleCharge").install(BattleState) end)
 
   BattleState.dramaticShapeBattleHook = true
 end
@@ -1394,10 +1415,21 @@ function OverworldBattle.drawXYBlock(battle, shot, side)
   local fh = capsule
              and (side == "enemy" and BattleCapsule.ENEMY_H
                                    or BattleCapsule.PLAYER_H)
-             or BattleHudXY.FRAME_H
+             or (side == "enemy" and BattleHudXY.ENEMY_H
+                                  or BattleHudXY.PLAYER_H)
   local h = w * fh / fw
   local x, y
-  if side == "enemy" then
+  -- The concept boards hang BOTH plates along the top -- player left, foe
+  -- right -- and leave the whole lower half to the cards, the prompt and the
+  -- command row. The pack's own cut wanted the opposite diagonal, so the
+  -- flag (BattleDynamic owns it) is what tells the two layouts apart rather
+  -- than an edit that would strand CLASSICA in a placement it was not cut
+  -- for. Both plates stay clear of the text box either way: at the top there
+  -- is nothing to clear.
+  if BattleHudXY.CONCEPT_CORNERS and not capsule then
+    x = (side == "enemy") and (shot.pw - w - m) or m
+    y = shot.ly + m
+  elseif side == "enemy" then
     x, y = m, shot.ly + m
   else
     x = shot.pw - w - m
@@ -1459,6 +1491,11 @@ function OverworldBattle.snapHUDs(battle, shot)
   -- always rewrites menuIndex from the GB 2x2 col/row it captured before
   -- wasPressed (where BattleNav.step already wrote RUN); pin puts it back.
   pcall(function() V.require("BattleNav").pin() end)
+  -- CLASSIC and MINIMAL drop the frosted glass behind the name/HP plates
+  -- (still corner-pinned, per BattleDynamic); OFF drops the HUD block
+  -- entirely, capsule and Game Boy band alike.
+  local okD, Dyn = pcall(V.require, "BattleDynamic")
+  local mode = (okD and Dyn and Dyn.mode()) or "dynamic"
   local slide = (battle.introSlide or 0) * 4
   local rects, bandX = OverworldBattle.snapRects(shot)
   local enemy, player = OverworldBattle.hudLive(battle, slide)
@@ -1558,8 +1595,23 @@ function OverworldBattle.snapHUDs(battle, shot)
     if BattleBoxXY.covers(battle) and BattleBoxXY.claim(battle) then
       xyBox = live.box
     end
+    -- OFF shows no HUD block at all, so no glass belongs under one;
+    -- CLASSIC and MINIMAL keep the corner-pinned name/HP/EXP reading but
+    -- lose the frost specifically behind it (see BattleDynamic) -- the
+    -- box/moves rect's own glass, when BattleBoxXY is not the one
+    -- covering it, is untouched by either. MINIMAL additionally hides
+    -- the box's own glass during "menu"/"moveSelect": nothing is drawn
+    -- on it there (BattleBoxXY.HIDE_COMMANDS), so a pane of glass with
+    -- nothing on it is the one artefact left behind otherwise.
+    local minimalNoCommands = mode == "minimal"
+      and (battle.phase == "menu" or battle.phase == "moveSelect")
     for key, rect in pairs(live) do
-      if not (xyBox and (key == "box" or key == "moves")) then
+      local noFrost = mode == "off"
+        or (xyBox and (key == "box" or key == "moves"))
+        or ((key == "enemy" or key == "player")
+            and (mode == "classic" or mode == "minimal"))
+        or (minimalNoCommands and (key == "box" or key == "moves"))
+      if not noFrost then
         BattleHud.panel(rect, shot, dark, true)
       end
     end
@@ -1585,44 +1637,60 @@ function OverworldBattle.snapHUDs(battle, shot)
     -- not the other way round. Only once both mons are on the field,
     -- never over the party or bag screens.
     if enemy and player and not screenUp then
+      -- the aim arc goes down FIRST, under the ribbon and the plates: it is
+      -- the deepest thing in this group -- a line lying in the arena -- and
+      -- anything strung above the mons has to cross over it, not under
+      pcall(BattleHitFX.aim, battle, shot)
       pcall(BattleRibbon.draw, battle, shot)
     end
-    for side, band in pairs(OverworldBattle.HUD_BAND) do
-      -- Named for the suite: which branch each side took, counted. A frame
-      -- showing BOTH an X/Y capsule and the Game Boy's own bar is the failure
-      -- this counts -- and it cannot be read off the picture, because the two
-      -- do not overlap and each looks correct on its own.
-      local st = OverworldBattle._xyStats
-      if st then
-        local k = side .. (xy[side] and (xyLive[side] and ".xy" or ".blank")
-                                    or ".band")
-        st[k] = (st[k] or 0) + 1
-      end
-      if xy[side] then
-        -- Not while the party or the bag holds the frame: the capsules
-        -- landed ON TOP of the cards (they draw after the screen does), and
-        -- everything they say is on the cards already. The GB bands stay
-        -- suppressed either way -- that suppression is what KEEPS the
-        -- engine's own HUD tiles off a frame the X/Y screen owns.
-        if xyLive[side] and not screenUp then
-          OverworldBattle.drawXYBlock(battle, shot, side)
+    -- OFF: neither arm of this dispatch runs -- no X/Y capsule and no
+    -- Game Boy band either, since the band is exactly the vanilla HUD
+    -- this level takes off (see BattleDynamic).
+    if mode ~= "off" then
+      for side, band in pairs(OverworldBattle.HUD_BAND) do
+        -- Named for the suite: which branch each side took, counted. A frame
+        -- showing BOTH an X/Y capsule and the Game Boy's own bar is the failure
+        -- this counts -- and it cannot be read off the picture, because the two
+        -- do not overlap and each looks correct on its own.
+        local st = OverworldBattle._xyStats
+        if st then
+          local k = side .. (xy[side] and (xyLive[side] and ".xy" or ".blank")
+                                      or ".band")
+          st[k] = (st[k] or 0) + 1
         end
-      else
-        -- The band still goes down whenever the XY block is NOT covering this
-        -- side, and that is not a fallback -- it is the rest of the band's
-        -- job. The intro's pokeball rows, an enemy faint's, and the safari
-        -- ball count all draw in these rows and none of them is a HUD; they
-        -- appear exactly when hudLive is false, which is when this branch
-        -- runs.
-        local quad = g.newQuad(band[1], band[2], band[3], band[4],
-                               BattleScene.GB_W, BattleScene.GB_H)
-        g.draw(layer, quad, bandX[side] + band[1] * shot.scale,
-               shot.ly + band[2] * shot.scale, 0, shot.scale, shot.scale)
+        if xy[side] then
+          -- Not while the party or the bag holds the frame: the capsules
+          -- landed ON TOP of the cards (they draw after the screen does), and
+          -- everything they say is on the cards already. The GB bands stay
+          -- suppressed either way -- that suppression is what KEEPS the
+          -- engine's own HUD tiles off a frame the X/Y screen owns.
+          if xyLive[side] and not screenUp then
+            OverworldBattle.drawXYBlock(battle, shot, side)
+          end
+        else
+          -- The band still goes down whenever the XY block is NOT covering this
+          -- side, and that is not a fallback -- it is the rest of the band's
+          -- job. The intro's pokeball rows, an enemy faint's, and the safari
+          -- ball count all draw in these rows and none of them is a HUD; they
+          -- appear exactly when hudLive is false, which is when this branch
+          -- runs.
+          local quad = g.newQuad(band[1], band[2], band[3], band[4],
+                                 BattleScene.GB_W, BattleScene.GB_H)
+          g.draw(layer, quad, bandX[side] + band[1] * shot.scale,
+                 shot.ly + band[2] * shot.scale, 0, shot.scale, shot.scale)
+        end
       end
     end
     -- the damage figure rises from the defender's capsule, over the
     -- capsules and the panels (see BattleHitFX.drawTop)
     if not screenUp then pcall(BattleHitFX.drawTop, battle, shot) end
+    -- the parry ring and its chip, over even that: while the window is open
+    -- it is the only thing on screen the player can act on, and a damage
+    -- figure from the previous turn drawn on top of it would be the frame
+    -- telling them to read the wrong number
+    if not screenUp then
+      pcall(function() V.require("BattleParry").draw(battle, shot) end)
+    end
     -- Poke Ball hop, after the chips so it sits on them
     pcall(function() V.require("BattleNav").draw(shot) end)
   end)

@@ -38,6 +38,72 @@ Upstream Dramatic Shape still uses `3` / `5` / `6` / `7` / `8` / `9`.
 - Wild Pokemon visible in the grass; ecology / shelter / city life systems
 - Tuned defaults for lower-end / mobile hardware
 
+## New in 1.39.0-beta
+
+The 1.38.0-beta test build with the water and the wind redone -- same rough
+edges, still BETA.
+
+- **WATER STYLE row -- ANIME / CLASSIC.** ANIME paints the sea like a cel
+  background: drifting light and shadow patches, star glints in the sun, ring
+  highlights with a white crescent, ring caustics on the bed, whitecaps in a
+  chop and a shore line walking in. CLASSIC is the old dithered sheet.
+- **Rings that remember.** A real wave equation runs on the water round the
+  player: surfing in, the bow wake, sitting still, raindrops and the fishing
+  float all throw rings that travel, cross, and reflect off the bank.
+- **WATER gains AUTO** (the new default): the weather picks the swell.
+- **A fishing float.** Cast, plop, bob, bite, strike -- read off the engine's
+  own fishing, which still rolls the catch.
+- **The visible wind, redrawn.** The old puffs read as gas; the air is now
+  drawn as strokes (loops in a breeze, long flows in a gale) with twelve
+  leaves at three depths, some passing right past the lens.
+- **Fixed:** pale straight-edged polygons drifting on open ANIME water.
+- Known: a long session hopping between maps with 3D on slowly fills the Lua
+  heap and the frame rate falls; closing the game clears it.
+
+## New in 1.38.0-beta
+
+Four merged pull requests on top of 1.37.0-beta -- the same test build, same rough
+edges. Worth updating for the SCREEN FX crash fix.
+
+- **COMBAT grows to four levels** (DINAMICA / CLASSICA / MINIMA / DESLIGADA).
+  MINIMA keeps the name/HP/EXP reading and the message text but draws no
+  command menu; DESLIGADA draws nothing at all. Both exist to hand the battle
+  screen to a different battle-UI mod.
+- **A LANGUAGE row** (ENGLISH / PORTUGUES) for the three places this mod
+  writes its own words: the battle command buttons, the bag's pocket tabs and
+  the start menu's MAP row. English is the default; nothing the engine prints
+  is affected.
+- **The 3D map's own text reads 1.3x bigger**, spacing and panel heights
+  along with it, on a phone panel and a 4K monitor alike.
+- **Fixed: SCREEN FX crashed the render pipeline on a real device.** The
+  guard before a long shader compile read `love.event` directly, and the mod
+  sandbox's `love` facade RAISES on that access instead of returning nil, so
+  the first compile with SCREEN FX on took the 3D mode down.
+
+## New in 1.37.0-beta
+
+**⚠️ BETA -- still full of bugs. / BETA -- ainda cheia de bugs.**
+BETA -- expect bugs. This is a test build, not a finished release: things break, whole features are half done, and a bad frame can drop the 3D mode back to 2D for the session. Keep a copy of your save, and report what you find.
+
+BETA -- cheia de bugs. Esta é uma versão de teste, não um lançamento pronto: coisas quebram, há recursos pela metade, e um erro pode derrubar o modo 3D para o 2D até o fim da sessão. Guarde uma cópia do seu save e avise o que encontrar.
+
+- **Bridges and piers rebuilt as timber**: decks on piles with the water running under them, posts with
+  stone caps, railings that never close a way on or off, lanterns that light the whole deck after dark.
+- **A water garden in the big waters**: reeds and cattails on the bank, water lilies on the sheet, corals,
+  kelp and seagrass on the bed -- and the lake bed is finally VISIBLE from above (a horizon plate had been
+  lying over every basin in Kanto). Every plant moves its own way; swimmers push it aside.
+- **Vermilion City from nothing**: herringbone brick streets, a sunburst square, a stone quay with mooring
+  bollards, coastal turf and poppies; Routes 6 and 11 floored in the same picture with no seam; timber
+  crossbuck fences; **six houses, each its own building** (fisherman's cottage, captain's house with a
+  widow's walk, a lighthouse, the Fan Club under a mansard, the trader's shop, the pigeon-post house with a
+  dovecote) and **four interiors, each its own room**.
+- **Lavender Town from nothing**: ground, roads into it, the Centre, the Mart, the Tower outside, three
+  homes inside.
+- Meadow pass, cloud shadows, snow lying on figures, a Porygonal renderer adapter, the LIFT KEY fix (Yellow),
+  RTX renamed SCREEN FX, battles dressed in free art (no Nintendo art ships in this repository).
+
+Full reasoning for every item: `CHANGELOG.md`.
+
 ## New in 1.36.0-beta
 
 **Beta para testes e nada mais.**
