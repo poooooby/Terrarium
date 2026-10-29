@@ -95,6 +95,23 @@ end
 local WaterBody = V.require("WaterBody")
 local Water = V.require("Water")
 
+-- The size field asks lib/WaterMap.lua what is water, and WaterMap reads TILES
+-- (map:cellTile against the tileset's water ids), not map:isWaterCell -- an
+-- interior's floor reads as water to the engine. So the synthetic map answers
+-- in tiles too: WaterMap's fallback deep-water id (0x14) where isWater says
+-- water, and a plain non-shore id everywhere else. No tileset is named, so
+-- WaterMap's fallback sets apply and drawsWater() lets every map through.
+local WATER_TILE, LAND_TILE = 0x14, 0x00
+local function fakeMap(id, isWater)
+  return {
+    id = id, def = { width = 20, height = 20 },
+    isWaterCell = isWater,
+    cellTile = function(self, cx, cy)
+      return isWater(self, cx, cy) and WATER_TILE or LAND_TILE
+    end,
+  }
+end
+
 -- the same synthetic map the sibling test uses: a 4x4 pond and a 26x26 lake
 local function isWater(_, cx, cy)
   if cx >= 4 and cx <= 7 and cy >= 4 and cy <= 7 then return true end
@@ -102,7 +119,7 @@ local function isWater(_, cx, cy)
   return false
 end
 local state = {
-  map = { id = "TEST", def = { width = 20, height = 20 }, isWaterCell = isWater },
+  map = fakeMap("TEST", isWater),
   neighbors = {},
 }
 

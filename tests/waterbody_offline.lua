@@ -75,6 +75,23 @@ end
 local WaterBody = V.require("WaterBody")
 local Water = V.require("Water")
 
+-- The size field asks lib/WaterMap.lua what is water, and WaterMap reads TILES
+-- (map:cellTile against the tileset's water ids), not map:isWaterCell -- an
+-- interior's floor reads as water to the engine. So the synthetic map answers
+-- in tiles too: WaterMap's fallback deep-water id (0x14) where isWater says
+-- water, and a plain non-shore id everywhere else. No tileset is named, so
+-- WaterMap's fallback sets apply and drawsWater() lets every map through.
+local WATER_TILE, LAND_TILE = 0x14, 0x00
+local function fakeMap(id, isWater)
+  return {
+    id = id, def = { width = 20, height = 20 },
+    isWaterCell = isWater,
+    cellTile = function(self, cx, cy)
+      return isWater(self, cx, cy) and WATER_TILE or LAND_TILE
+    end,
+  }
+end
+
 -- ------- a synthetic map: 20x20 BLOCKS = 40x40 cells
 --   small pond   cells  4..7   x  4..7    (4x4)
 --   big lake     cells 12..37  x 12..37   (26x26)
@@ -85,7 +102,7 @@ local function isWater(_, cx, cy)
 end
 
 local state = {
-  map = { id = "TEST", def = { width = 20, height = 20 }, isWaterCell = isWater },
+  map = fakeMap("TEST", isWater),
   neighbors = {},
 }
 
@@ -183,8 +200,7 @@ check("size field is continuous (no per-cell step)",
 -- continues into Route 11 whether or not Route 11 is being rendered.
 WaterBody.invalidate()
 WaterBody.refresh({
-  map = { id = "EDGE", def = { width = 20, height = 20 },
-          isWaterCell = function(_, cx) return cx >= 36 end },
+  map = fakeMap("EDGE", function(_, cx) return cx >= 36 end),
   neighbors = {},
 })
 local strip = Water.sizeAt(at(38, 20))
