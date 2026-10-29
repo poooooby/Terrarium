@@ -32,7 +32,7 @@
 -- its command buttons; that art left the repository with the rest of the
 -- Nintendo-derived assets, so `label` is no longer a fallback -- it is the
 -- button. It is a FUNCTION rather than a string (see `label()` below), so
--- the LANGUAGE row picks the word at draw time; every reader calls it.
+-- the UI LANG row picks the word at draw time; every reader calls it.
 
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
@@ -66,7 +66,7 @@ BattleBoxXY.ASSET_DIR = "assets/battlexy/"
 -- the concept board's own words instead, which are English and were already
 -- an open want (ROADMAP: "EN labels"). Portuguese is the same four commands
 -- in the other language, for a save running under a translation mod -- the
--- LANGUAGE row picks between them (lib/Lang.lua), and `label` is a function
+-- UI LANG row picks between them (lib/Lang.lua), and `label` is a function
 -- so that pick happens at draw time rather than at load time.
 --
 -- THREE of the board's four map onto a real command and the fourth does not.

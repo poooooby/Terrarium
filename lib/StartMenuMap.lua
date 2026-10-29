@@ -94,7 +94,7 @@ end
 
 function StartMenuMap.row(game)
   return {
-    -- marked, not matched by label: the word changes with the LANGUAGE row
+    -- marked, not matched by label: the word changes with the UI LANG row
     -- and the never-twice check below has to hold across a switch
     terrariumMap = true,
     label = StartMenuMap.label(),

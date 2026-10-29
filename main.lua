@@ -847,14 +847,6 @@ local SETTINGS = {
     .. "on a calm night, a lazy swell by day, heaving under a storm front. "
     .. "CALM and SWELL fix it; FLAT is the old still plane (the rings still "
     .. "spread on it). How it is DRAWN is the next row.",
-    pt = "Quanto a agua SE MEXE. A superficie e geometria, nao uma figura "
-    .. "rolando: sobe e desce em ondas cruzadas e lembra do que toca nela "
-    .. "-- surfista, Pokemon aquatico, gota de chuva, boia de pesca -- como "
-    .. "aneis que se espalham, batem na margem e se cruzam. AUTO entrega a "
-    .. "onda ao clima: quase parada numa noite calma, preguicosa de dia, "
-    .. "agitada sob uma frente de tempestade. CALM e SWELL fixam; FLAT e o "
-    .. "plano parado antigo (os aneis continuam nele). Como ela e DESENHADA "
-    .. "e a proxima linha.",
     full = true },
   -- `full = true`: a row about the look, like ANIME
   { Water.style,
@@ -866,13 +858,6 @@ local SETTINGS = {
     .. "the next wave's line walking in to the shore. CLASSIC is the "
     .. "four-colour sheet with dithered bands and a ringed glint. Same "
     .. "swell and same rings under both.",
-    pt = "Como a agua e DESENHADA -- a arte, nao a fisica. ANIME pinta "
-    .. "como um cenario de anime: manchas chapadas de luz e sombra que "
-    .. "derivam e se deformam, brilhos em estrela onde o sol pega, aneis "
-    .. "em faixas limpas com borda branca, aneis de luz no fundo do raso, "
-    .. "espuma rabiscada nas cristas quando venta e a linha da proxima "
-    .. "onda chegando na margem. CLASSIC e a folha de quatro cores com "
-    .. "faixas pontilhadas. A mesma onda e os mesmos aneis nos dois.",
     full = true },
   { Light.setting,
     "SKY lights the world with two lights instead of one -- the sun, warm "

@@ -276,7 +276,7 @@ local function drawButtonFace(slot, B, cmd, selected, W, H)
     end
     local maxw = bx + bw - 25 - left
     -- `cmd.label` is a FUNCTION (see BattleBoxXY's `label()`): the word is
-    -- picked when the chip is drawn, so the LANGUAGE row reaches it without
+    -- picked when the chip is drawn, so the UI LANG row reaches it without
     -- anything having to rebuild COMMANDS.
     local word = cmd.label()
     local th = math.min(bh * 0.36,
