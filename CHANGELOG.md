@@ -175,7 +175,8 @@ Nintendo-derived art on 2026-09-15. It is back in free art: LOVE's vector
 font, a CC0 interface kit (`assets/battlexy/ui`, from the Mana Soul GUI) and
 an interface atlas made for this mod (`assets/ui/gen1-modern`). The command
 buttons are drawn now rather than blitted, so their label IS the button:
-ATTACK / SWITCH / ITEMS / FLEE (the PT half still follows UI LANG). The mons
+FIGHT / PKMN / BAG / RUN, the game's own words (the PT half still follows
+UI LANG). The mons
 themselves are whatever the engine -- or a sprite pack the player installed
 -- draws; this mod ships none.
 

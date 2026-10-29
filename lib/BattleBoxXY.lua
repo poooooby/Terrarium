@@ -61,33 +61,25 @@ BattleBoxXY.ASSET_DIR = "assets/battlexy/"
 -- assumed -- DOWN took the cursor from 1 to 3, RIGHT from 3 to 4, UP from 4
 -- to 2, which is a 2x2 read row-first.
 --
--- The art is the pack's own button for each, so the words on them are the
--- pack's too: FIGHT, POKéMON, BAG, RUN. That art is gone, so `label` carries
--- the concept board's own words instead, which are English and were already
--- an open want (ROADMAP: "EN labels"). Portuguese is the same four commands
--- in the other language, for a save running under a translation mod -- the
--- UI LANG row picks between them (lib/Lang.lua), and `label` is a function
--- so that pick happens at draw time rather than at load time.
---
--- THREE of the board's four map onto a real command and the fourth does not.
--- The board reads ATTACK / SKILLS / ITEMS / SWITCH; Generation 1 has no
--- separate skill list -- the moves ARE the attack menu -- and its fourth slot
--- is RUN, which runs away. Labelling a button SWITCH when pressing it flees
--- the battle is the one mistake a relabel can make that costs the player a
--- fight, so SWITCH sits on the slot that actually swaps the mon (index 2, the
--- engine's PKMN) and index 4 says what it does. TROCAR and FUGIR keep that
--- same pairing -- the word says what the press does, in either language.
+-- The words are the game's own: FIGHT, PKMN, BAG, RUN -- what Gen 1's battle
+-- menu has always printed in those four slots, so the drawn buttons agree
+-- with every other screen the engine shows. (Breno's last build relabelled
+-- them to the concept board's ATTACK / SWITCH / ITEMS / FLEE; this fork keeps
+-- the cartridge's.) Portuguese is the same four commands in the other
+-- language, for a save running under a translation mod -- the UI LANG row
+-- picks between them (lib/Lang.lua), and `label` is a function so that pick
+-- happens at draw time rather than at load time.
 local function label(en, pt)
   return function() return Lang.pick(en, pt) end
 end
 BattleBoxXY.COMMANDS = {
-  { art = "cmd_fight",   label = label("ATTACK", "ATACAR"),
+  { art = "cmd_fight",   label = label("FIGHT",  "LUTAR"),
     color = { 0.86, 0.24, 0.21 } },
-  { art = "cmd_pokemon", label = label("SWITCH", "TROCAR"),
+  { art = "cmd_pokemon", label = label("PKMN",   "PKMN"),
     color = { 0.24, 0.70, 0.36 } },
-  { art = "cmd_bag",     label = label("ITEMS",  "ITENS"),
+  { art = "cmd_bag",     label = label("BAG",    "ITENS"),
     color = { 0.93, 0.66, 0.16 } },
-  { art = "cmd_run",     label = label("FLEE",   "FUGIR"),
+  { art = "cmd_run",     label = label("RUN",    "FUGIR"),
     color = { 0.20, 0.52, 0.86 } },
 }
 
