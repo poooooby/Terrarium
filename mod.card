@@ -1,7 +1,7 @@
 -- Sharing metadata (25-community-and-ecosystem.md 3.2).  Read by tooling
 -- and the manager detail pane; never by the loader's merge.
 return {
-  summary = "TerrariumVoxel: a little world under glass, with its own weather and its own hours. The overworld as a 3D diorama and battles fought on it -- real occlusion, tilt-shift, over-the-shoulder fights -- plus a six-phase day/night cycle with a painted sky and stars, rain and snow that stay on the ground, and wild Pokemon standing in the grass instead of a dice roll on every step. A fork of BrenoBertucci's Terrarium, itself a fork of DramaticShape's Dramatic Shape Voxel Mod, tuned for low-end hardware, with an English-default (Portuguese on request) UI and a handful of bugfixes on top.",
+  summary = "TerrariumVoxel: a little world under glass, with its own weather and its own hours. The overworld as a 3D diorama and battles fought on it -- real occlusion, tilt-shift, over-the-shoulder fights -- plus a six-phase day/night cycle with a painted sky and stars, rain and snow that stay on the ground. Purely presentational: it changes what Kanto looks like and nothing about how the game plays. A fork of BrenoBertucci's Terrarium, itself a fork of DramaticShape's Dramatic Shape Voxel Mod, tuned for low-end hardware, with an English-default (Portuguese on request) UI and a handful of bugfixes on top.",
   -- Attribution, two levels deep now: the diorama, the battles and the shape
   -- of this are DramaticShape's original work; the low-end-hardware tuning,
   -- the weather, the ecology and everything else BrenoBertucci's Terrarium
@@ -15,13 +15,19 @@ return {
   -- and wiring the SHOP/SHOP-FX rows into the options menu (they existed in
   -- lib/Shop.lua but were never registered, so SHOP-FX -- and the RTX floor
   -- it forces on in every Poke Mart -- had no OFF a player could reach).
+  -- As of 1.41.0 it also merges Breno's final, unpushed build (Lavender and
+  -- Vermilion rebuilt, bridges, the water garden, wind lines, rippling water,
+  -- cloud shadows, the Gen 1 Modern battle skin) and REMOVES every gameplay
+  -- mechanic the two trees had picked up -- visible wild Pokemon, ecology,
+  -- town Pokemon, NPC routines and shelter, EXP share, carry limits, QOL,
+  -- the auto-farm bot, hidden-item glints, parry/charge, the creature pack
+  -- -- so the mod is presentation only.
   --
   author = "poooooby -- a fork of BrenoBertucci's Terrarium",
   upstream = "https://github.com/BrenoBertucci/Terrarium",
   contact = "https://github.com/poooooby/Terrarium/issues",
   tags = { "graphics", "3d", "voxel", "render-pipeline", "presentation",
-           "battle", "lighting", "post-processing", "encounters",
-           "gameplay" },
+           "battle", "lighting", "post-processing" },
   differences = {
     changed = {
       "with VOXEL on, the overworld draws as 3D geometry instead of flat tiles",
@@ -31,9 +37,8 @@ return {
       "the map's NPCs are culled for the length of a battle, so the wipe plays over an empty map",
       "a battle's letterbox voids go black rather than white, because the battle canvas is no longer white",
       "the engine's TILT and GBC FX rows are taken OFF the OPTIONS menu and held at off for as long as this mod is installed -- TILT is the flat fake of what this mode does for real, GBC FX is a full-screen pass over the top of it; uninstalling puts both rows back",
-      "hotkeys use letters (v/g/t/c/b/n/p/h/k) so this fork does not fight upstream DRAMATIC_SHAPE 3/5/6/7/8/9; TILT and GBC FX rows are still held off while installed",
+      "hotkeys use letters (v/g/t/c/b/p/h/k) so this fork does not fight upstream DRAMATIC_SHAPE 3/5/6/7/8/9; TILT and GBC FX rows are still held off while installed",
       "a shower now BUILDS over twenty seconds rather than seven, because the far curtain is legible from a fifth of the way up that ramp and the length of the build is how long you get to watch the weather arrive",
-      "with WILD at ROAM, the per-step wild encounter roll is switched off on any terrain this mod has stood a visible Pokemon on -- the species, levels and slot odds are unchanged, the roll simply happens where it can be seen. MIX leaves the roll on as well; OFF is the vanilla dice alone",
     },
     added = {
       "VOXEL options row and hotkey v (OFF / 15 / 35 / 50 / 75 degrees)",
@@ -52,22 +57,16 @@ return {
       "each tuft is its own plant: a hash of the cell it stands in gives it a stiffness, a phase and a bearing it slumps along, so a meadow is many plants rather than one animated surface -- and the tip DROPS as it goes over (arc length held) instead of sliding sideways, which is the difference between grass bending and a rug being pulled",
       "the weather is ON the grass, not just around it: falling rain is weight, so it damps the sway and adds a fast tick as drops land; settled snow -- read off the accumulated cover, not the snowfall -- bows the tufts over and stiffens them, and PILES ON the crowns, white on top with green showing underneath, through the same snow path a roof ridge uses",
       "walkers lay it flat and it springs back: a foot folds the blade over and down rather than shortening it, and an underdamped spring carries the tuft past upright about a third of a second after the foot lifts. A moving walker also drops a TRAIL of laid grass behind them that recovers over four seconds, so you can stop and see the way you came",
-      "and the meadow REMEMBERS: every grass cell carries a wear value that climbs when anybody walks it and recovers over in-game days, saved with the file -- so a route you have crossed forty times looks crossed forty times. Wild Pokemon and civilians on their routines wear it down too, at their own weight, so routes grow desire paths along the traffic that really crosses them. A worn cell THINS -- individual tufts drop out rather than the patch getting shorter -- and trodden earth shows through underneath. Trample stops short of bare ground; only Cut (which clears a cell, and its encounter, until it regrows) and a ground lightning strike (which leaves a char scar) go all the way",
+      "and the meadow REMEMBERS: every grass cell carries a wear value that climbs when anybody walks it and recovers over in-game days, saved with the file -- so a route you have crossed forty times looks crossed forty times. NPCs walking their beats wear it down too, so routes grow desire paths along the traffic that really crosses them. A worn cell THINS -- individual tufts drop out rather than the patch getting shorter -- and trodden earth shows through underneath. Trample stops short of bare ground; only Cut (which clears a cell, and its encounter, until it regrows) and a ground lightning strike (which leaves a char scar) go all the way",
       "wind goes AROUND buildings: how sheltered each cell is gets baked once per map out of the walls already there, so a meadow in a house's lee stands still while the open field waves, and the edge of the calm never moves -- because buildings do not",
       "wind you can see off the grass: flat comet-tail streaks of what the air is carrying -- dust on a clear day, the rain's own pale blue as spray, blown white under a fall -- plus a gust FRONT thrown abreast off the same squall envelope the grass is bending to, so a rank crosses the frame as a line while the meadow bows under it. Outdoors only, above a wind floor, and nothing at all under WIND OFF",
-      "WILD options row and hotkey n (ROAM / MIX / OFF, ROAM by default): wild Pokemon standing in the grass as ordinary map objects, picked out of the map's own encounter table, wandering their own terrain -- grass on a route, the whole floor of a cave, the water while surfing -- and battled by walking into one or pressing A at it",
-      "W-COUNT options row (SOME / FEW / MANY, SOME by default), how many stand within reach at once; only offered while WILD is on",
-      "one 16x96 overworld walker sheet per species: prefers optional assets/roamers/<SPECIES>.png (Gen-2-style, trueColor; install via tools/install_roamer_sprites.py -- not redistributed), else bakes a greyscale sheet from the battle front pic into save/mod-derived/TERRARIUM/roamers/",
       "ambient sound beds under the map music (crickets, birds, water, rain, thunder, plus town / wind / forest / waves / cave / indoor when the CC0 files are present) driven by hour, weather, wind, water size and map kind -- see assets/audio/CREDITS.md",
-      "ECOLOGY options row (ON / TIME / OFF, ON by default): Gen 2's time-of-day encounters built out of Gen 1's one table -- the ten-slot buckets are weighted by what the hour and the sky think of each species before the draw, so the nocturnal half of the dex comes up after dark and the birds and caterpillars by day. Never to zero, never off the table, and never indoors",
-      "at ECOLOGY ON, rain also brings water Pokemon ashore: a land spawn within three cells of real water may be drawn from the map's own water roster (encounters[map].water, else field.superRod[map]) at the map's OWN grass level band",
       "GROUND options row (ON / OFF, ON by default): puddles that gather through a shower and drain over four minutes, snow settling in two ranks of drift and melting over seven, and footprints behind every walker in the snow. Drawn as depth-tested decals between the terrain and the characters, so they take the hour's light and never paint over anybody's feet. Only offered while WEATHER is on",
       "assets/ground/puddle.png, drift.png and print.png -- strips of 16x16 frames that replace the generated decal shapes, used as-is at whatever frame count the image is wide",
       "puddles are found by the SCREEN FX row's screen-space reflection and carry the sky, the trees and whatever stands across them -- identified by the FRACTION of the height they float at (0.7 world px above whatever ground they lie on), because the pass has only a colour buffer and a depth buffer to look at. Snow floats at a whole 1.0 and stays out of it",
       "puddles sit on a three-cell block grid, one pool per block at most, so a wet street is a few wide pools with dry ground between them rather than a stipple",
       "snow falls in three drawings rather than one at three sizes, and settles on the hedges, trees and roofs as well as the ground -- a cap goes on any cell you cannot stand on that stands above the ground",
       "puddles and snow grow in three baked steps as the ground soaks or the snow settles, and shrink back as it dries or melts -- one mesh drawn per layer per frame",
-      "EXP options row (TEAM / SPLIT / OFF, TEAM by default): experience for every Pokemon still standing rather than only the one that fought, through the engine's own battle.exp_award. Only the fighter gets a text box; fainted mons are paid nothing at every rung",
       "rain you can SEE coming: a far curtain standing the shower on the horizon as vertical shafts, painted in the sky pass under the cloud deck and over the haze band. It is the same shower that is about to reach you rather than a forecast, and it reads as coming because it LEADS the near field -- full while the streaks are still a drop here and there",
       "the cloud deck sits over the MAP instead of over the screen -- it reads the camera, and shifts less than anything else in frame, which is the difference that reads as distance -- and it changes SHAPE while it drifts, because the erosion noise moves at its own rate against the wind carrying the mass",
       "god rays for the length of the post-rain spell, drawn where the deck is THIN out of the cloud density the raymarch already computed, so the whole effect costs one atan and one sin over work already done. Hard rungs and the sky's own checker dither, never a soft ramp; a moon throws none",
@@ -77,7 +76,11 @@ return {
       "IMPACT options row (OFF / ON): hand-drawn sprite-sheet effects in the overlay pass beside the butterflies and the rain. CC0 packs from OpenGameArt rather than generated art -- see assets/vfx/LICENSE.md",
       "V-HAZE options row and hotkey h (OFF / 1 / 2 / 3): aerial perspective -- far ground goes paler, flatter and bluer, mixed toward the sky's own palest band. Equal contrast reads as equal distance, which is most of why a small map read small",
       "HORIZON options row and hotkey k (OFF / NEAR / FAR / ALL): the rest of Kanto standing on the skyline. The connection graph already places eight to twenty-one further maps spanning some thirty view-heights -- none of it was missing, all of it was unplaced, and lib/WorldAtlas.lua places it by reusing the engine's own BFS rather than walking it again",
-      "the QOL row also sorts the bag into pockets (balls / medicine / TMs and HMs / key items, each alphabetical, rewritten into the save's own Bag.order), gives it wrap, page jump and hold-to-scroll, moves the PC's current box to wherever a catch landed, rolls a full box forward instead of refusing a deposit, and adds RENAME to the party submenu",
+      "Lavender Town and Routes 8/10/12, and Vermilion City and Routes 6/11, floored as one painted picture with their towns, with their own homes, Centre, Mart and the Pokemon Tower built in the town's stone",
+      "bridges and piers built as timber, Vermilion's fences as heavy crossbuck, and a water garden -- reeds, lilies, seagrass, kelp and coral -- growing in the big waters and swaying on its own",
+      "WATER options row (AUTO / CALM / SWELL / FLAT) over a real wave equation, so a surfer, a raindrop or a fishing float leaves rings that spread and bounce off the bank; WATER STYLE (ANIME / CLASSIC) picks how it is drawn",
+      "the visible wind drawn as strokes and leaves rather than sprite puffs, and the clouds throwing shadows that cross the ground downwind",
+      "a fishing float on the end of the line, read off the engine's own fishing state",
     },
     known = {
       "needs shader and depth-canvas support; without them the rows still cycle but the world stays 2D and battles draw plainly",
@@ -90,14 +93,8 @@ return {
       "the SCREEN FX pass needs a READABLE depth canvas. Where the driver cannot make one the row still cycles and nothing happens -- the scene falls back to the plain write-only depth buffer it always used. SCREEN FX at OFF allocates nothing at all",
       "everything the SCREEN FX row does is screen-space, which means it can only reflect or shade what is ON SCREEN: a reflection whose ray leaves the frame fills in with the sky rather than with the bank it would have hit, and a corner at the very edge of the view shades a little less than one in the middle",
       "terrain is chunked and culled against the camera, so a route submits only the cells it can still see ground on and a connected map you are not facing costs nothing. The battle arena is drawn whole -- its camera is placed rather than orbited, and the free-roam culling box does not describe it",
-      "the POKEMON TOWER keeps the blind roll until the Silph Scope is in hand: a ghost battle is a wild battle the game refuses to NAME, and a visible Gastly would answer the question that floor exists to ask",
-      "a map with no encounter table, no room to stand anything on, or art that would not bake keeps its dice too -- the suppression is answered per terrain and only ever for ground something has actually been stood on",
-      "without optional Gen-2 walk sheets, roamers fall back to a greyscale front-pic bake; with assets/roamers/<SPECIES>.png installed they are trueColor and keep their own colours under RED++ and zone palettes",
-      "optional third-party art (X/Y GUI pack, roamer walk sheets) is never in the zip -- install scripts live under tools/; missing art degrades, it does not remove the feature",
-      "each visible Pokemon is one more sprite card in the frame, and one more shadow caster; W-COUNT at FEW is the setting for a slow device",
+      "optional third-party art (the X/Y GUI pack, Generation 5 battle sprites) is never in the zip -- install scripts live under tools/; missing art degrades, it does not remove the feature",
       "the GROUND row's decals are geometry in the 3D pass, so they need the VOXEL camera on -- the flat 2D path has no depth buffer to test them against and no pass to sit between. The accumulation itself keeps running either way",
-      "ECOLOGY moves the odds inside a map's own table and never the table itself, so a species is never removed by an hour and never added by one -- the single exception is the rain's come-ashore roll, which is drawn from the same map's own water roster and clamped to that map's own grass levels",
-      "ECOLOGY does nothing on indoor encounter tables (caves, towers, the Mansion, the Power Plant): a cave at midnight is as dark as a cave at noon, and there is no sky in there to rain out of",
     },
   },
   credits = {

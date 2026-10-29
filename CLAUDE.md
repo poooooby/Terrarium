@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Terrarium is a Lua mod (mod id `TERRARIUM`) for the [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp) engine (LÖVE / LuaJIT, so **Lua 5.1 dialect**). It is a fork of the Dramatic Shape Voxel Mod that turns the Gen 1 overworld into a 3D diorama, plus many gameplay/ambient features. There is no build step: the engine loads `main.lua` (declared as `entry` in `manifest.json`) from `mods/TERRARIUM/`. The engine's own sources (`src/...`, e.g. `src/mods/Schemas.lua`, `src/core/Input.lua`) are referenced in comments but are **not** in this repo.
+TerrariumVoxel (mod id `TERRARIUM`; repo `poooooby/Terrarium`) is a Lua mod for the [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp) engine (LÖVE / LuaJIT, so **Lua 5.1 dialect**). It is a fork of BrenoBertucci's Terrarium (itself a fork of the Dramatic Shape Voxel Mod) that turns the Gen 1 overworld into a 3D diorama, with weather, ambient life and a staged battle camera. The original maintainer handed the project over; his last unpushed build was merged in 1.41.0 (commit `import: Breno's final unpushed build`). There is no build step: the engine loads `main.lua` (declared as `entry` in `manifest.json`) from `mods/TERRARIUM/`. The engine's own sources (`src/...`, e.g. `src/mods/Schemas.lua`, `src/core/Input.lua`) are referenced in comments but are **not** in this repo.
 
 Gen 1 (Red/Blue/Yellow) is the supported target; Gen 2 (Gold) support via `lib/Gen2Bridge.lua` is a first pass and mostly untested.
 
@@ -14,10 +14,10 @@ Gen 1 (Red/Blue/Yellow) is the supported target; Gen 2 (Gold) support via `lib/G
 - **Module loading goes through the `V` namespace, not `require`.** The mod dir isn't on `package.path` and may be inside a mounted `.love` archive. Every `lib/*.lua` starts with `local V = ...` and loads siblings with `V.require("Name")` (loads `lib/Name.lua`, cached). Data tables in `data/*.lua` load with `V.data("name")`. Only engine modules use plain `require("src....")`.
 - **Exports:** `mod.exports.lib = V` (plus `version`, `pipelines`, `keys`) — probes and other mods (e.g. the Porygonal adapter) reach internals via `game.mods.exports.TERRARIUM.lib`.
 - **Settings:** mod-owned toggles use `lib/ModSetting.lua` (`ModSetting.new(key, label, values, labels)`), which persists to `options.modOptions.TERRARIUM` and adds the row to both the mod-manager page and the OPTIONS menu. Every feature should have an OFF row and nothing should be load-bearing for anything else.
-- **Coexistence with upstream `DRAMATIC_SHAPE`:** pipeline keys and hotkeys are deliberately distinct (letters `v g t c m b n p h k j q e r f y`; upstream uses digits 3/5–9, engine uses 2–5 and GB bindings). Check `main.lua`'s key block before claiming a new key.
-- **Purely presentational rule:** voxel mode must not touch collision, movement, triggers or scripts.
+- **Coexistence with upstream `DRAMATIC_SHAPE`:** pipeline keys and hotkeys are deliberately distinct (letters `v g t c m b p h k j q e r f`; upstream uses digits 3/5–9, engine uses 2–5 and GB bindings). Check `main.lua`'s key block before claiming a new key.
+- **Aesthetics only — this is the project's defining rule.** Nothing in the mod may change how the game PLAYS: no collision, movement, encounters, battle rules, EXP, items, event flags, NPC positions or facings, synthetic input, or engine hooks such as `encounter.*`, `battle.exp_award`, `movement.speed`, `evolution.check`. 1.41.0 removed every mechanic that broke this (WILD/ECOLOGY/TOWN/ROUTINES/SHELTER/EXP/CARRY/QOL/A-FARM/hidden items/walk-on-ice, and Breno's PARRY/CHARGE/CREATURES/StoryFixes). Don't add new ones; if a request needs one, say so.
 - **Mobile/GLES2 constraints matter.** `lib/Quality.lua`, `lib/AutoQuality.lua`, `lib/Device.lua` govern resolution/shadow budgets for weak GPUs. The main shader in `lib/Voxel3D.lua` (`local SHADER = [[ ... ]]`) must keep explicit precision qualifiers (`VXHP`) on uniforms and the guarded `precision highp float;` — see `tools/essl1_check.py` for the exact rules.
-- UI text this mod draws itself is localized through `lib/Lang.lua` (EN/PT). `MOBILE.md` and some comments are in Portuguese.
+- UI text this mod draws itself is localized through `lib/Lang.lua` (the UI LANG row): **English is the default**, Portuguese is the `Lang.pick(en, pt)` second half. New user-visible strings must be English (route through `Lang.pick` if a PT half is wanted). `MOBILE.md` and some comments are in Portuguese.
 
 ## Testing
 
@@ -40,9 +40,10 @@ Syntax-check Lua with the engine's LuaJIT: `python compat/porygonal/luacheck.py 
 
 ## Release / packaging
 
-- Version string `X.Y.Z-beta` appears in `manifest.json`, `main.lua` (`mod.exports.version` fallback), `README.md`, `CHANGELOG.md`, `quiver-catalog-entry.json`, `quiver-local-index.json`, `publish/BrenoBertucci@TERRARIUM/*`, and the defaults in `tools/pack_release.py` — bump all together. Semver; never encode feature names in the version. Changelog entries go under `## Unreleased`.
-- Pack: `git add -A && python tools/pack_release.py <version>` — only git-tracked files ship, and inclusion is based on the previous release zip's namelist plus an explicit new-files list in the script (add new modules there). Output goes to `publish-zip/`. `.modkit/pack.json` holds file hashes.
-- Publish: `tools/publish_release.ps1` (needs `GITHUB_TOKEN`). Issue drafts: `powershell -File .github/issues-draft/create.ps1` (after `gh auth login`).
+- Releases are cut by `.github/workflows/release.yml` on every push to `main` (ignoring `.github/**` and `*.md`): it takes `manifest.json`'s `version` if that is newer than the latest `v*` tag, otherwise bumps the patch, then `git archive HEAD` → `TERRARIUM-<version>.zip` → GitHub Release. **Every tracked file ships**; there is no file list to maintain.
+- So a release commit bumps `manifest.json`, `quiver-catalog-entry.json`, `quiver-local-index.json` (and the `mod.exports.version` fallback in `main.lua`) and moves the CHANGELOG entry from `## Unreleased` to its version heading. Plain semver, no `-beta` suffix since 1.40.5; never encode feature names in the version. Pushing to `main` publishes — don't do it without being asked.
+- `tools/pack_release.py`, `tools/publish_release.ps1` and `publish/BrenoBertucci@TERRARIUM/` are the original maintainer's packaging for his own Quiver listing, kept for reference; this fork does not use them.
+- Issue drafts: `powershell -File .github/issues-draft/create.ps1` (after `gh auth login`).
 
 ## Policies (from ROADMAP/README)
 

@@ -20,15 +20,16 @@ Before downloading, check out [BrenoBertucci's Terrarium](https://github.com/Bre
 > attribution, and neither is mine: the diorama, the depth-buffered
 > occlusion, the shadow map, the tilt-shift pass and the over-the-shoulder
 > battles are Dramatic Shape's original work; the low-end-hardware tuning,
-> the weather, the ecology, the wild Pokemon you can see, and everything
-> else under
+> the weather, and everything else under
 > ["What Terrarium adds to the original"](#what-terrarium-adds-to-the-original)
 > below is BrenoBertucci's. This tree's own additions sit on top of THAT,
 > and are narrower: this mod's own menus default to English rather than the
 > hardcoded Portuguese they shipped with (a Portuguese option is kept), plus
-> a start-menu visibility/sizing fix, an engine-compat crash guard, and
+> a start-menu visibility/sizing fix, an engine-compat crash guard,
 > wiring in two options rows (SHOP / SHOP-FX) that existed in the code but
-> were never reachable from the menu -- see
+> were never reachable from the menu, Breno's final unpushed build merged
+> in, and every gameplay mechanic taken back out so the mod is purely
+> presentational -- see
 > **["What this fork adds on top of Terrarium"](#what-this-fork-adds-on-top-of-terrarium)**
 > further down.
 >
@@ -38,7 +39,7 @@ Before downloading, check out [BrenoBertucci's Terrarium](https://github.com/Bre
 >
 > It ships under its own mod id `TERRARIUM` and its own folder, so it can
 > sit **beside** either without overwriting it. This fork uses letter
-> hotkeys (v/g/t/c/m/b/n/p) and its own pipeline ids, so it does not fight
+> hotkeys (v/g/t/c/m/b/p) and its own pipeline ids, so it does not fight
 > upstream's 3/5/6/7/8/9. Still only one world pipeline should own the frame
 > at a time.
 
@@ -46,8 +47,8 @@ A mod for the [Pokemon Gen 1 Recompilation
 Project](https://github.com/bryanthaboi/gen1recomp). The overworld becomes a
 3D diorama: terrain extruded into real geometry, cast shadows that stretch
 through the afternoon, a six-phase day/night cycle with a painted sky and
-stars, weather that leaves puddles and snow on the ground, and wild Pokemon
-standing in the grass where you can see them.
+stars, and weather that leaves puddles and snow on the ground. It changes
+what Kanto LOOKS like and nothing about how the game plays.
 
 > **This is a fan-made modification. It is not a game, and it contains no part
 > of any Nintendo product.** Please read [Legal](#legal) before anything else.
@@ -150,35 +151,18 @@ Two new rows on the OPTIONS menu, both visible under every preset:
 Plus spatial culling, and a shadow-map size ladder chosen per frame from how
 much world is actually in view.
 
-### Wild Pokemon you can see
-
-The **WILD** row. The map's own encounter table decides who is standing in the
-grass right now; they wander their own patch in their own art, and the fight
-starts when you walk into one — so a route can be picked through, hunted, or
-crossed without a single battle.
-
-This is the one feature that touches the game rather than the drawing of it,
-which is exactly why it is a row with an OFF: **switch it off and the game
-rolls its dice precisely as it always did.**
-
 ### And the rest of it
 
 | row | what it is |
 | --- | --- |
 | **SCREEN FX** (was RTX) | not ray tracing: a screen-space row walked through the depth buffer the 3D pass already filled: ambient occlusion in corners the sky cannot reach, reflections marched across the water's own swell, light shafts toward the sun. OFF is byte-for-byte the old frame. |
-| **TOWN** | Pokemon loose in the streets of every town: trainers' companions and strays, wandering in their own art. About one in three stares you down and wants to battle at your own lead's level. |
-| **AMBIENT** | butterflies and ground birds by day, dragonflies over the water, fireflies through the night, a flock crossing the sky, leaves on the wind -- and civilian NPCs glance at you as you pass, then go back to what they were doing |
+| **AMBIENT** | butterflies and ground birds by day, dragonflies over the water, fireflies through the night, a flock crossing the sky, leaves on the wind |
 | **SOUNDS** | the sound of the place: crickets after dark, birdsong through the day, water moving near any water, rain and thunder after the flash -- crossfaded beds rather than one-shot beeps, and quieter indoors |
-| **ROUTINES / SHELTER** | civilians look around, turn toward the sign they are standing beside, talk in pairs — and walk to the nearest doorway when a shower comes down hard. AGENDA (grouped with ROUTINES) decides whether that departure reaches DAY (a post to keep) or FULL (a doorway at night, street Pokemon included) |
 | **WEATHER** | rain and snow, folded into the light rather than drawn over it |
 | **WIND** | the tall grass is geometry, so wind is a bend and not a slid picture: the base stays planted, the tip gives and drops as it goes over, each tuft has its own stiffness, and the gust travels across a meadow. Rain weighs the blades down and damps them; settled snow bows them and piles white on the crowns; walkers lay them flat and they spring back, leaving a trail you can turn round and see. AUTO hands the row to the climate -- calm night, breeze by day, gale under a front, no menu trips. Plus the air itself: dust and spray streaks, and a gust front crossing the frame as a line |
 | **GROUND** | what the weather leaves behind: puddles that gather through a shower and are still there ten minutes later wearing the sky's own colour, snow settling in drifts, footprints behind everyone walking on it |
-| **ECOLOGY** | Gen 2's time-of-day encounters built out of Gen 1's single table — the nocturnal half of the dex comes up after dark, birds and caterpillars by day, by reweighting the map's own ten slot buckets rather than adding or removing anything |
-| **WATER** | a cel-shaded swell: two crossing wave trains, analytic normals, depth-rung colour and binary foam (toon water ideas, hard steps only — not PBR). CALM / SWELL / FLAT. Rain and wind feed chop energy; freeze turns the surface into walkable ice when the party can Surf |
-| **QOL** | type-effectiveness hints on the FIGHT menu, auto-repel, and HMs on an A press (CUT at a tree, SURF at water, STRENGTH at a boulder) |
-| **BAG / STACK** | twenty item slots and ninety-nine per stack were Game Boy save-RAM limits, not design. Raise both. |
-| **EXP** | TEAM pays every Pokemon still standing what the fighters earned; SPLIT divides that same total among them instead. OFF is the original's one-fighter-only rule. |
-| **AUTO-FARM** | pick a party slot and a bot trains it, always picking the strongest move against what it faces |
+| **WATER** | how much the water MOVES: a swell on crossing wave trains, and a surface that REMEMBERS -- a real wave equation on a grid round the player, so a surfer, a water Pokemon, a raindrop or a fishing float leaves rings that spread, bounce off the bank and cross each other. AUTO (the weather picks the swell) / CALM / SWELL / FLAT. Freeze turns the surface to ice |
+| **WATER STYLE** | how the water is DRAWN: ANIME paints it like a cel background -- flat light and shadow patches that drift, four-point star glints, rings in clean bands with a white crescent on the sunward flank, bright rings on the bed of the shallows, scribbled whitecaps in a gale, the next wave's line walking in to the shore. CLASSIC is the four-colour dithered sheet. Same physics under both |
 | **GLINT** | a thin reflection sweeping across window panes as you walk |
 | **IMPACT** | hand-drawn CC0 sprite-sheet hit effects composited into the world; press J in free roam to fire the next sheet at your feet |
 | **ANIME** | cel animation: a cool rim light along every silhouette and an ink line closing every shape, on top of the SCREEN FX pass's own normals (needs SCREEN FX above OFF) |
@@ -195,7 +179,8 @@ rolls its dice precisely as it always did.**
 | **SM64CAM** | the Super Mario 64 camera: turns to look at you rather than staying fixed, takes its height from the ground, and changes how movement itself is read (D-pad walks you away from the camera, not due north) |
 | **V-HAZE** | distance haze -- far ground fades into the hour's own sky colour instead of reading as a hard edge |
 | **HORIZON** | the rest of Kanto on the skyline: every connected map out to a chosen distance, drawn as a bare silhouette |
-| **Building kits** (TOWER / CRYPT / CRYPT-FX / SHOP / SHOP-FX / LEDGES / HAUNT / HEARTH / INDOOR) | NEW-vs-CLASSIC pairs for individual buildings and props -- the Pokemon Tower, its crypt interior and haunted lighting, the Poke Mart and its shader pass, hop-down ledges, Lavender's haunted glass, chimney smoke, and sleeping Pokemon/steaming mugs indoors. See [`FEATURES.md`](FEATURES.md) for each. |
+| **Building kits** (TOWER / CRYPT / CRYPT-FX / SHOP / SHOP-FX / LEDGES / HAUNT / HEARTH / INDOOR) | NEW-vs-CLASSIC pairs for individual buildings and props -- the Pokemon Tower, its crypt interior and haunted lighting, the Poke Mart and its shader pass, hop-down ledges, Lavender's haunted glass, chimney smoke, and steaming mugs indoors. See [`FEATURES.md`](FEATURES.md) for each. |
+| **NEW KANTO** (no row: always on with VOXEL) | Lavender Town and Routes 8/10/12, Vermilion City and Routes 6/11 floored as one painted picture with their towns, their homes, Centre, Mart and the Pokemon Tower built in the town's stone; timber bridges and piers; Vermilion's fences; a water garden of reeds, lilies, kelp and coral that sways on its own; the clouds' shadows crossing the ground (its own CLOUD SHADE row); and the visible wind drawn as strokes and leaves |
 | **COMBAT** | DYNAMIC (Modern JRPG), DYNAMIC MINIMAL (For Kanto Gear), CLASSIC (static rig, flat still panels), MINIMAL (CLASSIC without the menu/cards), OFF (none of this mod's own battle UI -- just the diorama, the mons and hit FX) |
 
 ### A interface deste mod fala inglês por padrão, e português à escolha
@@ -338,6 +323,18 @@ base. What follows is this tree's own, on top of that.
   the options menu -- so SHOP-FX (which asks the RTX row for a minimum
   ambient-occlusion rung inside a Poke Mart) had no OFF a player could
   reach, and RTX OFF quietly didn't hold inside a mart such as Viridian's.
+- **Breno's final build, merged.** The original author handed the project
+  over along with a build he never pushed: Lavender and Vermilion rebuilt,
+  bridges, the water garden, rippling water, wind lines, cloud shadows and a
+  new battle skin. It is recorded as its own commit, credited to him, and
+  merged on top of this fork's English and fixes (1.41.0).
+- **Presentation only.** Every mechanic that changed the game rather than
+  the drawing of it is gone: visible wild Pokemon and ECOLOGY's encounter
+  odds, Pokemon in the streets, NPC routines and shelter, EXP share, bag
+  limits, the QOL mercies, the auto-farm bot, hidden-item glints, and the
+  parry/charge and creature pack from Breno's build. Switch every row in
+  this mod off and the game plays exactly as it always did -- and with them
+  on, it still does.
 
 Full detail on each, in this project's own bilingual (Portuguese-first)
 style, lives in [`CHANGELOG.md`](CHANGELOG.md).
@@ -365,8 +362,7 @@ different folder, different pipeline registry keys (`terrarium_voxel` /
 or both. The diorama design remains DramaticShape's work — see the fork note
 at the top of this file.
 
-**Letter hotkeys (TERRARIUM):** `v` VOXEL | `g` V-GRID | `t` T-SHIFT | `c` V-CURVE | `m` SM64CAM | `b` 3D-BTL | `n` WILD | `p` MAP. Upstream still uses digits.
-`c` V-CURVE | `b` 3D-BTL | `n` WILD | `p` MAP. Upstream still uses digits.
+**Letter hotkeys (TERRARIUM):** `v` VOXEL | `g` V-GRID | `t` T-SHIFT | `c` V-CURVE | `m` SM64CAM | `b` 3D-BTL | `p` MAP. Upstream still uses digits.
 
 ### Porygonal — 3D overworld characters
 
@@ -444,7 +440,7 @@ lands anywhere upstream, this fork will adopt it.
 
 - Backlog: [`ROADMAP.md`](ROADMAP.md)
 - Open issues: <https://github.com/poooooby/Terrarium/issues>
-- Drafts ready to file (UI + roamers + ambient):
+- Drafts ready to file (UI + ambient):
   [`.github/issues-draft/`](.github/issues-draft/) —
   `powershell -File .github/issues-draft/create.ps1` after `gh auth login`
 
@@ -455,8 +451,8 @@ lands anywhere upstream, this fork will adopt it.
   the whole thing are his.
 - **[BrenoBertucci](https://github.com/BrenoBertucci/Terrarium)** — this
   tree's direct upstream. The low-end-hardware tuning, the weather, the
-  ecology, the wild Pokemon you can see, and everything else under "What
-  Terrarium adds to the original" above are his work on Dramatic Shape's
+  rebuilt towns and water, and everything else under "What Terrarium adds
+  to the original" above are his work on Dramatic Shape's
   base; this fork's own additions are the narrower list under "What this
   fork adds on top of Terrarium."
 - **[bryanthaboi](https://github.com/bryanthaboi/gen1recomp)** and the
@@ -484,8 +480,8 @@ lands anywhere upstream, this fork will adopt it.
   Wikimedia Commons. Per-file sources, authors and licences are in
   [`assets/audio/CREDITS.md`](assets/audio/CREDITS.md). Everything is CC0 1.0;
   nothing here is CC-BY or CC-BY-SA, deliberately.
-- **Overworld wild / town Pokémon sprites** — optional Gen 2-style walker
-  sheets under `assets/roamers/`. **Not redistributed here** (same rule as
+- **Overworld Pokémon sprites** (the flock that crosses the sky) — optional
+  Gen 2-style walker sheets under `assets/roamers/`. **Not redistributed here** (same rule as
   the X/Y GUI pack). Install with
   [`tools/install_roamer_sprites.py`](tools/install_roamer_sprites.py)
   from [PokéPC Followers](https://github.com/gamecorner-033/PokePCFollowers)

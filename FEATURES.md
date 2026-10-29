@@ -34,9 +34,9 @@ one. See below.
 The rendering is purely presentational — nothing in it reaches collision,
 movement, triggers or scripts. The battle arena is where the **camera**
 goes, not where anybody goes: no cell, facing, flag or warp is written, so
-the player is standing exactly where the fight found them when it ends. The
-one thing that does touch the world is the WILD row, and it is a row: leave
-it OFF and the game rolls its dice exactly as it always did.
+the player is standing exactly where the fight found them when it ends. And
+nothing else in the mod touches the world either: as of 1.41.0 every row is
+about what Kanto looks like, never about how the game plays.
 
 ## Controls
 
@@ -51,34 +51,27 @@ menu.
 | `7`, or the **V-CURVE** options row | OFF → 1 → 2 → 3 — bend the world over the horizon |
 | `m`, or the **SM64CAM** options row | ON / OFF — the Super Mario 64 camera. A camera operator instead of a fixed mount: it turns to look at you far faster than it flies to where it wants to stand, takes its height from the **ground** under you so walking up a step does not bob the frame, leads the way you are walking, and looks **over** a wall that stands between you for more than a moment rather than steering round it. It orbits **you**, at a bearing only you change, a quarter turn at a time — it never turns on its own — and the **D-pad turns with it**, as in Mario 64. See below |
 | `8`, or the **3D-BTL** options row | ON / OFF — fight on the map instead of on a white field |
-| `9`, or the **WILD** options row | ROAM / MIX / OFF — wild Pokémon standing in the grass instead of a dice roll on every step |
-| the **W-COUNT** options row | SOME / FEW / MANY — how many stand within reach at once. Only on the menu while **WILD** is on |
 | the mon pack (always on when `assets/mons` is present) | the Pokemon standing on the field wear their Generation 5 (Black/White) sprites, front and back, in full colour, instead of the Game Boy pic through a palette. ADVANCED and the other COLORS modes do not touch them; the hour's light does. Trainer pics stay the engine's |
 | the **BACK SPRITES** options row | OFF / ON — your own Pokémon seen from behind, the series' shot: ON stands it on its tile in the arena wearing its back art, grown to a foreground hero (`OverworldBattle.BACK_HERO`) under the same light and shadow as the foe, with the move cards and the panels floating in front of it; OFF stands it on the map facing the foe, at the foe's own scale. Only on the menu while **3D-BTL** is on, because it decides nothing without it |
 | the **DAYTIME** options row | SYNC / DAY / NIGHT / DUSK / DAWN / CYCLE — what time it is outdoors, on the diorama *and* on the flat 2D world; held at SYNC (and off the menu) while VOXEL is FULL |
 | the **SCREEN FX** options row (was **RTX**) | AUTO / SSR / AO / OFF / MAX — the screen-space pass. Not ray tracing, and no RTX hardware involved; see below |
-| the **AMBIENT** options row | ON / OFF — butterflies and ground birds by day (the birds startle and fly off when you get close), dragonflies over the water, fireflies through the night, a flock crossing the sky, leaves on the wind — and civilian NPCs glance at you as you pass. Trainers never turn: their facing is their line of sight |
+| the **AMBIENT** options row | ON / OFF — butterflies and ground birds by day (the birds startle and fly off when you get close), dragonflies over the water, fireflies through the night, a flock crossing the sky, leaves on the wind |
 | the **CLOUD SHADE** options row | ON / OFF — the shadows of the clouds crossing the ground downwind: a smooth field evaluated per vertex that takes the sun's share of the light (and a little of the sky's) off the patch under a cloud, following the CLOUDS row's coverage; none under a flat overcast |
 | the **WEATHER** options row | AUTO / OFF / RAIN / SNOW — occasional showers, with the whole sky going over with them; snow through the winter of the SYNC clock. See below |
 | the **GROUND** options row | ON / OFF — what the weather leaves behind: puddles that gather through a shower and are still there afterwards, snow that settles in drifts, and footprints behind everybody walking on it. Only on the menu while **WEATHER** is on. See below |
 | the **TREES** options row | VOXEL / 3D — which trees stand on the round-tree sites. VOXEL (default) is the blocky tree grown by `tools/grow_voxel_tree.py`: 2.5-pixel cubes, a visible bole with roots, a crown of lobes with notches and tufts, four shapes (round, tiered, broad, tall) mixed across the wood — and no colour of its own: every leaf cube is painted at map load in the greens the map's own tree tile wears (`TerrainAtlas.tileShades`), so Route 2's trees are Route 2 green and the forest's are the forest's. 3D is `tools/bake_tree.py`'s finer bake: a smoother canopy under a fringe of photographed leaf cards, four species (oak, pine, birch, willow), in its own colours. Both bend in the wind while the trunk stays planted. The old carved ball from the tileset art is no longer a row option; it stands in only where a set fails to load. Flipping the row rebuilds the map's meshes over the next frames |
-| the **COMBAT** options row | DINAMICA / CLASSICA / MINIMA / DESLIGADA — the whole dynamic battle costume. DINAMICA swings the camera in behind the attacker, floats the menu and the box on glass in the arena, hangs HP capsules beside the mons, and puts typed hit sheets at the blow — and the blow reaches the room: a spotlight closes on the attacker, the hit flashes the defender's cell in the move's colour, voxel cubes fly off the floor, a scorch / puddle / frost / crater stays under the defender's feet, a gold damage figure floats up, and every pane of glass leans with the shove, cracks or ripples where the wave strikes it, and prints a shadow on the floor. On the move menu the chosen card wears its element: lightning crawls an ELECTRIC card's edges, flames lick a FIRE card's foot, a swell rolls a WATER card, frost grows on ICE, rings breathe on PSYCHIC, with the type's colour running the rim. CLASSICA holds the camera, lays every panel flat and answers a blow with nothing but the engine's own anims. MINIMA keeps the corner-pinned name/HP/EXP reading and the message text but draws no command menu and no move screen — not this mod's and not the engine's — leaving that phase to another battle-UI mod. DESLIGADA draws nothing at all: no box, no HUD, no menu, just the 3D scene and the models, which is the level to pick to hand the whole battle screen to another mod. Only on the menu while **3D-BTL** is on |
-| the **EXP** options row | TEAM / SPLIT / OFF — experience for the whole party instead of only the Pokémon that fought. TEAM gives everyone still standing what the fighters got; SPLIT divides that same total among them; OFF is 1996. Only the fighter gets a text box |
-| the **ECOLOGY** options row | ON / TIME / OFF — who is out *right now*: the nocturnal half of the dex after dark, the birds and the caterpillars by day, and water Pokémon while it rains. See below |
-| the **WATER** options row | AUTO / CALM / SWELL / FLAT — how much the water moves. AUTO lets the weather pick the swell. On every rung the surface remembers what touches it: surfers, water Pokémon, raindrops and a fishing float leave rings that spread, bounce off the bank and cross each other (a wave equation, `lib/Ripples.lua`) |
+| the **COMBAT** options row | DYNAMIC / DYNAMIC MINIMALL / CLASSIC / MINIMALL / OFF — the whole dynamic battle costume. DYNAMIC swings the camera in behind the attacker, floats the menu and the box on glass in the arena, hangs HP capsules beside the mons, and puts typed hit sheets at the blow — and the blow reaches the room: a spotlight closes on the attacker, the hit flashes the defender's cell in the move's colour, voxel cubes fly off the floor, a scorch / puddle / frost / crater stays under the defender's feet, a gold damage figure floats up, and every pane of glass leans with the shove, cracks or ripples where the wave strikes it, and prints a shadow on the floor. On the move menu the chosen card wears its element: lightning crawls an ELECTRIC card's edges, flames lick a FIRE card's foot, a swell rolls a WATER card, frost grows on ICE, rings breathe on PSYCHIC, with the type's colour running the rim. CLASSIC holds the camera, lays every panel flat and answers a blow with nothing but the engine's own anims. MINIMAL keeps the corner-pinned name/HP/EXP reading and the message text but draws no command menu and no move screen — not this mod's and not the engine's — leaving that phase to another battle-UI mod. OFF draws nothing at all: no box, no HUD, no menu, just the 3D scene and the models, which is the level to pick to hand the whole battle screen to another mod. Only on the menu while **3D-BTL** is on |
+| the **WATER** options row | AUTO / CALM / SWELL / FLAT — how much the water moves. AUTO lets the weather pick the swell. On every rung the surface remembers what touches it: surfers, raindrops and a fishing float leave rings that spread, bounce off the bank and cross each other (a wave equation, `lib/Ripples.lua`) |
 | the **WATER STYLE** options row | ANIME / CLASSIC — how the water is drawn. ANIME: flat light and shadow patches, star glints, rings with a white crescent on the sunward side, bright rings on the bed of the shallows, whitecap scribbles in a gale, the next wave's line coming in to the shore. CLASSIC: the four-colour dithered sheet |
 | the **SOUNDS** options row | ON / OFF — crickets after dark, birdsong by day, water within earshot, rain when it rains and thunder after the flash. CC0 recordings, crossfaded by what the world is doing, with the Game Boy's own channels as the fallback. See below |
-| the **INDOOR** options row | ON / OFF — a Pokémon asleep on the floor of about two houses in five, and mugs still steaming on the tables |
+| the **INDOOR** options row | ON / OFF — mugs still steaming on the tables of the houses |
 | the **HEARTH** options row | ON / OFF — chimneys that smoke. The house family stands a chimney on its roof, and a house with a fire going puts a chain of cel puffs off it that climb, cool, take the wind and thin away. Most houses at dusk, some at dawn, a few through the night, and the cold lights the rest. See below |
 | the **TOWER** options row | NEW / CLASSIC — which Pokemon Tower stands in Lavender: the tower modelled by hand (default), or the building kit's plain fold of the same drawing, as it stood before. Flipping it rebuilds the map's meshes on the spot. See below |
 | the **LEDGES** options row | BANK / CLASSIC — what a hop-down ledge is: a bank of earth that rises steeply on the side you stand on, crests, and falls gently toward where you land, the ground's own grass rolling over its top and the drawing's earth showing where the fall is steep; or the profile's six-pixel box wearing the ledge drawing on top, as before. Every route in Kanto. See below |
 | the **HAUNT** options row | ON / OFF — the tower of graves is haunted. Lavender's Pokemon Tower stands as a tower now (plinth, ashlar body with a pointed portal, storeys of pointed windows under cornices, a lantern storey, a pagoda roof and a spire), its glass burns cold, sparse and breathing after dark, and pale wisps drift out of it. The row is the wisps and the cold glass; the tower stands either way. See below |
 | the **CRYPT** options row | NEW / CLASSIC — what the inside of the Pokemon Tower is. NEW stands its seven floors and Agatha's room as a crypt: one continuous octagon of grey stone (the stones proud of their joints, the corners chamfered, a plinth battering into the room) climbing out of the light, the near walls ramping down to a coped parapet so the camera looks over them, the dark beyond, every headstone on a plinth; candle lanterns in wall sconces, the room held dim and cool, a violet haze and wisps sighing out of the graves on the haunted floors, dark flagstones underfoot. CLASSIC is the profile's pins as they were. Flipping it rebuilds the map's meshes. See below |
 | the **CRYPT-FX** options row | ON / OFF — the crypt's light, in the shader: every wall and headstone lit by the face it actually turns to the lantern, a hemisphere of fill from above read through the stone's relief, a wet sheen on the stone under each flame, ground mist drifting through the graves, weathered stone and granite on the walls and the headstones with their grain in the light — the walls standing those stones in depth so a lantern rakes a block, not a crate — and the flames blooming into a split-toned frame. OFF lights the crypt the way the streets are lit. Only inside the tower, with CRYPT on NEW |
-| the **TOWN** options row | ON / OFF — trainers' Pokemon loose in the streets of every town. Most are out for a stroll (press A to hear them); the one that STARES you down wants to battle, at your own lead's level |
-| the **A-FARM** options row | OFF / P1–P6 — pick a party slot and a bot trains that Pokemon; see below |
-| the **QOL** options row | ON / OFF — ten mercies: the **bag sorted into pockets** (balls, medicine, TMs and HMs, key items), wrapping and taking a held direction; the PC **following a catch** into whichever box it landed in, and a full box rolling forward instead of refusing a deposit; **RENAME** on the party menu, because Kanto has no NAME RATER; **hidden items glint** on the ground (it does not name them or take them — you still walk there and press A); hold **B to run**; **field poison stops at 1 HP** instead of killing; **trade evolutions at level 37** without a second machine; effectiveness markers on the move menu (`+`/`-`/`x` against the Pokémon in front of you); a fresh REPEL used the moment one wears off; and HMs on the A button — A at a tree CUTs, A at water SURFs, A at a boulder wakes STRENGTH, all behind the same badges and checks the menu applies. OFF is the full 1996 friction |
-| the **LANGUAGE** options row | ENGLISH / PORTUGUES — the language of the three places this mod writes its own words: the battle command buttons (ATTACK / SWITCH / ITEMS / FLEE), the bag's pocket tabs and the start menu's MAP row. English by default, because that is what they already said and what the engine's own menus say beside them; PORTUGUES is for a save running under a Portuguese translation mod. Nothing the engine prints — dialogue, item names, the flat menus this mod silences — is affected either way |
+| the **UI LANG** options row | ENGLISH / PORTUGUÊS — the language of the three places this mod writes its own words: the battle command buttons (ATTACK / SWITCH / ITEMS / FLEE), the bag's pocket tabs and the start menu's MAP row. English by default, because that is what they already said and what the engine's own menus say beside them; PORTUGUES is for a save running under a Portuguese translation mod. Nothing the engine prints — dialogue, item names, the flat menus this mod silences — is affected either way |
 | the **RES** options row | 1/2 / FULL / 1/3 / 1/4 — what fraction of the panel the 3D pass rasterises at |
 | the **SHADOWS** options row | LOW / OFF / HIGH / SOFT — the sun pass; SOFT widens each shadow's edge with distance from what throws it |
 
@@ -91,52 +84,6 @@ FX**, a full-screen present pass over the top of the diorama. Both are held at
 off rather than merely hidden — a row that is not there cannot switch off a
 value an older save arrived with. Uninstall and both come back, at whatever
 they were last set to.
-
-## Wild Pokémon you can see — the WILD row
-
-Gen 1's wild encounter is a dice roll on a step. Walk into tall grass and
-every completed step draws `rand(0..255)` against the map's encounter rate;
-when it comes up, the screen wipes and something you never saw is suddenly
-in front of you. Nothing about that is a decision — you cannot pick a
-fight, avoid one, choose which one, or know there was one to choose. The
-grass is a slot machine you pull by walking.
-
-This makes the roll **visible**. The same encounter table, rolled the same
-way against the same ten probability buckets, decides who is standing in
-the grass *right now* — as ordinary map objects, wearing their own art,
-wandering their own patch — and the fight starts when you walk into one (or
-press A at one). So the grass becomes a place with things in it: go round
-the Zubat, go after the Abra, or cross the route without fighting anything
-at all.
-
-| rung | what happens |
-| --- | --- |
-| **ROAM** | they stand in the grass, and the blind roll is off. What you fight is what you walked into. |
-| **MIX** | they stand in the grass **and** the roll still happens, so the grass can still surprise you. |
-| **OFF** | none of this runs; the game rolls the dice exactly as it always did. |
-
-Where they stand is the same three cases the roll covers, read off the same
-records: **grass** on a route, the **whole floor** of a cave or a tower, and
-the **water** — the last only while you are surfing, because a Tentacool
-bobbing across a pond you cannot reach is set dressing that costs a sprite.
-
-What is **not** changed is anything that decides *what* a wild Pokémon is.
-The species, the levels and the slot odds are the ROM's, read through the
-same data the roll reads. **REPEL** still works and reads better for being
-seen — nothing weaker than your lead appears at all, so the grass is
-visibly empty of the small stuff while it lasts. And a battle that starts
-here is the engine's own wild battle pushed down the engine's own
-`pushBattle`, so the transition, the Safari menu, the catch, the experience
-and this mod's own staged arena all happen without knowing where the fight
-came from.
-
-Two places deliberately keep their dice. The **Pokémon Tower** without the
-Silph Scope, because a Gastly wandering about with its own art answers the
-question that floor exists to ask — pick the Scope up and it populates like
-anywhere else. And any map this cannot cover at all: no encounter table, no
-room to stand anything on, or art that would not bake. The blind roll stays
-switched on exactly where nothing has replaced it, which is the difference
-between replacing the encounter and deleting it.
 
 ## The SM64 camera (SM64CAM)
 
@@ -243,9 +190,10 @@ Indoors it pulls in close, on water it drops behind you, and
 SM64 writeup repeats most is that no generic algorithm beats an authored
 camera in the ten percent of cases that are hard. It ships empty on purpose.
 
-### The art
+### The art of the flock
 
-Gen 1 draws no Pokémon on the map. Eleven species have an overworld sheet
+The flock that crosses the sky (the **AMBIENT** row) is Pokémon. Gen 1 draws
+no Pokémon on the map, though: eleven species have an overworld sheet
 because a script stands one somewhere; the other hundred and forty have
 exactly one drawing each, and it is the battle front pic. Resampling that
 portrait into a 16×16 cell is how Sandshrew used to look like Charmander —
@@ -266,72 +214,9 @@ That fetches [PokéPC Followers](https://github.com/gamecorner-033/PokePCFollowe
 are `trueColor` so the palette pipeline leaves their colours alone.
 
 Without them, a greyscale front-pic bake still runs into
-`save/mod-derived/TERRARIUM/roamers/` — the feature stays, the art is worse.
-
-Because the sheet is a real file at a real path, it is a sprite the
-**engine** understands: tall grass overdraws its feet, the diorama cuts its
-card from it and the sun throws its silhouette. Drop a replacement 16×96
-sheet at `assets/roamers/<SPECIES>.png` and it is used as-is.
-
-## Pokemon in the streets — the TOWN row
-
-A town in Gen 1 is the emptiest place in the game: no encounter table, no
-grass, a handful of scripted NPCs walking two-cell beats. With this row on,
-trainers' Pokemon are out in it — strays and companions loose in the
-streets, wearing their own art, wandering the same walk every NPC walks.
-
-Most are **pacifists**, just out for a stroll: press A and one turns,
-cries its own cry, and a line of text says what it is doing out here. You
-cannot fight what does not want to fight.
-
-About one in three is a **challenger**, and the tell is that it *stares*:
-walk within a few cells and it stops dead and turns to face you, and keeps
-facing you — the trainer-sight stare, worn by the Pokemon instead. Press A
-and it asks for the match. Accept and it is a real battle at your own
-lead's level, so a town stop is always worth XP without outclassing the
-route next door; refuse and it shrugs back into its stroll.
-
-They are wild battles under the hood, so a thrown ball works. Whether
-catching a town's stray is sporting is left to the player's conscience.
-
-## Auto-farm — the A-FARM row
-
-Pick a party slot and a bot trains that Pokemon. It is swapped to the
-front of the party first — Gen 1 gives its experience to the Pokemon that
-fought, and the lead is the one sent out — and the row follows the swap,
-so the menu never lies about which slot is being trained.
-
-On the map the bot walks the wild ground: tall grass on a route, the whole
-floor of a cave. With the **WILD** row on it *hunts* — the nearest roamer
-standing in the grass is walked into, the same bump that starts the fight
-for a player. With WILD off it paces the grass and lets the engine's own
-dice roll the encounters.
-
-In a fight it always picks the strongest move against what it is actually
-facing — power, STAB, the type chart and accuracy, with the
-self-destructive and the situational (Explosion, Dream Eater on something
-awake, the charge-turn moves) discounted for what they are — and runs from
-a wild fight it is losing.
-
-At level-up, the learn-a-move prompt is answered **by value**: the new
-move and the four known ones are scored — damage output for attacks, a
-curated worth for status moves, redundant same-type coverage discounted —
-and the lowest-value move is the one forgotten, unless that would be the
-new move itself, in which case it is declined. Thundershock is forgotten
-for Thunder; Growl is forgotten for Agility; Tail Whip is declined
-outright; Thunderbolt is never lost to anything, and an HM move is never
-forgotten at all.
-
-Below half health the bot drinks from the bag — weakest potion first, one
-sip per beat, until the trained Pokemon is topped back up — so a stack of
-potions makes the farm genuinely AFK. It stops itself — and sets its own
-row OFF, so the state is visible — rather than grind a party into the
-ground: when HP is critical and the bag has nothing left, when the mon
-faints, when its damaging moves run out of PP, when the map has nothing to
-farm, or when the local wild Pokemon are immune to everything it knows. It
-never throws a ball, never uses any item but its potions, and a Safari
-fight is immediately run from. While it runs, the bot owns the controls;
-switch the row OFF to take them back.
+`save/mod-derived/TERRARIUM/roamers/` — the flock still flies, the art is worse.
+Drop a replacement 16×96 sheet at `assets/roamers/<SPECIES>.png` and it is
+used as-is.
 
 ## Weather — the WEATHER row
 
@@ -543,13 +428,12 @@ px** under a shower, with nobody touching anything.
   wet grass (dew, or a meadow still soaked after the rain).
 
 The eight shader slots are split rather than shared: the first three are
-live feet, the rest are trail. A crowd of roamers can never crowd out the
-trail, and a long walk can never crowd out the foot actually standing in
-the grass.
+live feet, the rest are trail. A crowd can never crowd out the trail, and
+a long walk can never crowd out the foot actually standing in the grass.
 
-Roamers standing in the meadow lean on the **same clock** — `Wind.leanAt`
-is the CPU twin of the vertex shader's wave, front and load included, so a
-body and the tuft beside it are never on two schedules.
+The people standing in the meadow lean on the **same clock** —
+`Wind.leanAt` is the CPU twin of the vertex shader's wave, front and load
+included, so a body and the tuft beside it are never on two schedules.
 
 ### Wind you can hear, in the grass
 
@@ -619,9 +503,8 @@ walks on it and comes back down over in-game **days**. It rides the save file,
 next to what time it is in Kanto — because which paths this journey has worn
 into a route is a fact about the journey.
 
-And the player is not the only one writing it. The wild Pokemon wandering their
-patch and the civilians walking their routines deposit too, at their own
-weight, off the same list of feet the foot-crush springs already build. A route
+And the player is not the only one writing it. The townsfolk walking their
+beats deposit too, at their own weight, off the same list of feet the foot-crush springs already build. A route
 therefore grows **desire paths** along the traffic that actually crosses it,
 including corners the player has never stood in. Trample tops out short of bare
 earth, though: the game only lets you walk where it lets you walk, so given
@@ -705,8 +588,7 @@ While the rain reaches a figure — you, an NPC, a Pokémon in the street —
 water **runs down** their card: thin rivulets, a bright bead with a fading
 tail sliding down a few columns of the drawing at a time, starting over from
 the top in different columns on every pass (`lib/RainOnFX.lua` says how much
-rain reaches whom; the scene shader draws it). Under a tree's crown, or in a
-doorway the SHELTER row walked them to, it stops; a few seconds after the sky
+rain reaches whom; the scene shader draws it). Under a tree's crown it stops; a few seconds after the sky
 clears it stops everywhere. A boot on a soaked road throws water, not dust.
 
 ### The snow
@@ -804,74 +686,6 @@ snow **sheds** it in pinches off the hat and shoulders. Once the thaw starts,
 the eaves **drip** meltwater. And the windows wear a feathered **rime** with
 the cold, thickest at the edges of every pane.
 
-## Who is out right now — the ECOLOGY row
-
-Gen 1 has one encounter table per map and it is the same table at every hour
-of every day in every kind of weather. Gen 2 answered that with three tables
-per map — morning, day, night — and it is the single change that did the most
-to make Johto feel like a place rather than a set of rooms with monsters in
-them. This is that, built out of what Gen 1 already ships.
-
-**Nothing is added to a route and nothing is taken away.** Every Pokémon this
-can produce is one that route's own table already names, at the level that
-table already gives it, with exactly one exception (the rain, below). What
-moves is the **odds**: the ten-slot table is drawn from with its own
-cumulative buckets, exactly as `Encounter.roll` does, and each slot's share of
-the 256 is then multiplied by what the hour and the sky think of that species.
-
-So a Zubat is still on Route 4's table at noon — it is simply the least likely
-thing on it instead of being as likely as it was at midnight. That is
-deliberately weaker than Gen 2, which made its night species night-*only*:
-deleting half a route's table for half the clock would break the promise the
-WILD row rests on, and would turn a dex you are halfway through into a
-waiting game.
-
-Who keeps what hours is **Gen 2's own answer** wherever Gen 2 had one — every
-name in the nocturnal list is a Gen 1 species that Johto or Kanto put on a
-night table, so it is the series' own later reading of its own creatures
-carried back a generation. Zubat, Gastly, Oddish, Venonat, Clefairy, Meowth,
-Drowzee, Rattata, Grimer, Koffing, Cubone, Krabby and Pinsir are night; the
-birds, the caterpillars, the fighting types and the fire types are day.
-Anything in neither list falls back to its **types** — a Ghost or a Poison
-leans nocturnal, a Flying or a Fire leans diurnal — at half the weight,
-because it is half a guess. A Ditto has no opinion about the sun and does not
-get one.
-
-**Indoors none of it applies**, and that is the same rule the rest of this mod
-already holds: a cave at midnight is exactly as dark as a cave at noon, so a
-Zubat down there lives in the dark whatever the sky is doing.
-
-At **ON** the sky joins in. While it rains the water types on a table come up
-and the fire types go in, on the shower's own `power`, so it arrives at the
-rate everything else the weather touches arrives at. On most Kanto routes that
-alone would do very little — most grass tables have no water type on them at
-all — so there is a second lever: **water Pokémon come ashore.** In a heavy
-shower, a spawn on land within three cells of actual water may be drawn from
-the map's own water roster instead — `encounters[map].water` where the map has
-one, and otherwise `field.superRod[map]`, which is the ROM's own answer to
-"what lives in this map's water" for thirty-three maps with no surf table. So
-a Psyduck comes up out of the pond it was already in, onto the bank it was
-already next to, because it is raining.
-
-Its **level** is clamped into the band the map's own grass table uses, and
-that is the one number here that is neither the ROM's nor derivable: the fish
-rosters are levelled for a Super Rod you get late, and a level 23 Kingler on
-Route 6 would not be atmosphere, it would be a difficulty spike wearing a
-raincoat. The species is the ROM's, where it is standing is the rain's, and
-how hard it hits is the route's.
-
-All of this reaches the **blind roll** as well as the visible Pokémon: under
-MIX and OFF it rides the engine's own `encounter.species` seam, which runs on
-a roll that already happened and before the repel filter, so repel, the ghost
-rule, the Safari menu and the battle itself all go on reading the answer
-rather than the question. Under ROAM the tilt happened when the roamer was
-placed, in the open, some distance away — which is the whole point of that
-row.
-
-**TIME** is the hour without the sky, for a player who wants Gen 2's clock and
-Kanto's own indifferent weather. **OFF** is the flat table, drawn byte for
-byte the way the original draws it.
-
 ## The sound of the place — the SOUNDS row
 
 Crickets after dark, birdsong through the morning and the day, water moving
@@ -922,40 +736,23 @@ only sounds like water when you are in that corner.
 
 ## Houses somebody lives in — the INDOOR row
 
-About two houses in five have a Pokémon asleep on the floor, usually the
-family Meowth. It is a real map object — the same kind of thing the WILD row
-stands in the grass, wearing its own art baked from its front pic — so the
-engine y-sorts it, the sun throws its shadow, the palette bake colours it and
-the diorama cuts its card. It is asleep, so it never takes a step and never
-wants a fight. Press A and it stirs, yawns its own cry a little slow, and goes
-back to sleep.
-
-**Which** house has one is decided by the house's own name — a hash, not a die.
-That is the load-bearing choice: a random roll would put a cat in a different
-house every time you walked in, and a cat that teleports between houses is not
-a pet, it is a spawner. Hashed, a house either has one or does not, forever,
-and it is always the same Pokémon asleep in the same corner. It is placed
-against a wall and clear of every door, because a real object blocks and the
-answer to that is to put it where nobody was going to walk.
-
-Gen 1 draws no sleeping pose for anything, so it stands in its ordinary
-overworld art and the **Z**s over its head are what say it is asleep — three
-bars in a Z rather than a font glyph, because the font's own characters are
-black-with-alpha and a pale mark on a dark floor is not something `setColor`
-can make out of them.
-
-And **mugs left on the tables, still steaming**. Where a table is comes from
-this mod's own shape profile rather than from a list of coordinates: every
-interior tileset here already names its `table` and `counter` tiles by id, for
-the entirely different purpose of extruding them to the right height, and that
+**Mugs left on the tables, still steaming.** Where a table is comes from this
+mod's own shape profile rather than from a list of coordinates: every interior
+tileset here already names its `table` and `counter` tiles by id, for the
+entirely different purpose of extruding them to the right height, and that
 list answers "is there a tabletop at this cell" for free. So a mug lands on a
 table in a house nobody wrote a line of code about — and a total conversion
 that adds its own tileset gets mugs on its tables by pinning them the way it
 already had to.
 
-The sleeper is a real map object and stands in the room in **both** modes; the
-steam and the Zs are drawings composited into the diorama's own overlay pass,
-so those two want the **VOXEL** camera on.
+**Which** tables carry one is decided by the house's own name — a hash, not a
+die — so it is always the same mug on the same table. The steam is a drawing
+composited into the diorama's own overlay pass, so it wants the **VOXEL**
+camera on.
+
+(Up to 1.40.5 this row also stood a sleeping house Pokémon on the floor. It was
+a real map object — it blocked, and it answered A — so it went with the rest of
+the gameplay in 1.41.0.)
 
 ## Chimneys that smoke — the HEARTH row
 
@@ -976,7 +773,7 @@ up, which is exactly when the wind's own field has nothing to draw.
 
 **Which houses.** Not every house, and not all day. Each chimney holds a
 stable number from a hash of the house's own place on the map — the same
-trick the **INDOOR** row picks its sleepers by, so the same houses always
+trick the **INDOOR** row picks its mugs by, so the same houses always
 light first. Against it stands one figure: how many of the town's hearths are
 lit *right now*. It rises with the meals of the day — nearly everyone at dusk,
 about half at dawn, the banked fires through the night, almost nobody at noon
