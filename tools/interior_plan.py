@@ -17,13 +17,16 @@ reader is line-based on purpose: a general Lua parser is more code and more
 ways to be wrong about 900 KB of tables nobody reads.
 """
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
-BUILD = Path(r"C:/Users/breno/Downloads/GBA/Quiver-Windows-x64/Apps"
-             r"/PokemonRedBlueYellow-Gen1RecompProject-Recomp")
-ROM = "yellow"
+# The engine checkout (or install) whose <ROM>/data/generated/ holds the
+# extracted maps and tilesets. Override with GEN1RECOMP / GEN1RECOMP_ROM.
+BUILD = Path(os.environ.get("GEN1RECOMP")
+             or Path.home() / "Documents" / "GitHub" / "gen1recomp")
+ROM = os.environ.get("GEN1RECOMP_ROM", "yellow")
 
 
 def gen(name):

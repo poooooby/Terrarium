@@ -33,7 +33,21 @@ import interior_plan  # noqa: E402  (the shipped map/tileset reader)
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = interior_plan.BUILD
 ROM = interior_plan.ROM
-LUA_DLL = BUILD / "lua51.dll"
+# A LuaJIT 2.1 lua51.dll whose bitness matches this Python (64-bit Python
+# needs a 64-bit DLL -- a 32-bit one fails with WinError 193). A packaged
+# build ships one next to its exe; a source checkout runs on the installed
+# LOVE, whose own lua51.dll is the same LuaJIT the game runs on. LUA51_DLL
+# overrides both.
+def _lua_dll():
+    if os.environ.get("LUA51_DLL"):
+        return Path(os.environ["LUA51_DLL"])
+    for p in (BUILD / "lua51.dll", Path(r"C:/Program Files/LOVE/lua51.dll")):
+        if p.exists():
+            return p
+    return BUILD / "lua51.dll"
+
+
+LUA_DLL = _lua_dll()
 HARNESS = ROOT / "tools" / "kit_headless.lua"
 WORK = ROOT / "tools" / "_kit_out"
 
