@@ -1,0 +1,3 @@
+# Dev-only vendored code stays out of the release zip (release.yml builds it
+# with git archive, which honours export-ignore). See tools/vendor/README.md.
+tools/vendor/** export-ignore
