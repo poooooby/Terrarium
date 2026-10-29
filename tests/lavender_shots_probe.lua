@@ -36,13 +36,11 @@ return function(game)
   local DayNight = lib.require("DayNight")
   local Weather = lib.require("Weather")
   local MiniMap = lib.require("MiniMap")
-  local AutoFarm = lib.require("AutoFarm")
   local Pipelines = require("src.render.Pipelines")
   Pipelines.setLevel("terrarium_voxel", 4)
   Pipelines.setLevel("terrarium_tiltshift", 0)
   MiniMap.setting:setIndex(3, game)
   Weather.setting:setIndex(2, game)
-  AutoFarm.setting:setIndex(1, game)
   MarioCam.setting:setIndex(2, game)
 
   local CLOCK = 300

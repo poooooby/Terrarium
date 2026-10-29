@@ -1,4 +1,4 @@
--- Probe: thunderstorm flash (cel steps), thunder delay, electric encounter boost.
+-- Probe: thunderstorm flash (cel steps) and thunder delay.
 --
 --   POKEPORT_VERSION=yellow DS_PROBE_DIR=<dir> \
 --   POKEPORT_DRIVER=mods/TERRARIUM/tests/thunder_probe.lua gen1recomp
@@ -36,13 +36,11 @@ return function(game)
   log("version:", exports.TERRARIUM.version)
 
   local Weather = lib.require("Weather")
-  local Ecology = lib.require("Ecology")
   local DayNight = lib.require("DayNight")
   local Pipelines = require("src.render.Pipelines")
 
   DayNight.setting:sync("day")
   Weather.setting:sync("rain")
-  Ecology.setting:sync("on")
   Pipelines.setLevel("terrarium_voxel", 4)
 
   game.overworld:setMap("ROUTE_1", 10, 20, "down")
@@ -95,54 +93,6 @@ return function(game)
     log("PASS: thunder delay matches far")
   else
     log(("FAIL: thunder delay got=%s expect~%.3f"):format(tostring(got), expect))
-  end
-
-  -- ---- electric boost under storm ----
-  Weather.setting:sync("rain")
-  for _ = 1, 400 do Weather.update(1 / 30) end
-  log("storming for ecology:", tostring(Weather.storming()),
-      "power", tostring(Weather.power()))
-
-  -- Pikachu (electric) vs Rattata (normal) if present in data
-  local Game = game
-  local data = Game.data and Game.data.pokemon
-  local function findByType(typeName)
-    if not data then return nil end
-    for id, def in pairs(data) do
-      if type(def) == "table" and def.types then
-        for _, t in ipairs(def.types) do
-          if t == typeName then return id end
-        end
-      end
-    end
-    return nil
-  end
-  local elec = findByType("ELECTRIC") or 25
-  local normal = findByType("NORMAL") or 19
-  local wE = Ecology.weight(elec, "land")
-  local wN = Ecology.weight(normal, "land")
-  log(("weight electric(%s)=%.3f normal(%s)=%.3f"):format(
-    tostring(elec), wE, tostring(normal), wN))
-  if Weather.storming() and wE > wN * 1.2 then
-    log("PASS: electric weight up under storm")
-  elseif not Weather.storming() then
-    log("WARN: not storming — pin rain may not have reached STRIKE_ABOVE")
-    -- force-compare RAIN vs clear
-    Weather.setting:sync("off")
-    for _ = 1, 400 do Weather.update(1 / 30) end
-    local wClear = Ecology.weight(elec, "land")
-    Weather.setting:sync("rain")
-    for _ = 1, 600 do Weather.update(1 / 30) end
-    local wRain = Ecology.weight(elec, "land")
-    log(("electric clear=%.3f rain=%.3f storming=%s"):format(
-      wClear, wRain, tostring(Weather.storming())))
-    if wRain > wClear then
-      log("PASS: electric rises in rain")
-    else
-      log("FAIL: electric did not rise in rain")
-    end
-  else
-    log("FAIL: electric not boosted vs normal under storm")
   end
 
   logf:close()

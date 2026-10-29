@@ -55,12 +55,10 @@ return function(game)
   local Voxel3D = lib.require("Voxel3D")
   local Weather = lib.require("Weather")
   local DayNight = lib.require("DayNight")
-  local AutoFarm = lib.require("AutoFarm")
   local Pipelines = require("src.render.Pipelines")
 
   Weather.setting:sync("off")
   DayNight.setting:sync("day")
-  AutoFarm.setting:sync("off")
   log("grass wantsMesh (must be false):", tostring(Grass3D.wantsMesh()))
 
   pcall(Pipelines.setLevel, "terrarium_voxel", 4)

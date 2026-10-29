@@ -39,19 +39,17 @@ return function(game)
   local Weather = lib.require("Weather")
   local DayNight = lib.require("DayNight")
   local MiniMap = lib.require("MiniMap")
-  local AutoFarm = lib.require("AutoFarm")
   local Pipelines = require("src.render.Pipelines")
 
   local saved = {
     skyline = Skyline.setting:get(), haze = Aerial.setting:get(),
     weather = Weather.setting:get(), daytime = DayNight.setting:get(),
-    minimap = MiniMap.setting:get(), autofarm = AutoFarm.setting:get(),
+    minimap = MiniMap.setting:get(),
   }
 
   Pipelines.setLevel("terrarium_voxel", 5)
   Pipelines.setLevel("terrarium_tiltshift", 0)
   MiniMap.setting:sync("off")
-  AutoFarm.setting:sync("off")
   Weather.setting:sync("rain")
   DayNight.setting:sync("cycle")
 
@@ -153,7 +151,7 @@ return function(game)
 
   Skyline.setting:sync(saved.skyline); Aerial.setting:sync(saved.haze)
   Weather.setting:sync(saved.weather); DayNight.setting:sync(saved.daytime)
-  MiniMap.setting:sync(saved.minimap); AutoFarm.setting:sync(saved.autofarm)
+  MiniMap.setting:sync(saved.minimap)
   log("done")
   logf:close()
   love.event.quit()

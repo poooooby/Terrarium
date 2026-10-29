@@ -72,7 +72,6 @@ return function(game)
   local DayNight = lib.require("DayNight")
   local Weather = lib.require("Weather")
   local MiniMap = lib.require("MiniMap")
-  local AutoFarm = lib.require("AutoFarm")
   local Pipelines = require("src.render.Pipelines")
 
   -- The lowest camera rung: 75 degrees is the only one with the horizon
@@ -88,7 +87,6 @@ return function(game)
   -- probe opens has A-FARM armed, so a bot was pushing directions into the
   -- press queue between the two halves of every pair -- which is why the
   -- log kept voiding pairs and why the near band appeared to move.
-  AutoFarm.setting:setIndex(1, game)         -- OFF
   wait(120)
 
   -- Noon: the widest gap between the haze and the ground's own colours, so

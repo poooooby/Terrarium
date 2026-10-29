@@ -72,15 +72,12 @@ return function(game)
   local DayNight    = lib.require("DayNight")
   local AmbientLife = lib.require("AmbientLife")
   local GroundFX    = lib.require("GroundFX")
-  local CityLife    = lib.require("CityLife")
-  local WildRoamers = lib.require("WildRoamers")
   local Grass3D     = lib.require("Grass3D")
   local Trees3D     = lib.require("Trees3D")
   local StreetLamps = lib.require("StreetLamps")
   local Water       = lib.require("Water")
   local Wind        = lib.require("Wind")
   local MiniMap     = lib.require("MiniMap")
-  local AutoFarm    = lib.require("AutoFarm")
   local Voxel3D     = lib.require("Voxel3D")
   local ShadowMap   = lib.require("ShadowMap")
   local Pipelines   = require("src.render.Pipelines")
@@ -92,7 +89,6 @@ return function(game)
   Pipelines.setLevel("terrarium_voxel", 3)
   Pipelines.setLevel("terrarium_tiltshift", 0)
   MiniMap.setting:sync("off")
-  AutoFarm.setting:sync("off")
   Weather.setting:sync("off")
   DayNight.setting:sync("day")
   Wind.setting:sync(0)
@@ -197,8 +193,6 @@ return function(game)
       clouds  = Sky.cloudSetting:get(),
       ambient = AmbientLife.setting:get(),
       ground  = GroundFX.setting:get(),
-      town    = CityLife.setting:get(),
-      wild    = WildRoamers.setting:get(),
       grass   = Grass3D.setting:get(),
       trees   = Trees3D.setting:get(),
       lamps   = StreetLamps.setting:get(),
@@ -213,8 +207,6 @@ return function(game)
     Sky.cloudSetting:sync(BASE.clouds)
     AmbientLife.setting:sync(BASE.ambient)
     GroundFX.setting:sync(BASE.ground)
-    CityLife.setting:sync(BASE.town)
-    WildRoamers.setting:sync(BASE.wild)
     Grass3D.setting:sync(BASE.grass)
     Trees3D.setting:sync(BASE.trees)
     StreetLamps.setting:sync(BASE.lamps)
@@ -237,8 +229,6 @@ return function(game)
     { "shadows=OFF", function() Quality.shadowSetting:sync("off") end },
     { "ambient=OFF", function() AmbientLife.setting:sync("off") end },
     { "ground=OFF",  function() GroundFX.setting:sync("off") end },
-    { "life=OFF",    function() CityLife.setting:sync("off")
-                               WildRoamers.setting:sync("off") end },
     { "grass=VOXEL", function() Grass3D.setting:sync("voxel") end },
     { "water=FLAT",  function() Water.setting:sync(0) end },
     { "lamps=OFF",   function() StreetLamps.setting:sync(false) end },
@@ -251,8 +241,6 @@ return function(game)
         Sky.cloudSetting:sync(0)
         AmbientLife.setting:sync("off")
         GroundFX.setting:sync("off")
-        CityLife.setting:sync("off")
-        WildRoamers.setting:sync("off")
         Grass3D.setting:sync("voxel")
         Water.setting:sync(0)
         StreetLamps.setting:sync(false)

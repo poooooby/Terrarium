@@ -903,12 +903,6 @@ local function aimEnds(battle, shot)
   if S.playing and S.fromCell and S.toCell then
     return S.fromCell, S.toCell, 1
   end
-  -- a parry window open means the arc is pointed AT the player, which is the
-  -- whole reason they are being asked to press something
-  local okP, Parry = pcall(V.require, "BattleParry")
-  if okP and Parry and Parry.debug and Parry.debug() then
-    return shot.enemyCell, shot.playerCell, 1
-  end
   local phase = battle.phase
   if phase == "menu" or phase == "moveSelect" then
     return shot.playerCell, shot.enemyCell, 0.8

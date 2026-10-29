@@ -128,7 +128,6 @@ return function(game)
   local Buildings   = lib.require("Buildings")
   local MarioCam    = lib.require("MarioCam")
   local MiniMap     = lib.require("MiniMap")
-  local AutoFarm    = lib.require("AutoFarm")
   local ChunkMesher = lib.require("ChunkMesher")
   local Anime       = lib.require("Anime")
   local FloorArt    = lib.require("FloorArt")
@@ -148,7 +147,6 @@ return function(game)
   Pipelines.setLevel("terrarium_voxel", LEVEL)
   Pipelines.setLevel("terrarium_tiltshift", 0)
   pcall(function() MiniMap.setting:setIndex(3, game) end)    -- MAP off
-  pcall(function() AutoFarm.setting:setIndex(1, game) end)   -- A-FARM off
   pcall(function() MarioCam.setting:setIndex(2, game) end)   -- SM64CAM on
   -- LIGHT and SHADOWS, pinned ON. Neither belongs to the shop, and both
   -- can silently take its shadows away: Light.split hands EVERYTHING to

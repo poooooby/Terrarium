@@ -590,53 +590,13 @@ local function spawnFlock(ow)
   end
 end
 
--- ------- the people glance
---
--- Civilians only, and the guard is the point: `def.trainerClass` is how
--- the sight check knows a trainer, and a trainer's facing IS their line of
--- sight -- turning one toward a passing player would start (or dodge)
--- fights the map never rolled. Everything else stands down: frozen NPCs
--- belong to a script, moving ones pick their own facing on the next step,
--- and this mod's own roamers and street Pokemon have moods of their own.
---
--- A standing NPC remembers the facing its map def gave it and turns BACK
--- when the player walks on -- a shopkeeper glances up from the counter,
--- then goes back to minding it.
-local NPC = require("src.world.NPC")
-
-local function glance(ow)
-  local p = ow.player
-  for _, npc in ipairs(ow.npcs or {}) do
-    if getmetatable(npc) == NPC and npc.def and not npc.def.trainerClass
-       and not npc.frozen and not npc.moving then
-      local dx = math.abs(npc.cellX - p.cellX)
-      local dy = math.abs(npc.cellY - p.cellY)
-      local near = dx <= 2 and dy <= 2 and (dx + dy) > 0 and (dx + dy) <= 3
-      if near then
-        if npc.dsGlanceFacing == nil then
-          npc.dsGlanceFacing = npc.facing or false
-        end
-        npc:facePlayer(p)
-      elseif npc.dsGlanceFacing ~= nil and (dx > 3 or dy > 3) then
-        -- only a STANDING NPC turns back; a wanderer's next step owns its
-        -- facing already
-        if not npc.wanders and npc.dsGlanceFacing then
-          npc.facing = npc.dsGlanceFacing
-        end
-        npc.dsGlanceFacing = nil
-      end
-    end
-  end
-end
-
 -- ------- per-frame
 --
 -- Rides the voxel pipeline's update hook like everything else with a clock,
 -- and then gates itself down to the frames where there is a diorama to be
 -- alive on: the overworld on top, outdoors, and the voxel camera actually
 -- pitched over -- ambience under a menu or on the flat 2D world would be
--- simulation nobody sees. The glance is the one part that runs on the FLAT
--- world too: a turned head is a facing, and facings draw in every mode.
+-- simulation nobody sees.
 -- ------- a seam the weather probe needs
 --
 -- How many of a kind are in the air. The meadow going quiet as a front
@@ -727,13 +687,6 @@ local function updateBody(dt, voxelOn)
   if AmbientLife.HOLD then return end
   local Game = game()
   local ow = Game and Game.overworld
-
-  if AmbientLife.enabled() and ow and ow.map and ow.player
-     and Game.stack and Game.stack:top() == ow
-     and not ow.transitioning
-     and not (ow.runner and ow.runner.isRunning and ow.runner:isRunning()) then
-    pcall(glance, ow)
-  end
 
   local ok = voxelOn and AmbientLife.enabled()
              and ow and ow.map and ow.player

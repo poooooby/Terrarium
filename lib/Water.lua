@@ -721,11 +721,6 @@ function Water.step(dt)
       else
         Water.standEvent = { kind = "thaw", t = 0, dur = 0.75 }
         Water.stepJitter = 0.7
-        -- Ice went liquid under a walker who is not surfing: keep them
-        -- afloat if they still know Surf (same skill that let them on ice).
-        if p and not p.surfing and Water.canUseSurf() then
-          p.surfing = true
-        end
       end
     end
     Water._wasSolidIce = solid
@@ -1006,28 +1001,6 @@ function Water.dropGPU()
     pcall(artBlank.release, artBlank)
   end
   artBlank = nil
-end
-
--- Walk-on-ice: frozen water cells count as ground IF the party can Surf
--- (Soul Badge + SURF). Liquid water stays blocked without mounting Surf.
--- So ice is walkable and immersive, but the HM is still required.
-function Water.installWalk()
-  local ok, Map = pcall(require, "src.world.Map")
-  if not ok or not Map or Map._dsIceWalk then return end
-  local walk = Map.isWalkableCell
-  if type(walk) ~= "function" then return end
-  function Map:isWalkableCell(cx, cy)
-    if walk(self, cx, cy) then return true end
-    if type(self.isWaterCell) == "function" then
-      local water = WaterMap.surfaceCell(self, cx, cy)
-      if water and Water.canUseSurf() then
-        local wx, wz = (cx or 0) * 16 + 8, (cy or 0) * 16 + 8
-        if Water.walkableIce(wx, wz) then return true end
-      end
-    end
-    return false
-  end
-  Map._dsIceWalk = true
 end
 
 return Water

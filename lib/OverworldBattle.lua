@@ -411,12 +411,6 @@ function OverworldBattle.begin(state, battle)
   -- optional any more (see forceOG)
   OverworldBattle.forceOG()
 
-  -- The free creature shelf needs the species table to pair against, and the
-  -- battle is the first place in the frame that reliably HAS one (it is
-  -- extracted from the player's ROM, so there is no build-time copy of it).
-  -- Cheap after the first fight: bind returns the map it already built.
-  pcall(function() V.require("CreaturePack").bind(battle and battle.data) end)
-
   session = { state = state, arena = arena, battle = battle, shot = nil,
               armed = false, token = 0 }
   cullCast(state)
@@ -1322,15 +1316,6 @@ function OverworldBattle.install()
     end)
   end
 
-  -- The two RULE modules, installed last and each behind its own guard, so a
-  -- throw in either leaves the costume above it wired. They patch the same
-  -- table this block does and nothing else -- the parry defers executeAction
-  -- and scales applyDamage, the charge meter gates chooseMove and pays out on
-  -- endOfTurn. Both answer "off" from their own OPTIONS row without being
-  -- uninstalled, which is what makes flipping either row mid-battle safe.
-  pcall(function() V.require("BattleParry").install(BattleState) end)
-  pcall(function() V.require("BattleCharge").install(BattleState) end)
-
   BattleState.dramaticShapeBattleHook = true
 end
 
@@ -1694,13 +1679,6 @@ function OverworldBattle.snapHUDs(battle, shot)
     -- the damage figure rises from the defender's capsule, over the
     -- capsules and the panels (see BattleHitFX.drawTop)
     if not screenUp then pcall(BattleHitFX.drawTop, battle, shot) end
-    -- the parry ring and its chip, over even that: while the window is open
-    -- it is the only thing on screen the player can act on, and a damage
-    -- figure from the previous turn drawn on top of it would be the frame
-    -- telling them to read the wrong number
-    if not screenUp then
-      pcall(function() V.require("BattleParry").draw(battle, shot) end)
-    end
     -- Poke Ball hop, after the chips so it sits on them
     pcall(function() V.require("BattleNav").draw(shot) end)
   end)

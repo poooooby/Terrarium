@@ -41,7 +41,6 @@ local RayFX = V.require("RayFX")
 -- and must get it back untouched
 local gridHeld = false
 local animeHeld = false
-local Roamer = V.require("Roamer")
 local StreetLamps = V.require("StreetLamps")
 local Skyline = V.require("Skyline")
 local PaletteFX = require("src.render.PaletteFX")
@@ -805,17 +804,11 @@ local function posesOf(state, spriteColors)
   for _, g in ipairs(state.ghosts or {}) do
     local sprite, vx, vy, facing, phase, flip = g.npc:pose()
     local gpx, gpy = vx + g.ox, g.npc.py + g.oy
-    local waterRoamer = g.npc.roamer and g.npc.kind == "water"
-    local onWater = g.npc.surfing or waterRoamer
+    local onWater = g.npc.surfing
     -- On water the swell is already in entityGround; pose()'s bob is for
     -- the 2D blit only and must not be added again as lift.  Waterline cut
     -- while swimming; full body on ice; freeze/thaw anim blends the cut.
     local wl, hop = 0, 0
-    if waterRoamer then
-      local okc, cut = pcall(Water.waterlineCut, gpx + 8, gpy + 8,
-                             Roamer.WATERLINE)
-      wl = (okc and cut) or Roamer.WATERLINE
-    end
     do
       local okg, G = pcall(V.require, "Grass3D")
       if okg and G and G.grassCut then
@@ -856,17 +849,9 @@ local function posesOf(state, spriteColors)
   for _, e in ipairs(state.entities or {}) do
     if not (state.flyAnim and e == state.player) then
       local sprite, vx, vy, facing, phase, flip = e:pose()
-      local waterRoamer = e.roamer and e.kind == "water"
-      local onWater = e.surfing or waterRoamer
-      -- Grass roamers: pose() already leaned px (vx); recompute the same
-      -- lean on map-y so the 3D card sits at the leaned cell centre.  lift
-      -- is then only the breath/hop (drawPy - vy), never the wind twice.
+      local onWater = e.surfing
       local drawPx, drawPy = vx, e.py
-      if e.roamer and e.kind == "grass" then
-        local ok, _, lz = pcall(Wind.leanAt, e.px + 8, e.py + 8,
-                                Roamer.WIND_HEIGHT)
-        if ok and lz then drawPy = e.py + lz end
-      elseif e ~= state.player and not e.roamer and not onWater then
+      if e ~= state.player and not onWater then
         -- NPC "cloth" substitute: whole billboard leans with the meadow wave
         -- (no skeleton in Gen 1 sprites). heightFrac 0.55 = torso, not feet.
         -- Share 0.55 keeps it subtler than grass tips so people do not skate.
@@ -878,11 +863,6 @@ local function posesOf(state, spriteColors)
       end
       -- Swim cut / ice stand / freeze-thaw blend (keeps Surf as the mount).
       local wl, hop = 0, 0
-      if waterRoamer then
-        local okc, cut = pcall(Water.waterlineCut, drawPx + 8, drawPy + 8,
-                               Roamer.WATERLINE)
-        wl = (okc and cut) or Roamer.WATERLINE
-      end
       -- Tall grass hides the low body. Same cut field as the waterline --
       -- SpriteBillboards already crops the card from the feet up. Origin
       -- stays on the ground (unlike a swimmer, whose origin sits on the

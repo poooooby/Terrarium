@@ -68,7 +68,6 @@ return function(game)
   local Structures = lib.require("Structures")
   local Buildings  = lib.require("Buildings")
   local MiniMap    = lib.require("MiniMap")
-  local AutoFarm   = lib.require("AutoFarm")
   local Pipelines  = require("src.render.Pipelines")
 
   Weather.setting:sync("off")
@@ -76,7 +75,6 @@ return function(game)
   Pipelines.setLevel("terrarium_voxel", LEVEL)
   Pipelines.setLevel("terrarium_tiltshift", 0)
   pcall(function() MiniMap.setting:setIndex(3, game) end)      -- OFF
-  pcall(function() AutoFarm.setting:setIndex(1, game) end)     -- OFF
   local ww, wh = love.graphics.getDimensions()
   log(("window: %dx%d  voxelLevel=%d  back=%d"):format(ww, wh, LEVEL, BACK))
 

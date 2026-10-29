@@ -104,7 +104,6 @@ return function(game)
   local DayNight = lib.require("DayNight")
   local Weather = lib.require("Weather")
   local MiniMap = lib.require("MiniMap")
-  local AutoFarm = lib.require("AutoFarm")
   local Pipelines = require("src.render.Pipelines")
 
   -- 50 degrees: a real perspective with plenty of near ground in frame,
@@ -116,7 +115,6 @@ return function(game)
   Weather.setting:setIndex(2, game)          -- nothing falling through it
   -- The save opens with A-FARM armed and a bot pushing directions into the
   -- press queue would walk the player between the halves of every pair.
-  AutoFarm.setting:setIndex(1, game)
 
   local CLOCK = 300                           -- noon, pinned every frame
   local function hold(frames)

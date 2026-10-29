@@ -111,10 +111,7 @@ return function(game)
   local GroundFX = lib.require("GroundFX")
   local Pipelines = require("src.render.Pipelines")
 
-  local WildRoamers = lib.require("WildRoamers")
   local AmbientLife = lib.require("AmbientLife")
-  local CityLife = lib.require("CityLife")
-  local Routines = lib.require("Routines")
   local Vfx = lib.require("Vfx")
 
   -- ------- pin everything in the world that moves on its own
@@ -125,10 +122,7 @@ return function(game)
   -- changed pixels attributed to wear.
   DayNight.setting:sync("day")
   Weather.setting:sync("off")
-  WildRoamers.setting:sync("off")
   AmbientLife.setting:sync("off")
-  CityLife.setting:sync("off")
-  Routines.setting:sync("off")
   Vfx.setting:sync("off")
   Pipelines.setLevel("terrarium_voxel", 4)
   Quality.setting:sync(1)           -- FULL -> grassDetail 2

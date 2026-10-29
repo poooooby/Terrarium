@@ -78,7 +78,6 @@ return function(game)
   local MiniMap = lib.require("MiniMap")
   local Quality = lib.require("Quality")
   local Grass3D = lib.require("Grass3D")
-  local AutoFarm = lib.require("AutoFarm")
   local Pipelines = require("src.render.Pipelines")
 
   local saved = {
@@ -89,7 +88,6 @@ return function(game)
     shadows = Quality.shadowSetting:get(),
     grass = Grass3D.setting:get(),
     minimap = MiniMap.setting:get(),
-    autofarm = AutoFarm.setting:get(),
   }
   log(("stored rows: HORIZON=%s V-HAZE=%s weather=%s daytime=%s shadows=%s grass3d=%s")
         :format(tostring(saved.skyline), tostring(saved.haze),
@@ -129,9 +127,8 @@ return function(game)
   mark("Pipelines.setLevel voxel/tiltshift")
   Pipelines.setLevel("terrarium_voxel", 5)     -- 75deg: horizon in frame
   Pipelines.setLevel("terrarium_tiltshift", 0)
-  mark("MiniMap/AutoFarm sync off")
+  mark("MiniMap sync off")
   MiniMap.setting:sync("off")
-  AutoFarm.setting:sync("off")
 
   local CLOCK = 300
   local function hold(frames)
@@ -316,7 +313,6 @@ return function(game)
   Quality.shadowSetting:sync(saved.shadows)
   Grass3D.setting:sync(saved.grass)
   MiniMap.setting:sync(saved.minimap)
-  AutoFarm.setting:sync(saved.autofarm)
   log("")
   log(("restored rows: HORIZON=%s V-HAZE=%s weather=%s daytime=%s shadows=%s")
         :format(tostring(Skyline.setting:get()), tostring(Aerial.setting:get()),

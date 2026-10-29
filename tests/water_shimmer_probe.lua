@@ -170,9 +170,6 @@ return function(game)
     return ok and m or nil
   end
   local AmbientLife = tryRequire("AmbientLife")
-  local CityLife    = tryRequire("CityLife")
-  local WildRoamers = tryRequire("WildRoamers")
-  local Routines    = tryRequire("Routines")
   local WorldCurve  = tryRequire("WorldCurve")
   local GroundFX    = tryRequire("GroundFX")
 
@@ -190,9 +187,6 @@ return function(game)
     DayNight.setting:sync("day")
     Wind.setting:sync(0)                      -- OFF
     if AmbientLife then AmbientLife.setting:sync("off") end
-    if CityLife    then CityLife.setting:sync("off") end
-    if WildRoamers then WildRoamers.setting:sync("off") end
-    if Routines    then Routines.setting:sync("off") end
     if GroundFX    then pcall(function() GroundFX.setting:sync("off") end) end
     if WorldCurve  then pcall(function() WorldCurve.setting:sync(0) end) end
     Quality.setting:sync(2)                   -- RES 1/2, the default rung

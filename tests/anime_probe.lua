@@ -139,8 +139,6 @@ return function(game)
     return ok and m or nil
   end
   local AmbientLife = tryRequire("AmbientLife")
-  local CityLife    = tryRequire("CityLife")
-  local WildRoamers = tryRequire("WildRoamers")
 
   -- ------- FREEZE, for the same reason the water probe freezes
   --
@@ -153,8 +151,6 @@ return function(game)
     DayNight.setting:sync("day")
     Wind.setting:sync(0)
     if AmbientLife then pcall(function() AmbientLife.setting:sync("off") end) end
-    if CityLife then pcall(function() CityLife.enabled = false end) end
-    if WildRoamers then pcall(function() WildRoamers.setting:sync("off") end) end
     Pipelines.setLevel("terrarium_voxel", 5)
   end
   freeze()

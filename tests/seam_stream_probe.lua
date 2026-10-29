@@ -85,11 +85,9 @@ return function(game)
 
   local ChunkMesher = lib.require("ChunkMesher")
   local VoxelScene  = lib.require("VoxelScene")
-  local WildRoamers = lib.require("WildRoamers")
   local DayNight    = lib.require("DayNight")
   local Pipelines   = require("src.render.Pipelines")
 
-  WildRoamers.setting:sync("roam")
   DayNight.setting:sync("day")
   Pipelines.setLevel("terrarium_voxel", 4)
 

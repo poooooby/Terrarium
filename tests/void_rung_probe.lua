@@ -67,7 +67,6 @@ return function(game)
   local MiniMap = lib.require("MiniMap")
   local Quality = lib.require("Quality")
   local Grass3D = lib.require("Grass3D")
-  local AutoFarm = lib.require("AutoFarm")
   local Pipelines = require("src.render.Pipelines")
 
   -- Remember what the live rows were so we can put them back in RAM.
@@ -87,7 +86,6 @@ return function(game)
   Pipelines.setLevel("terrarium_voxel", 5)     -- 75deg: horizon in frame
   Pipelines.setLevel("terrarium_tiltshift", 0)
   MiniMap.setting:sync("off")
-  AutoFarm.setting:sync("off")
   Weather.setting:sync("rain")
   DayNight.setting:sync("cycle")
 

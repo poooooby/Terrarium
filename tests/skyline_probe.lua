@@ -49,9 +49,7 @@ return function(game)
   end
 
   local WorldAtlas = lib.require("WorldAtlas")
-  local AutoFarm = lib.require("AutoFarm")
   local Pipelines = require("src.render.Pipelines")
-  AutoFarm.setting:setIndex(1, game)
   Pipelines.setLevel("terrarium_voxel", 5)
   wait(60)
 

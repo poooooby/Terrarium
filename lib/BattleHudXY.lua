@@ -519,15 +519,6 @@ function BattleHudXY.read(side)
     isPlayer = side.isPlayer and true or false,
     status = mon.status,
   }
-  -- CHARGE is the player's alone (the foe spends no pips, and a meter on a
-  -- side nothing can read is a meter that lies). Pulled rather than passed so
-  -- block()'s signature -- and both of drawXYBlock's call sites -- stay put.
-  if info.isPlayer then
-    local ok, Charge = pcall(V.require, "BattleCharge")
-    if ok and Charge and Charge.read then
-      info.charge, info.chargeMax = Charge.read()
-    end
-  end
   return info
 end
 
@@ -576,8 +567,10 @@ BattleHudXY.GOLD  = { 0.29, 0.39, 0.32 }
 
 -- Plate heights in the same 640-wide space FRAME_W measures, so the caller's
 -- `h = w * fh / fw` needs no new convention. The player's is taller because
--- it carries two rows the foe's does not: the CHARGE pips and the EXP rule.
-BattleHudXY.PLAYER_H = 170
+-- it carries a row the foe's does not: the EXP rule along its foot. (It was
+-- 170 while it also carried the CHARGE pips; that economy is gone with the
+-- parry -- this mod draws the fight, it does not change its rules.)
+BattleHudXY.PLAYER_H = 140
 BattleHudXY.ENEMY_H  = 124
 
 -- Where the two plates sit. The 5X frames were hung foe top-left / player
@@ -586,10 +579,6 @@ BattleHudXY.ENEMY_H  = 124
 -- prompt and the command row. BattleDynamic owns this flag, so CLASSICA keeps
 -- the corners the pack was cut for.
 BattleHudXY.CONCEPT_CORNERS = true
-
--- CHARGE: how many pips the player's plate shows. The value itself is the
--- economy's (lib/BattleCharge.lua); this file only draws what it is handed.
-BattleHudXY.CHARGE_PIPS = 5
 
 -- Shared opaque ivory panel for status blocks and attack cards.
 function BattleHudXY.plateArt(g, x, y, w, h, k)
@@ -692,19 +681,6 @@ local function nativeBlock(info, x, y, w, expFrac)
   end
 
   if isP then
-    -- CHARGE, on the row the concept boards give it -- and ONLY when the
-    -- economy is live. With its row switched off BattleCharge.read answers
-    -- nothing, and a meter drawn empty forever would be the plate promising a
-    -- resource the fight does not have.
-    if info.chargeMax then
-      local chH = 22 * S
-      local chY = y + 106 * S
-      BattleHudXY.text("CHARGE", x + PAD, chY, chH, BattleHudXY.GOLD)
-      -- past the label's own width, not at the HP tube's left rule: "CHARGE"
-      -- is four glyphs longer than "HP" and ran under its own first pip there
-      BattleHudXY.pips(g, x + PAD + 132 * S, chY, 20 * S, 7 * S,
-                       info.charge or 0, info.chargeMax)
-    end
     -- EXP as a thin filament along the plate's foot, never an orphan bar
     if expFrac then
       local ey = y + H - 17 * S

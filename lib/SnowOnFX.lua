@@ -183,18 +183,13 @@ local function shed(e, dt, k, rate)
   owed[e] = due
 end
 
--- Is the sky open over this figure? Not under a crown, not in a doorway.
+-- Is the sky open over this figure? Not under a crown.
 -- The same two questions lib/RainOnFX.lua asks, and for the same reason.
 local function exposed(e)
   local okG, GW = pcall(V.require, "GrassWear")
   if okG and GW and GW.canopyAt then
     local okc, c = pcall(GW.canopyAt, e.cellX or 0, e.cellY or 0)
     if okc and tonumber(c) and c >= SnowOnFX.CANOPY_DRY then return false end
-  end
-  local okS, Shelter = pcall(V.require, "Shelter")
-  if okS and Shelter and Shelter.isHeld then
-    local okh, held = pcall(Shelter.isHeld, e)
-    if okh and held then return false end
   end
   return true
 end
