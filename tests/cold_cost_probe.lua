@@ -56,6 +56,12 @@ return function(game)
     { id = "ROUTE_12", x = 10, y = 15 },
     { id = "CELADON_CITY", x = 10, y = 10 },
   }
+  -- DS_COLD_MAPS=ID,ID,... measures those instead (interiors, one town)
+  local only = os.getenv("DS_COLD_MAPS")
+  if only and only ~= "" then
+    MAPS = {}
+    for id in only:gmatch("[^,%s]+") do MAPS[#MAPS + 1] = { id = id, x = 4, y = 4 } end
+  end
   local AWAY = { { id = "CERULEAN_CITY", x = 18, y = 18 },
                  { id = "FUCHSIA_CITY", x = 18, y = 18 } }
 

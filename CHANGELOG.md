@@ -36,6 +36,17 @@ throwaway matrices built per character and per pass. It now makes 124-201 KB
 picture is unchanged: every rewritten matrix chain is checked bit for bit
 against the old one (`tests/mat4_offline.lua`).
 
+### New: LOAD FADE, a black fade into the Marts and the Pokémon Tower
+
+The first time you walk into a Poké Mart or up a floor of the Pokémon Tower,
+the screen used to show the flat 2D floor for 1-3 seconds and then pop the
+3D room in over it. Now the screen stays black while the room is built and
+fades in when it is ready. It also builds faster behind the black: Lavender
+Mart is ready about 4x sooner than the flat floor's pop was, and Tower 1F
+about 3x. The black is never held longer than 5 seconds, and text boxes
+still show over it. Rooms you were in recently are already built and come
+in with the normal door fade. The new **LOAD FADE** row turns it off.
+
 ### Smoother: no more multi-second freezes entering a town
 
 Entering Lavender could freeze the game for about 3 seconds, and Route 12

@@ -133,6 +133,7 @@ local Quality = V.require("Quality")
 local Device = V.require("Device")
 local Diag = V.require("Diag")
 local PreCache = V.require("PreCache")
+local LoadVeil = V.require("LoadVeil")
 local Perf = V.require("Perf")
 local Lang = V.require("Lang")
 local Wind = V.require("Wind")
@@ -479,8 +480,10 @@ mod.content.render_pipelines:register(PIPE_VOXEL, {
     -- is the flag the rest of the mod already reads as "stand down, the
     -- screen is not the player's right now" (Weather and
     -- AmbientSound both gate on it), and it is the honest answer here too.
+    -- LOAD FADE's black hold counts too: the world is hidden behind it,
+    -- so the room it is waiting on may build with the covered slice
     local covered = (Game and Game.stack and Game.stack:top() ~= ow)
-                    or (ow and ow.transitioning) or false
+                    or (ow and ow.transitioning) or LoadVeil.holding()
     ChunkMesher.pump(covered)
     -- After the mesher, on what is left of the frame: the dev-preview
     -- pre-cache (lib/PreCache.lua, PRECACHE-PLAN.md). Two boolean tests
@@ -511,9 +514,17 @@ mod.content.render_pipelines:register(PIPE_VOXEL, {
     -- Perf's frame ring, for a profiling driver (tools/profiler). Dark by
     -- default: one boolean test unless a run turned measurement on.
     Perf.frame()
+    -- LOAD FADE (lib/LoadVeil.lua): arms on arrival at a Mart or a Tower
+    -- floor whose room is not built yet
+    LoadVeil.note(ctx.state and ctx.state.map)
     local canvas = VoxelScene.render(ctx.state, sw, sh,
                                      ctx.vw, ctx.vh, ctx.paletteFor)
-    if not canvas then return nil end   -- fall back to the 2D path
+    if not canvas then
+      -- black instead of the flat 2D floor while the veil holds; nil (the
+      -- 2D path) everywhere else, exactly as before
+      if LoadVeil.holding() then return LoadVeil.blank(sw, sh) end
+      return nil
+    end
     if Voxel3D.beginOverlay() then
       ctx.drawFx(function(wx, wy) return Voxel3D.project(wx, 0, wy) end,
                  ctx.scale)
@@ -576,6 +587,10 @@ mod.content.render_pipelines:register(PIPE_VOXEL, {
     -- this way and for exactly this reason; these two were the pair that
     -- never got it.
     if not TiltShift.blurring() then
+      -- LOAD FADE's veil over the world, under the radar and the start
+      -- menu; with T-SHIFT blurring it goes on in worldPresent instead,
+      -- after the blur, for the same reason those two do
+      LoadVeil.present(canvas)
       MiniMap.present(canvas)
       -- and the start menu, when one is open. On the FINISHED world canvas
       -- for the same reason the radar is: the engine's menu draws into the
@@ -640,6 +655,7 @@ mod.content.render_pipelines:register(PIPE_TILT, {
       -- skipped it precisely so this can happen here; between them exactly
       -- one of the two paints per frame.
       canvas = Weather.present(canvas, Voxel3D.project, weatherScale)
+      canvas = LoadVeil.present(canvas)
       canvas = MiniMap.present(canvas)
       -- the menu goes back on for the same reason the radar does: it is UI,
       -- and the blur belongs on the diorama behind it. Without this it is
@@ -755,6 +771,13 @@ local SETTINGS = {
   -- the performance rows off the menu would be a preset a player on a slow
   -- phone could not climb back out of -- FULL is the heaviest thing this
   -- mod does, so it is exactly when these two need to be reachable.
+  { LoadVeil.setting,
+    "Entering a Poke Mart or a floor of the Pokemon Tower for the first "
+    .. "time, the screen stays black while the room is built in 3D and "
+    .. "then fades in, instead of showing the flat floor and popping the "
+    .. "room in over it. Rooms you have been in recently are already "
+    .. "built and fade in as usual. OFF shows the flat floor while it "
+    .. "builds, as before." },
   { PreCache.setting,
     "DEV PREVIEW, shown only during a profiling session (tools/profiler). "
     .. "Warms what the maps one step away will need while the current one "
