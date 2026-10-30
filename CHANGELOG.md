@@ -22,11 +22,16 @@ The `-beta` suffix is retired too, as of 1.40.5. Historical tags keep it (`v1.40
 
 Tags and packages:
 
-- Git tag: `v1.41.0`
-- Zip asset: `TERRARIUM-1.41.0.zip`
-- `manifest.json` / catalog `version` field: `1.41.0`
+- Git tag: `v1.50.0`
+- Zip asset: `TERRARIUM-1.50.0.zip`
+- `manifest.json` / catalog `version` field: `1.50.0`
 
-## Unreleased
+## 1.50.0
+
+The first release of this fork since v1.40.6. It carries everything below,
+and also the 1.41.0 notes further down: 1.41.0 was prepared but never
+tagged, so its changes (Breno's final build, English, aesthetics only) ship
+here too.
 
 ### Fix: the Pokemon vanished a few seconds into the attack menu
 
@@ -167,7 +172,7 @@ For whoever works on this mod; nothing here runs in a player's session.
 - AppleCake 2.1 (MIT) is vendored under `tools/vendor/` and left out of the
   release zip.
 
-## 1.41.0
+## 1.41.0 (never tagged; released as part of 1.50.0)
 
 The handover release. BrenoBertucci, who wrote Terrarium, has passed the
 project on, together with a build he never pushed; this release merges that
