@@ -23,7 +23,10 @@ writing the same `options.lua`. Drivers boot with
 `Game:startNewGame{intro=false}`, which skips the title and never saves, and
 the runner warns if a save file's timestamp moved anyway.
 
-Output goes to `probe_out/<driver>/` (gitignored) unless `--out` is given.
+Output goes to `<repo>-probe_out/<driver>/`, a folder BESIDE the checkout
+(`TERRARIUM_PROBE_OUT` moves it; a relative `--out` names a subfolder of it).
+Not inside the repo: when `mods/TERRARIUM` is a junction to the checkout,
+anything written in the repo also sits in the installed mod folder.
 `--env NAME=VALUE` passes settings to the driver (`DS_TRACE=0`,
 `DS_GC_RECORD=1`, `DS_GC_DEEP=1`, `DS_GC_JITOFF=1`, `DS_GC_TOP=<n>`).
 `GEN1RECOMP`, `LOVE_EXE`, `LUAJIT` and `POKEPORT_VERSION` override the

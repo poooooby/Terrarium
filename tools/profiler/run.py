@@ -2,7 +2,7 @@
 player's setup exactly as it was.
 
     python tools/profiler/run.py profile_bench_probe
-    python tools/profiler/run.py gc_budget_probe --out probe_out/gc_after
+    python tools/profiler/run.py gc_budget_probe --out gc_after
     python tools/profiler/run.py profile_play_driver --all-mods
 
 What it does, in order:
@@ -21,7 +21,8 @@ The probes boot through Game:startNewGame{intro=false} and never save, so
 the save slots are not touched; the runner checks their timestamps anyway
 and says so if one moved.
 
-Environment: GEN1RECOMP (engine checkout), LOVE_EXE, LUAJIT, POKEPORT_VERSION.
+Environment: GEN1RECOMP (engine checkout), LOVE_EXE, LUAJIT, POKEPORT_VERSION,
+TERRARIUM_PROBE_OUT (output root).
 """
 import argparse
 import json
@@ -38,6 +39,12 @@ GAME = Path(os.environ.get("GEN1RECOMP")
 LOVE = Path(os.environ.get("LOVE_EXE") or r"C:\Program Files\LOVE\lovec.exe")
 LUAJIT = os.environ.get("LUAJIT") or str(Path.home() / "luajit" / "bin" / "luajit")
 BACKUP_NAME = "options.lua.terrarium-bench-backup"
+# Output lives NEXT TO the checkout, never inside it: with mods/TERRARIUM a
+# junction to this repo, a probe_out/ here sat inside the installed mod folder
+# (43 MB of traces and screenshots after one profiling round). .gitignore kept
+# it out of git and releases, but not out of the game's mod directory.
+OUT_ROOT = Path(os.environ.get("TERRARIUM_PROBE_OUT")
+                or REPO.parent / (REPO.name + "-probe_out"))
 
 
 def game_running():
@@ -67,7 +74,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("driver", help="tests/<driver>.lua, without .lua")
-    ap.add_argument("--out", help="output dir (default probe_out/<driver>)")
+    ap.add_argument("--out", help="output dir; relative to OUT_ROOT "
+                                  "(default <repo>-probe_out/<driver>, beside the repo)")
     ap.add_argument("--all-mods", action="store_true",
                     help="keep the player's mod set instead of Terrarium only")
     ap.add_argument("--timeout", type=int, default=1800)
@@ -86,8 +94,8 @@ def main():
         sys.exit(f"{backup} exists: a previous run did not restore. Compare it "
                  f"with options.lua, keep the right one, delete the backup, rerun.")
     version = os.environ.get("POKEPORT_VERSION", "yellow")
-    out = Path(a.out) if a.out else REPO / "probe_out" / a.driver
-    out = out if out.is_absolute() else REPO / out
+    out = Path(a.out) if a.out else Path(a.driver)
+    out = out if out.is_absolute() else OUT_ROOT / out
     out.mkdir(parents=True, exist_ok=True)
 
     manifest = json.loads((REPO / "manifest.json").read_text(encoding="utf-8"))
