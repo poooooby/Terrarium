@@ -1,3 +1,30 @@
-# Dev-only vendored code stays out of the release zip (release.yml builds it
-# with git archive, which honours export-ignore). See tools/vendor/README.md.
-tools/vendor/** export-ignore
+# The release zip (.github/workflows/release.yml) is built with git archive,
+# which honours export-ignore -- and only that: .modkitignore is gen1recomp's
+# modkit's list, and git archive never reads it. So the same rules as
+# tools/gen_modkitignore.py are written here as patterns: the zip a player
+# downloads carries the mod they load, the player docs and the licences, and
+# none of the development material.
+tests/** export-ignore
+tools/** export-ignore
+compat/** export-ignore
+concepts/** export-ignore
+publish/** export-ignore
+publish-zip/** export-ignore
+assets/docs/** export-ignore
+assets/ground/source/** export-ignore
+assets/**/*.py export-ignore
+assets/**/*.ps1 export-ignore
+assets/**/README.md export-ignore
+assets/**/prompts.txt export-ignore
+CLAUDE.md export-ignore
+ROADMAP.md export-ignore
+MOBILE.md export-ignore
+PARTICLES-PLAN.md export-ignore
+PRECACHE-PLAN.md export-ignore
+quiver-catalog-entry.json export-ignore
+quiver-local-index.json export-ignore
+.modkitignore export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+.modkit/** export-ignore
+.github/** export-ignore
