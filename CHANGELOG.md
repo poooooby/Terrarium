@@ -28,6 +28,31 @@ Tags and packages:
 
 ## Unreleased
 
+### Faster: half the per-frame garbage
+
+The 3D world made 265-564 KB of Lua garbage every frame, almost all of it
+throwaway matrices built per character and per pass. It now makes 124-201 KB
+(52-66% less), with frames 4-27% quicker on average in the bench towns. The
+picture is unchanged: every rewritten matrix chain is checked bit for bit
+against the old one (`tests/mat4_offline.lua`).
+
+### Dev tooling: profiling
+
+For whoever works on this mod; nothing here runs in a player's session.
+
+- `tools/profiler/`: probe drivers that profile frame time (AppleCake traces
+  for ui.perfetto.dev), measure garbage per frame and per function, and record
+  what a first visit to each map costs, stage by stage. Run them with
+  `python tools/profiler/run.py <driver>`. It loads Terrarium alone and puts
+  your `options.lua` back afterwards. See `tools/profiler/README.md`.
+- `tests/gc_budget.lua`: the garbage budget per scene, which `gc_budget_probe`
+  checks against.
+- `PRECACHE-PLAN.md`: what the cold-cost data says a pre-cache should do
+  first, and `lib/PreCache.lua`, its dark skeleton. Its row is only offered
+  during a profiling session.
+- AppleCake 2.1 (MIT) is vendored under `tools/vendor/` and left out of the
+  release zip.
+
 ## 1.41.0
 
 The handover release. BrenoBertucci, who wrote Terrarium, has passed the

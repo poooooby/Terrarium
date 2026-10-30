@@ -8,18 +8,26 @@ stay dark unless a driver turns them on.
 ## Running
 
 ```
-tests\run_profile.cmd profile_bench_probe     scripted bench, writes an AppleCake trace
-tests\run_profile.cmd profile_play_driver     play by hand, F8 starts/stops a trace
-tests\run_profile.cmd gc_budget_probe         KB of garbage per frame vs tests/gc_budget.lua
-tests\run_profile.cmd cold_cost_probe         first-visit cost per map, per stage
+python tools/profiler/run.py profile_bench_probe   scripted bench, writes an AppleCake trace
+python tools/profiler/run.py profile_play_driver   play by hand, F8 starts/stops a trace
+python tools/profiler/run.py gc_budget_probe       KB of garbage per frame vs tests/gc_budget.lua
+python tools/profiler/run.py cold_cost_probe       first-visit cost per map, per stage
+python tools/profiler/run.py precache_probe        lib/PreCache.lua plumbing
 ```
 
-Output goes to `probe_out\<driver>\` (gitignored) unless `DS_PROBE_DIR` is
-set. `GEN1RECOMP`, `LOVE_EXE`, `POKEPORT_VERSION` and `TERRARIUM_ID` override
-the defaults at the top of `run_profile.cmd`.
+`run.py` enables ONLY Terrarium for the run: it rewrites the engine's
+`options.lua` through the engine's own serializer, then restores the original
+byte for byte, even if the run crashes. `--all-mods` keeps your mod set. It
+refuses to start while the game is open, since a probe is a full game session
+writing the same `options.lua`. Drivers boot with
+`Game:startNewGame{intro=false}`, which skips the title and never saves, and
+the runner warns if a save file's timestamp moved anyway.
 
-The game must be closed first: a probe is a full game session and writes
-the same `options.lua` and save directory.
+Output goes to `probe_out/<driver>/` (gitignored) unless `--out` is given.
+`--env NAME=VALUE` passes settings to the driver (`DS_TRACE=0`,
+`DS_GC_RECORD=1`, `DS_GC_DEEP=1`, `DS_GC_JITOFF=1`, `DS_GC_TOP=<n>`).
+`GEN1RECOMP`, `LOVE_EXE`, `LUAJIT` and `POKEPORT_VERSION` override the
+defaults at the top of `run.py`.
 
 ## Reading a trace
 
@@ -34,15 +42,17 @@ Drop the `.json` from the output directory onto https://ui.perfetto.dev (or
 
 `<name>_perf.json` holds Perf's tables (per segment: frame percentiles and
 per-label n/total/max/kb), in a stable key order so two runs diff cleanly.
+`<name>.log` has the same as text.
 
 ## Pieces
 
 | File | Role |
 |---|---|
-| `Harness.lua` | finds the mod's export, turns Perf on, wraps entry points (`Harness.WRAPS`), streams spans to AppleCake |
+| `run.py` / `bench_options.lua` | the Terrarium-only runner and its options rewrite |
+| `Harness.lua` | finds the mod's export, turns Perf on, wraps entry points (`Harness.WRAPS`; `DEEP_WRAPS` for GC attribution), streams spans to AppleCake |
 | `applecake_loader.lua` | loads `tools/vendor/AppleCake` without it being on the require path |
 | `GcMeter.lua` | stopped-collector windows: KB/frame and per-function attribution |
-| `Scenes.lua` | boot, config pin, map visits, pacing, screenshots (shared by every probe) |
+| `Scenes.lua` | boot, config pin, map visits (snapped to a walkable cell, waiting for the full mesh), pacing, screenshots |
 | `imgdiff.py` | before/after screenshot check, judged against run-to-run noise |
 
 ## Garbage numbers
@@ -52,6 +62,18 @@ compiles a trace reads heavier than its garbage. `DS_GC_JITOFF=1` measures
 with the JIT off. Budgets are kept per mode in `tests/gc_budget.lua`; compare
 like with like. Per-function KB is inclusive (a wrapped function that calls
 another wrapped one carries its KB too).
+
+`DS_GC_DEEP=1` also wraps what `VoxelScene.render` calls through module
+tables (`Mat4.*`, `Voxel3D.*`, `ShadowMap.*`, ...). That is how the matrix
+garbage was found. It is too hot for a timing run, and a deep run never
+records a budget.
+
+## Screenshots
+
+A frame is never bit-identical across runs, because water, grass, clouds and
+ambient life move with the clock. So `imgdiff.py base_a base_b fixed`
+measures the noise between two baseline runs first and flags only a change
+well beyond it.
 
 ## Adding a measurement
 

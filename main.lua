@@ -132,6 +132,7 @@ local DayTint = V.require("DayTint")
 local Quality = V.require("Quality")
 local Device = V.require("Device")
 local Diag = V.require("Diag")
+local PreCache = V.require("PreCache")
 local Perf = V.require("Perf")
 local Lang = V.require("Lang")
 local Wind = V.require("Wind")
@@ -478,8 +479,16 @@ mod.content.render_pipelines:register(PIPE_VOXEL, {
     -- is the flag the rest of the mod already reads as "stand down, the
     -- screen is not the player's right now" (Weather and
     -- AmbientSound both gate on it), and it is the honest answer here too.
-    ChunkMesher.pump((Game and Game.stack and Game.stack:top() ~= ow)
-                     or (ow and ow.transitioning) or false)
+    local covered = (Game and Game.stack and Game.stack:top() ~= ow)
+                    or (ow and ow.transitioning) or false
+    ChunkMesher.pump(covered)
+    -- After the mesher, on what is left of the frame: the dev-preview
+    -- pre-cache (lib/PreCache.lua, PRECACHE-PLAN.md). Two boolean tests
+    -- unless a profiling session turned it on.
+    if ow and ow.map then
+      PreCache.notice(ow.map)
+      PreCache.pump(covered)
+    end
   end,
 
   drawWorld = function(ctx)
@@ -746,6 +755,12 @@ local SETTINGS = {
   -- the performance rows off the menu would be a preset a player on a slow
   -- phone could not climb back out of -- FULL is the heaviest thing this
   -- mod does, so it is exactly when these two need to be reachable.
+  { PreCache.setting,
+    "DEV PREVIEW, shown only during a profiling session (tools/profiler). "
+    .. "Warms what the maps one step away will need while the current one "
+    .. "is on screen. The only stage so far does no work; see "
+    .. "PRECACHE-PLAN.md.",
+    full = true, dev = true, when = function() return PreCache.offered() end },
   { Diag.setting,
     "Prints what this build is -- version, GPU, which shader rung the driver "
     .. "took, what the rows resolve to and how many models the map built -- "
@@ -1218,9 +1233,14 @@ local SETTINGS = {
     .. "Pokedex AREA work the same on both." },
 }
 
+-- `dev = true` rows (PRECACHE) stay off the mod-manager page unless this
+-- session is a profiling one: `when` only gates the OPTIONS menu, and the
+-- manager page lists every row it is given.
 local schema = {}
-for i, entry in ipairs(SETTINGS) do
-  schema[i] = entry[1]:schema(entry[2])
+for _, entry in ipairs(SETTINGS) do
+  if not entry.dev or Perf.enabled then
+    schema[#schema + 1] = entry[1]:schema(entry[2])
+  end
 end
 mod.options:define(schema)
 

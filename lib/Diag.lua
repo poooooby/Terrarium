@@ -198,6 +198,12 @@ function Diag.lines()
   end
   add(("map      %s   models=%s"):format(id, built))
 
+  -- the dev-preview pre-cache, only while it is running
+  local PreCache = mod("PreCache")
+  if PreCache and try(PreCache.enabled) then
+    add(try(PreCache.report) or "precache ?")
+  end
+
   return out
 end
 

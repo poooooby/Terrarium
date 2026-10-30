@@ -12,7 +12,7 @@
 --
 --   POKEPORT_VERSION=yellow DS_PROBE_DIR=<dir> \
 --   POKEPORT_DRIVER=mods/<id>/tests/profile_bench_probe.lua love .
--- (tests/run_profile_bench.cmd does this on Windows.)
+-- (python tools/profiler/run.py profile_bench_probe does this, Terrarium only.)
 return function(game)
   local src = debug.getinfo(1, "S").source:gsub("^@", ""):gsub("\\", "/")
   local TOOLS = (src:match("^(.*)/tests/[^/]*$") or ".") .. "/tools/profiler/"

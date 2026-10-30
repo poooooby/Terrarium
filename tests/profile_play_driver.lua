@@ -8,7 +8,7 @@
 --   <DS_PROBE_DIR>/play_<n>_perf.json
 --
 --   DS_PROBE_DIR=<dir> POKEPORT_DRIVER=mods/<id>/tests/profile_play_driver.lua love .
--- (tests/run_profile.cmd does this on Windows.)
+-- (python tools/profiler/run.py profile_play_driver does this, Terrarium only.)
 --
 -- F8 is free in both the engine's and this mod's key maps (main.lua's key
 -- block; the engine binds f1/f2/f3/f5/f10). It is read with

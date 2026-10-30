@@ -36,6 +36,15 @@ There is no unit-test runner; tests are of two kinds:
    ```
    `tests/voxel_figure_test.lua` is an upstream leftover (expects a `tests.harness` module not present here).
 
+3. **Profiling drivers** (`tools/profiler/`, see its README): `python tools/profiler/run.py <driver>` runs a driver with ONLY Terrarium enabled (it rewrites the engine's `options.lua` and restores it byte for byte, and refuses while the game is open). Drivers boot through `Game:startNewGame{intro=false}`, so no save is touched.
+   - `profile_bench_probe`: frame times plus an AppleCake trace (open in ui.perfetto.dev).
+   - `profile_play_driver`: play by hand; F8 starts and stops a trace.
+   - `gc_budget_probe`: KB of garbage per frame against `tests/gc_budget.lua`. `DS_GC_DEEP=1` splits `VoxelScene.render` by callee; `DS_GC_RECORD=1` rewrites the budget.
+   - `cold_cost_probe`: first-visit cost per map, per stage.
+   - `precache_probe`: the `lib/PreCache.lua` plumbing.
+
+   In the mod, a measurement is `local t0 = Perf.now()` ... `Perf.add("label", t0)` (one nil test while Perf is off). Never build the label string per call. `lib/PreCache.lua` stays dark (Perf on AND forced or its dev row ON); read `PRECACHE-PLAN.md` before adding a stage. Matrices in per-frame paths: use `Mat4.mulInto`/`set*` with scratch tables, or the `out` argument on `billboardMatrix`/`casterMatrix`/`ShadowMap.snug` when the result goes straight into a draw (`tests/mat4_offline.lua` pins the arithmetic).
+
 Syntax-check Lua with the engine's LuaJIT: `python compat/porygonal/luacheck.py <file.lua> ...` (DLL path is hardcoded at the top — edit for the local machine).
 
 ## Release / packaging
