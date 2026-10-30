@@ -26,6 +26,7 @@ FOLDERS = [
     "tools/",            # authoring scripts, the profiler, vendored AppleCake
     "compat/",           # the Porygonal adapter is installed INTO Porygonal
     "concepts/",         # design boards
+    "imgs/",             # README banner and screenshots: shown on GitHub, never loaded
     "publish/",          # the original maintainer's store listing
     "publish-zip/",      # old packaged builds
     "assets/docs/",      # building catalogue and methodology notes
@@ -57,7 +58,7 @@ HEADER = """\
 #
 # gen1recomp's modkit matches this file literally: one exact relative file
 # path per line, no globs, no folders. The generator expands its folder
-# rules (tests/, tools/, compat/, concepts/, publish/, publish-zip/,
+# rules (tests/, tools/, compat/, concepts/, imgs/, publish/, publish-zip/,
 # assets/docs/, assets/ground/source/), the developer docs at the root and
 # authoring leftovers under assets/ into the list below. LICENSE and CREDITS
 # files always ship.

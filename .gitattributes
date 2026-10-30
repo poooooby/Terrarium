@@ -8,6 +8,7 @@ tests/** export-ignore
 tools/** export-ignore
 compat/** export-ignore
 concepts/** export-ignore
+imgs/** export-ignore
 publish/** export-ignore
 publish-zip/** export-ignore
 assets/docs/** export-ignore

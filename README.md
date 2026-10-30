@@ -1,3 +1,5 @@
+<p align="center"><img src="imgs/banner.webp" alt="Terrarium" width="100%"></p>
+
 # Terrarium
 
 **Kanto as a little world under glass.** A mod for the

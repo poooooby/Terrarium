@@ -2,7 +2,7 @@
 #
 # gen1recomp's modkit matches this file literally: one exact relative file
 # path per line, no globs, no folders. The generator expands its folder
-# rules (tests/, tools/, compat/, concepts/, publish/, publish-zip/,
+# rules (tests/, tools/, compat/, concepts/, imgs/, publish/, publish-zip/,
 # assets/docs/, assets/ground/source/), the developer docs at the root and
 # authoring leftovers under assets/ into the list below. LICENSE and CREDITS
 # files always ship.
@@ -79,6 +79,9 @@ compat/porygonal/renderers/terrarium/terrarium_adapter.lua
 
 # concepts
 concepts/battle-dynamic/README.md
+
+# imgs
+imgs/banner.webp
 
 # (root)
 quiver-catalog-entry.json
