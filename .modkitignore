@@ -109,7 +109,6 @@ tests/ambient_worldpass_smoke.lua
 tests/ground_grid_dump.lua
 tests/lamp_card_probe.lua
 tests/lavender_shots_probe.lua
-tests/shoulder_probe.lua
 tests/showcase_capture.lua
 tests/sun_shadow_card_probe.lua
 tests/sun_shadow_card2_probe.lua
@@ -308,3 +307,7 @@ tests/load_veil_probe.lua
 tests/options_names_probe.lua
 tests/battle_theme_probe.lua
 tests/battle_vanish_probe.lua
+tests/black_flicker_probe.lua
+tests/flicker_bisect_probe.lua
+tests/rayfx_watch_probe.lua
+tests/moves_menu_probe.lua

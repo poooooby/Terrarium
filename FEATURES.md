@@ -49,12 +49,12 @@ menu.
 | `5`, or the **WIREFRAME** options row | OFF / ON — a one-pixel wireframe on every voxel |
 | `6`, or the **T-SHIFT** options row | OFF → 1 → 2 → 3 → OFF (miniature blur) |
 | `7`, or the **WORLD CURVE** options row | OFF → 1 → 2 → 3 — bend the world over the horizon |
-| `m`, or the **FOLLOW CAM** options row | ON / OFF — the Super Mario 64 camera. A camera operator instead of a fixed mount: it turns to look at you far faster than it flies to where it wants to stand, takes its height from the **ground** under you so walking up a step does not bob the frame, leads the way you are walking, and looks **over** a wall that stands between you for more than a moment rather than steering round it. It orbits **you**, at a bearing only you change, a quarter turn at a time — it never turns on its own — and the **D-pad turns with it**, as in Mario 64. See below |
+| `m`, or the **FOLLOW CAM** options row | ON / OFF — the Super Mario 64 camera. A camera operator instead of a fixed mount: it turns to look at you far faster than it flies to where it wants to stand, takes its height from the **ground** under you so walking up a step does not bob the frame, leads the way you are walking, and looks **over** a wall that stands between you for more than a moment rather than steering round it. It always looks from the usual side and never turns, so the controls are the game's own. See below |
 | `8`, or the **3D BATTLES** options row | ON / OFF — fight on the map instead of on a white field |
 | the mon pack (always on when `assets/mons` is present) | the Pokemon standing on the field wear their Generation 5 (Black/White) sprites, front and back, in full colour, instead of the Game Boy pic through a palette. ADVANCED and the other COLORS modes do not touch them; the hour's light does. Trainer pics stay the engine's |
 | the **BACK VIEW** options row | OFF / ON — your own Pokémon seen from behind, the series' shot: ON stands it on its tile in the arena wearing its back art, grown to a foreground hero (`OverworldBattle.BACK_HERO`) under the same light and shadow as the foe, with the move cards and the panels floating in front of it; OFF stands it on the map facing the foe, at the foe's own scale. Only on the menu while **3D BATTLES** is on, because it decides nothing without it |
 | the **TIME OF DAY** options row | SYNC / DAY / NIGHT / DUSK / DAWN / CYCLE — what time it is outdoors, on the diorama *and* on the flat 2D world; held at SYNC (and off the menu) while VOXEL is FULL |
-| the **SCREEN FX** options row (was **RTX**) | AUTO / SSR / AO / OFF / MAX — the screen-space pass. Not ray tracing, and no RTX hardware involved; see below |
+| the **SCREEN FX** options row (was **RTX**) | OFF / AUTO / SSR / AO / MAX — the screen-space pass, OFF by default (on some PCs it makes the screen flicker black). Not ray tracing, and no RTX hardware involved; see below |
 | the **WILDLIFE** options row | ON / OFF — butterflies and ground birds by day (the birds startle and fly off when you get close), dragonflies over the water, fireflies through the night, a flock crossing the sky, leaves on the wind |
 | the **CLOUD SHADOW** options row | ON / OFF — the shadows of the clouds crossing the ground downwind: a smooth field evaluated per vertex that takes the sun's share of the light (and a little of the sky's) off the patch under a cloud, following the CLOUDS row's coverage; none under a flat overcast |
 | the **WEATHER** options row | AUTO / OFF / RAIN / SNOW — occasional showers, with the whole sky going over with them; snow through the winter of the SYNC clock. See below |
@@ -107,72 +107,23 @@ Measured in the running game, the body's steady-state lag comes out 6.33 times
 the gaze's against a predicted 6.35 -- that gap is most of what SM64 feels
 like, and it costs two constants.
 
-### It never turns on its own
+### It always looks from the usual side
 
 SM64's defining mode orbits a fixed point of the **area** -- a mountain you
 cannot stand on -- and the first cut of this port did the same with the map's
 own centre. On a Gen 1 town that centre is the square everybody walks through,
-and the orbit's yaw swings hardest exactly there: measured, twenty degrees
-across Celadon's plaza with no key touched. Add the wall steering (up to eighty
-degrees round every fence and house corner, and back) and the camera "changed
-all the time", which is the complaint that retired both.
+and the orbit's yaw swung hardest exactly there. Later versions let you turn
+the camera yourself instead, which meant remapping the D-pad and every
+sprite's facing to whichever side it stood on.
 
-The camera is now an orbit round **you**, at a bearing that **only you
-change**. It does not turn for where you are on the map, for which way you
-walk, or for a wall. What is left of SM64 is everything else: the two-layer
-chase, the floor-derived height, the lead, the dead zone, and the spherical
-arc between one bearing and the next.
+None of that is here any more. The camera **never turns**: it always looks
+from the default side, the same side the classic view looks from, so Up is
+north on screen, the sprites show the drawing the game meant, and the controls
+are exactly the game's own. What is left of SM64 is everything else: the
+two-layer chase, the floor-derived height, the lead and the dead zone.
 
-**Every bearing it rests at is a quarter turn.** The sprites are four drawings
--- front, back, one profile and its mirror -- with nothing for in between, and
-a camera parked at 60 degrees showed a character walking diagonally across the
-screen in art drawn for straight on. So `q`/`e` step ninety degrees, the stick
-snaps to the nearest quarter when you let go, and the SHOULDER follow re-aims
-to a cardinal. The view still arcs between them; it never stops in between.
-
-### The D-pad turns with it
-
-**This is the one thing in the mod that changes how the game controls.**
-Everything else is presentational and says so.
-
-SM64 makes the stick camera-relative in one line, and without it an orbiting
-camera is not a camera, it is a puzzle: the world turns under you while Up
-keeps meaning north. So Up means **away from the camera**, at every quarter
-turn -- and the mapping only ever changes when *you* turn the camera, never
-under a held button.
-
-The walk itself is an ordinary walk through ordinary collision -- the world
-still speaks compass in every direction that matters, and press Up under a
-quarter turn and the player genuinely walks west, exactly as if west had been
-pressed. Turn the row off and the 1996 controls come back untouched.
-
-| control | does |
-| --- | --- |
-| `q` / `e` | turn the camera a quarter turn (SM64's C-left / C-right) |
-| `r` | put the camera at your back (SM64's R button, repurposed: the alternate mode it swapped to existed to stop an automatic camera turning, and this one never does) |
-| `f` | the zoom ladder, three rungs (SM64's C-down) |
-| right stick | the same turn, continuously, settling on the nearest quarter when released. The N64 had four C buttons and no second stick; this machine has one |
-
-Every press answers with a sound -- the game's own `Tink` and `Switch`, and
-`Denied` inside an authored shot that has taken the framing.
-
-### Characters turn to face you
-
-Two fixes that the orbit made necessary, and both were plainly visible before
-they were made.
-
-A character is a flat card. It used to face due **south** and only lean back,
-which is exactly right for a camera that cannot turn -- and the moment the
-camera could, the card was seen edge-on and the character read as **lying flat
-on the pavement**. The card now turns to face the eye before leaning.
-
-And the *drawing* on it is now chosen by the angle **the camera sees**, not by
-the compass. Stand north of someone walking north and the old code handed you
-their back while they advanced toward you: a **moonwalk**. Four positions from
-three drawings is the ROM's ceiling, not a choice -- Gen 1's sheets are
-down / up / left, with right a mirror of left, and no sprite in the game has a
-diagonal in it. So the reading quantises to a quarter turn, with hysteresis at
-the boundary so it does not flicker.
+A character is a flat card that faces the lens and leans back, so it reads as
+standing up at every pitch the VOXEL row can set.
 
 The rest of the rig is there too: the height comes from the floor under you
 rather than from you, so steps and ledges do not bob the frame; a dead zone
@@ -186,10 +137,11 @@ walk moves nothing); and the shake is a damped
 cosine applied *after* the smoothing, attenuated by distance from whatever
 caused it, so it leaves no drift behind.
 
-Indoors it pulls in close, on water it drops behind you, and
-`data/camera_shots.lua` is the surface for hand-placed shots -- the lesson the
-SM64 writeup repeats most is that no generic algorithm beats an authored
-camera in the ten percent of cases that are hard. It ships empty on purpose.
+Indoors it pulls in close, on water it drops lower and looks along the water,
+and `data/camera_shots.lua` holds hand-placed shots (the Marts, a row of
+houses, the Pokemon Tower's floors) -- the lesson the SM64 writeup repeats
+most is that no generic algorithm beats an authored camera in the ten percent
+of cases that are hard.
 
 ### The art of the flock
 
@@ -1063,7 +1015,7 @@ fetches rather than triangles — the world is drawn exactly once either way.
 | **AO** | *ambient occlusion.* Eight neighbours in a ring, each asked whether it stands above this point's own surface plane. Where many do, the point is in a corner and the sky is boxed out of it — so doorways, the foot of every wall and the gap between two trees darken. |
 | **SSR** | AO, plus **the water reflects.** The ray leaves the surface along the swell's *own* analytic normal — the same two crossing wave trains the vertex shader displaced it by — and is marched until it lands on something, which is then read straight out of the colour buffer. So a pond reflects the tree beside it, and the reflection travels with the crest carrying it. |
 | **MAX** | both, plus **light shafts.** Every pixel marches toward the sun's own disc — the same one the sky hangs — counting how much of that line is open air. A clear run gets the whole beam, a roof in the way gets none, and the boundary between them is a god ray. |
-| **OFF** | nothing, and nothing allocated: the pass does not even ask for the readable depth buffer the others read. |
+| **OFF** (the default) | nothing, and nothing allocated: the pass does not even ask for the readable depth buffer the others read. |
 
 Two limits come with the technique and are worth knowing rather than
 being surprised by. It can only reflect or shade **what is on screen** — a
@@ -1081,3 +1033,102 @@ box and the menus over it — sits on frosted glass rather than on the white
 field it used to have behind it: the world underneath, blurred and laid back
 down translucent, with the ink flipping white where the ground it lands on is
 dark. Nothing the engine draws inside a box moves; only the paper is gone.
+
+---
+
+## Design notes (measured)
+
+Moved here from the README, which is now written for players. The numbers
+are what the probes in `tests/` measured.
+
+### Cel water
+
+The water is geometry, not a flat scrolling tile. Identity is the height test
+alone (`y < -1` — recessed two world pixels so the shoreline shows a lip).
+Displacement is Y = f(XZ) only, so an unindexed mesh never opens a seam.
+The normal is two cosines of the same trains — analytic, free, exact.
+
+Paint stays in the mod's four-colour dialect: hard `step`s, checker dither,
+bands re-evaluated on a world-XZ cell (the sky's own `floor(sc/cell)` idiom).
+Ideas from [Roy Stan's Toon Water Shader](https://roystan.net/articles/toon-water/)
+are adapted here (depth-rung tint, binary surface-noise foam, shoreline foam)
+without a second render target, without a normal map, and without soft
+airbrush gradients. See the Credits in [`README.md`](README.md#credits).
+
+**Shimmer is a number, not a screenshot.** `tests/water_shimmer_probe.lua`
+freezes weather, wind, clock and NPCs, builds a water mask by FLAT-vs-SWELL
+diff, then counts water pixels that change between consecutive frames under
+ablations (tile roll / geometry / glint window / SSR). On VERMILION_CITY at
+the default RESOLUTION 1/2 rung, with climate off:
+
+| | continuous background | of sampled water |
+| --- | ---: | ---: |
+| before anti-crawl pass | ~4125 px | **~5.9%** |
+| after (`RATE` 0.9→0.55 + mid-pond foam gated on chop/rain) | ~1510–1890 px | **~2.2–2.7%** |
+
+So about **half the continuous churn** on a calm clear pond. Ablation on the
+pre-pass baseline: almost all of that churn was swell + cel paint; the
+tileset roll, the glint rings and SSR each moved under 5% of the count.
+`PAINT_PHASE_STEP` (temporal snap of paint phase) and a coarser paint cell
+were tried and rejected — the first turned crawl into full-pond flashes, the
+second made the palindrome unreadable. Knobs remain in `lib/Water.lua` at
+safe defaults. Puddle SSR shares RayFX with the pond; `tests/puddle_rtx_probe.lua`
+is the regression gate and still passes.
+
+### Day, night, and the sky
+
+The clock runs a six-phase dial — dawn, golden hour, day, dusk, violet
+twilight, night — with a hand-quantised sky palette per phase on the Game Boy
+Color's own 5-bit lattice, a dithered gradient, and a cell-art sun and moon.
+
+The most recent work went here, and it is measured rather than eyeballed:
+
+- **Every phase is now actually painted.** The dial used to hold `day` and
+  `night` and pass *through* the other four: measured a second at a time,
+  `dawn`, `golden` and `dusk` held for one second each and `violet` for none
+  at all — four hand-authored palettes that were never shown. They now hold
+  45–137 seconds each, and the sunrise runs dawn → golden → day the way the
+  evening already ran day → golden → dusk.
+- **Stars, and the occasional meteor.** A fixed 96-star field on the sky's own
+  cell grid, posterised to four brightness rungs and twinkling on their own
+  phases, fading in with the night and gone under an overcast. Star count is a
+  rung on the quality ladder.
+- **The night is darker, and the town is lit.** A lit window is exempt from
+  the hour's tint in the shader, so taking a quarter of the light out of the
+  night makes a town read as windows in the dark rather than as a blue-filtered
+  afternoon. Each pane now burns at its own brightness, so a wall of windows
+  is a wall of rooms.
+- **Evening shadows stretch.** The shear clamp was cutting a full-strength
+  shadow for 300 seconds of every 1200 — right through the golden hour. It is
+  now derived from the fade angle instead, so it can only ever shorten a
+  shadow already on its way out. Measured cost: `+0.015 ms` per frame.
+- **The rain arrives instead of switching on.** A far curtain stands the
+  shower on the horizon as vertical shafts, and it is full at a power where
+  the drops near you are still almost nothing -- so weather is something you
+  watch close in over most of a minute. Not a forecast: nothing here knows the
+  future, it is the same shower drawn where a shower is visible *as* one.
+- **The cloud deck sits over the map, not over the screen.** It reads the
+  camera now, and shifts *less* than anything else in frame -- that difference
+  is the distance cue. It also changes shape as it drifts, because the erosion
+  noise moves at its own rate against the wind carrying the mass; a rigid
+  pattern being towed past reads as a backdrop however fast you tow it.
+- **God rays, where the deck is thin.** For the length of the post-rain spell,
+  and drawn out of the cloud density the raymarch already computed -- so the
+  whole effect is one `atan` and one `sin` on top of existing work. Hard rungs
+  and the sky's own checker: a soft falloff here is bloom.
+- **A storm register.** Heavy rain bruises the sky violet rather than only
+  greying it, blended after the stratus on the same hour weight. It only
+  leaves zero above the same threshold that arms the lightning, so a drizzle
+  keeps the neutral grey it always had and a purple sky is one that can flash.
+- **Stars go out one at a time.** Each has its own threshold, weighted by its
+  own magnitude with a scatter off its twinkle phase, so the field empties in
+  a scattered order instead of fading as one sheet. A clear deep night is
+  unchanged.
+
+  All five were isolated and measured (`tests/sky_weather_probe.lua`) because
+  they landed in one shader, where a screenshot cannot say which of them
+  moved: 59.7% of sky pixels move between two cameras at the same instant
+  (0.0% with parallax zeroed); the curtain hits 38.9% in the lower sky and
+  0.0% in the upper; the rays 30.3% near the disc against 8.2% away and 0.0%
+  off a moon. Cost, as an off/on/on/off palindrome: `+4.6%` per sky paint with
+  curtain and rays both forced on -- a state the game never reaches.

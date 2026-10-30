@@ -28,6 +28,40 @@ Tags and packages:
 
 ## Unreleased
 
+### Fix: the Pokemon vanished a few seconds into the attack menu
+
+With the move cards up, and especially while moving between them, both
+Pokemon could disappear from the 3D battle and stay gone for the rest of the
+fight. The little Poke Ball that hops between the cards is clipped with a
+stencil, and on a canvas without a stencil buffer that throws; the throw
+skipped a graphics pop, one per frame, until LOVE's transform stack (64 deep)
+overflowed and the arena could no longer draw either Pokemon. The ball now
+draws unclipped where there is no stencil, the pop always runs, and the
+battle pic render balances any push another mod leaves behind.
+`tests/moves_menu_probe.lua` reproduces it (`DS_MOVES_MAP=MT_MOON_1F
+DS_MOVES_STEER=1`).
+
+### SCREEN FX is off by default
+
+With SCREEN FX on (AUTO picked SSR on every PC), the screen could strobe
+black about every 0.7 seconds while standing outdoors with the 3D view on.
+Switching the row off stops it, and the cause is not found yet, so the row
+now starts at OFF and the effects (corner shading, water and puddle
+reflections, light shafts) are opt-in. A save that already set SCREEN FX
+keeps what it had: switch it to OFF in OPTIONS if you see the flicker.
+
+### FOLLOW CAM no longer turns
+
+The follow camera always looks from the usual side now, so the D-pad and
+the sprites are exactly the game's own again. Removed: the `q`/`e`/`r`/`f`
+camera keys, turning with a gamepad's right stick, the SHOULDER setting
+(which swung the camera behind you), and the D-pad remap and sprite
+re-facing a turned camera needed. FOLLOW CAM is now ON / OFF; a save that
+had SHOULDER reads as OFF. Everything else about it (the chase, the floor
+height, looking over walls, the authored shots) is unchanged.
+`tests/mariocam_probe.lua` now boots its own new game and passes;
+`tests/shoulder_probe.lua` is gone.
+
 ### Fix: battle sprites from G9 Battle Sprites blew up or vanished once per loop
 
 With g9-battle-sprites (animated true-colour battle sprites), one frame of
