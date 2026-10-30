@@ -78,6 +78,9 @@ def main():
                                   "(default <repo>-probe_out/<driver>, beside the repo)")
     ap.add_argument("--all-mods", action="store_true",
                     help="keep the player's mod set instead of Terrarium only")
+    ap.add_argument("--with", dest="with_mods", action="append", default=[],
+                    metavar="ID", help="also enable this mod id (repeatable), "
+                    "for compatibility runs against one other mod")
     ap.add_argument("--timeout", type=int, default=1800)
     ap.add_argument("--env", action="append", default=[],
                     help="extra NAME=VALUE for the run (DS_GC_RECORD=1, ...)")
@@ -105,9 +108,13 @@ def main():
     shutil.copy2(options, backup)
     try:
         if not a.all_mods:
-            ids = [i for i in mod_ids() if i != mod_id]
+            keep = [mod_id, *a.with_mods]
+            unknown = [i for i in a.with_mods if i not in mod_ids()]
+            if unknown:
+                sys.exit(f"--with: no installed mod with id {', '.join(unknown)}")
+            ids = [i for i in mod_ids() if i not in keep]
             subprocess.run([LUAJIT, str(REPO / "tools" / "profiler" / "bench_options.lua"),
-                            "options.lua", version, mod_id, *ids],
+                            "options.lua", version, ",".join(keep), *ids],
                            cwd=GAME, check=True)
         env = dict(os.environ, POKEPORT_VERSION=version,
                    DS_PROBE_DIR=str(out), POKEPORT_DRIVER=str(driver),
@@ -115,7 +122,8 @@ def main():
         for kv in a.env:
             k, _, v = kv.partition("=")
             env[k] = v
-        print(f"{a.driver} -> {out}  ({'all mods' if a.all_mods else mod_id + ' only'})")
+        print(f"{a.driver} -> {out}  "
+              f"({'all mods' if a.all_mods else ' + '.join(keep) + ' only'})")
         t0 = time.time()
         with open(out / "console.txt", "w", encoding="utf-8", errors="replace") as con:
             try:

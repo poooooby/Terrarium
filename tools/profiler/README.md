@@ -23,6 +23,15 @@ writing the same `options.lua`. Drivers boot with
 `Game:startNewGame{intro=false}`, which skips the title and never saves, and
 the runner warns if a save file's timestamp moved anyway.
 
+`--with <mod id>` (repeatable) also enables that mod, for a compatibility run
+against one other mod (`--with g9-battle-sprites`).
+
+Note for drivers: under `POKEPORT_DRIVER` the engine calls `Game:update`
+directly and never runs the `core.update` hook chain, so a mod that works
+from that hook (G9 Battle Sprites bakes its sheets there) stalls. A driver
+that needs one should run the chain itself each frame with a no-op vanilla
+step; `tests/battle_vanish_probe.lua` shows how.
+
 Output goes to `<repo>-probe_out/<driver>/`, a folder BESIDE the checkout
 (`TERRARIUM_PROBE_OUT` moves it; a relative `--out` names a subfolder of it).
 Not inside the repo: when `mods/TERRARIUM` is a junction to the checkout,

@@ -4,10 +4,11 @@
 -- SaveSerializer reads and writes the file (it round-trips options.lua
 -- byte for byte; a hand-rolled writer would not):
 --
---   cd <gen1recomp> && luajit <this> <options.lua> <version> <keepId> <id>...
+--   cd <gen1recomp> && luajit <this> <options.lua> <version> <keep> <id>...
 --
--- Every id given is set false in options.modsByVersion[version] except
--- keepId, which is set true. Explicit falses matter: a mod with no entry
+-- Every id given is set false in options.modsByVersion[version]; the ids in
+-- <keep> (comma-separated: Terrarium, plus any --with mod) are set true.
+-- Explicit falses matter: a mod with no entry
 -- there falls through to the shared `mods` flag and then to the loader's
 -- default, which is ENABLED (SaveData.modEnabled).
 --
@@ -28,7 +29,7 @@ local opts = assert(S.decode(body))
 opts.modsByVersion = opts.modsByVersion or {}
 local bucket = {}
 for i = 4, #arg do bucket[arg[i]] = false end
-bucket[keep] = true
+for id in keep:gmatch("[^,]+") do bucket[id] = true end
 opts.modsByVersion[version] = bucket
 
 local out = assert(io.open(path, "wb"))
@@ -37,4 +38,5 @@ out:close()
 
 local n = 0
 for _ in pairs(bucket) do n = n + 1 end
-print(("bench options: %s only, %d other mods off for %s"):format(keep, n - 1, version))
+local _, kept = keep:gsub("[^,]+", "")
+print(("bench options: %s only, %d other mods off for %s"):format(keep, n - kept, version))

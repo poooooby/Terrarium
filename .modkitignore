@@ -293,3 +293,18 @@ concepts/battle-dynamic/15-card-fire-variants.png
 concepts/battle-dynamic/16-card-water-variants.png
 concepts/battle-dynamic/README.md
 tools/vendor/
+# Profiling (tools/profiler/) and the probes added with it: dev drivers that
+# run under POKEPORT_DRIVER, never loaded by the mod itself.
+tools/profiler/
+PRECACHE-PLAN.md
+tests/profile_bench_probe.lua
+tests/profile_play_driver.lua
+tests/gc_budget_probe.lua
+tests/gc_budget.lua
+tests/cold_cost_probe.lua
+tests/precache_probe.lua
+tests/mat4_offline.lua
+tests/load_veil_probe.lua
+tests/options_names_probe.lua
+tests/battle_theme_probe.lua
+tests/battle_vanish_probe.lua

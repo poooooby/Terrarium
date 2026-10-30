@@ -97,18 +97,32 @@ local function readBack(img)
   local prevBlend, prevAlpha = love.graphics.getBlendMode()
   local prevR, prevG, prevB, prevA = love.graphics.getColor()
   local data = nil
+  -- In a clean state, whatever state the caller is in. This runs from inside
+  -- picImage, i.e. in the middle of somebody's draw -- and the billboard
+  -- render (OverworldBattle.sideTexture) draws with the canvas DENSITY scale
+  -- pushed. Without origin() the pic was drawn into its own-size canvas at
+  -- 3x, the readback was a magnified top-left crop, and that crop was cached
+  -- and drawn as the mon from then on. With a sprite mod's animated sheets
+  -- (g9-battle-sprites: every frame is a new image, so every frame is read
+  -- back here, first seen mid-render) it surfaced as one frame per loop
+  -- blowing up -- "the mon grows and shrinks" / "disappears" (2026-10-29).
+  local g = love.graphics
+  g.push("all")
   local ok = pcall(function()
     local canvas = RenderTarget.new(w, h)
     if not canvas then return nil end
-    love.graphics.setCanvas(canvas)
-    love.graphics.clear(0, 0, 0, 0)
-    love.graphics.setBlendMode("replace", "premultiplied")
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.draw(img, 0, 0)
-    love.graphics.setCanvas()
+    g.origin()
+    g.setShader()
+    g.setCanvas(canvas)
+    g.clear(0, 0, 0, 0)
+    g.setBlendMode("replace", "premultiplied")
+    g.setColor(1, 1, 1, 1)
+    g.draw(img, 0, 0)
+    g.setCanvas()
     data = canvas:newImageData()
     if canvas.release then pcall(canvas.release, canvas) end
   end)
+  g.pop()
   if prevCanvas then
     love.graphics.setCanvas(prevCanvas)
   else
@@ -117,6 +131,29 @@ local function readBack(img)
   love.graphics.setBlendMode(prevBlend or "alpha", prevAlpha)
   love.graphics.setColor(prevR or 1, prevG or 1, prevB or 1, prevA or 1)
   return ok and data or nil
+end
+
+-- More distinct opaque colours than any Game Boy pic can carry? Eight, not
+-- four, for headroom (a palette fade frame, an edge the decoder blended);
+-- the scan stops at the first colour past that.
+local GB_COLOURS = 8
+local function trueColour(data, w, h)
+  local seen, n = {}, 0
+  for y = 0, h - 1 do
+    for x = 0, w - 1 do
+      local r, g, b, a = data:getPixel(x, y)
+      if a > CUT then
+        local key = math.floor(r * 255 + 0.5) * 65536
+                    + math.floor(g * 255 + 0.5) * 256 + math.floor(b * 255 + 0.5)
+        if not seen[key] then
+          seen[key] = true
+          n = n + 1
+          if n > GB_COLOURS then return true end
+        end
+      end
+    end
+  end
+  return false
 end
 
 -- The box the artwork actually occupies, or nil for a pic with no ink in it.
@@ -217,6 +254,11 @@ function BattlePics.filled(img)
     local data = readBack(img)
     if not data then return end
     local w, h = data:getDimensions()
+    -- Only the engine's own pics lost their white to the key. Those are four
+    -- shades (DMG greys, or one SGB/GBC palette); a sprite mod's full-colour
+    -- art has hundreds, and its enclosed transparent pixels are real gaps --
+    -- the space between an arm and a body -- that white would paint over.
+    if trueColour(data, w, h) then return end
     local x0, y0, x1, y1 = inkBounds(data, w, h)
     if not x0 then return end          -- a pic with nothing drawn in it
     local outside = markOutside(data, w, h, x0, y0, x1, y1)

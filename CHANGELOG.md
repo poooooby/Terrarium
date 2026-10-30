@@ -28,6 +28,19 @@ Tags and packages:
 
 ## Unreleased
 
+### Fix: battle sprites from G9 Battle Sprites blew up or vanished once per loop
+
+With g9-battle-sprites (animated true-colour battle sprites), one frame of
+each animation loop drew as a huge, magnified crop of the mon, so it seemed
+to grow and shrink, or vanish, while you just watched. Terrarium's step
+that fills white back into the Game Boy pics read each new image back while
+the battle billboard's 3x scale was still applied, then cached that
+magnified copy. The readback now runs in a clean state, and full-colour art
+from a sprite mod is no longer white-filled at all (that fill exists only
+for the 4-shade Game Boy pics). `tests/battle_vanish_probe.lua` reproduces
+the bug against any sprite mod:
+`python tools/profiler/run.py battle_vanish_probe --with g9-battle-sprites`.
+
 ### BATTLE THEME: dark glass battle panels
 
 The battle panels are now smoked dark glass by default: the status plates,
