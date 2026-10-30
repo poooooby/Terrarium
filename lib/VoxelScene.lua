@@ -470,21 +470,37 @@ VoxelScene._cardPitch = cardPitch
 -- Shared by the solid draw and the silhouette below, so the two can never
 -- drift apart -- a silhouette standing anywhere but exactly behind the
 -- figure would read as a second character.
-local function billboardMatrix(px, py, y, mirror, roll)
-  local m = Mat4.translate(px + 8, y, py + 8)
+--
+-- Chained through scratch matrices (bbA/bbB hold the running product, bbK
+-- each factor), with only the returned table fresh: one card is drawn and
+-- cast per entity per pass, and the old chain built up to eleven tables
+-- to get there. Same factors, same order, same products. `out` (optional)
+-- receives the result instead, for a caller that hands it straight to a
+-- draw (sh:send copies it); it must be none of the scratch tables here.
+local bbA, bbB, bbK = {}, {}, {}
+local function billboardMatrix(px, py, y, mirror, roll, out)
+  local m, spare = Mat4.setTranslate(bbA, px + 8, y, py + 8), bbB
   -- dead-on at the camera. A "best side" under-rotation toward the
   -- drawing's own cardinal lived here for a while (MarioCam.presentYaw);
   -- it turned the card visibly askew at every diagonal the camera rested
   -- at, and the camera no longer rests at diagonals, so it is gone. Zero
   -- with the row off, so the flat game's matrix is the one it always had.
   local yaw = cardYaw()
-  if yaw ~= 0 then m = Mat4.mul(m, Mat4.rotateY(yaw)) end
-  m = Mat4.mul(m, Mat4.rotateX(cardPitch() - math.pi / 2))
+  if yaw ~= 0 then
+    m, spare = Mat4.mulInto(spare, m, Mat4.setRotateY(bbK, yaw)), m
+  end
+  m, spare = Mat4.mulInto(spare, m,
+                          Mat4.setRotateX(bbK, cardPitch() - math.pi / 2)), m
   -- a swimmer ROCKS: a small roll about the feet, on the swell's own
   -- tempo, so the card is a body on water and not a picture cut in half
-  if roll and roll ~= 0 then m = Mat4.mul(m, Mat4.rotateZ(roll)) end
-  if mirror then m = Mat4.mul(m, Mat4.scale(-1, 1, 1)) end
-  return Mat4.mul(m, Mat4.translate(-8, 0, 0))
+  if roll and roll ~= 0 then
+    m, spare = Mat4.mulInto(spare, m, Mat4.setRotateZ(bbK, roll)), m
+  end
+  if mirror then
+    m, spare = Mat4.mulInto(spare, m, Mat4.setScale(bbK, -1, 1, 1)), m
+  end
+  if out then return Mat4.mulInto(out, m, Mat4.setTranslate(bbK, -8, 0, 0)) end
+  return Mat4.mul(m, Mat4.setTranslate(bbK, -8, 0, 0))
 end
 
 -- The real matrix, for the suite: a probe that rebuilt this recipe of its
@@ -519,27 +535,46 @@ end
 --
 -- It only ever comes up indoors, where MarioCam runs its CLOSE mode; on
 -- SOFT and with the row off the yaw is zero and he does not move at all.
-local function figureMatrix(f, offX, offZ)
-  local m = Mat4.translate(f.wx + (offX or 0), f.y, f.wz + (offZ or 0))
+local function figureMatrix(f, offX, offZ, out)
+  local m, spare = Mat4.setTranslate(bbA, f.wx + (offX or 0), f.y,
+                                     f.wz + (offZ or 0)), bbB
   local yaw = cardYaw()
-  if yaw ~= 0 then m = Mat4.mul(m, Mat4.rotateY(yaw)) end
-  return Mat4.mul(m, Mat4.rotateX(cardPitch() - math.pi / 2))
+  if yaw ~= 0 then
+    m, spare = Mat4.mulInto(spare, m, Mat4.setRotateY(bbK, yaw)), m
+  end
+  return Mat4.mulInto(out or { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                      m, Mat4.setRotateX(bbK, cardPitch() - math.pi / 2))
 end
 
 -- What the sun sees: the same card UNLEANED and flattened, exactly as
 -- Voxel3D.casterMatrix does it for a character.
-local function figureCaster(f, offX, offZ)
-  return Mat4.mul(
-    Mat4.translate(f.wx + (offX or 0), f.y, f.wz + (offZ or 0)),
-    Mat4.scale(1, 1, 0))
+local function figureCaster(f, offX, offZ, out)
+  return Mat4.mulInto(
+    out or { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    Mat4.setTranslate(bbA, f.wx + (offX or 0), f.y, f.wz + (offZ or 0)),
+    Mat4.setScale(bbK, 1, 1, 0))
 end
 
 -- Every figure on `map`, drawn with `draw(mesh, model, caster)`.
+--
+-- `model` and `caster` are SCRATCH, overwritten for the next figure: every
+-- callback hands them straight to a draw, which copies them. A callback
+-- that wanted to keep one would have to copy it -- none does.
+local figModel, figCaster = {}, {}
 local function eachFigure(map, offX, offZ, draw)
   for _, f in ipairs(ChunkMesher.figures(map) or {}) do
-    draw(f.mesh, figureMatrix(f, offX, offZ), figureCaster(f, offX, offZ))
+    draw(f.mesh, figureMatrix(f, offX, offZ, figModel),
+         figureCaster(f, offX, offZ, figCaster))
   end
 end
+
+-- Scratch results for the matrices the passes below build only to hand
+-- straight to one draw call (Voxel3D.draw / ShadowMap.draw send them to
+-- the shader before returning). One per ROLE, so the lit card, its sun
+-- lookup and the caster feeding that lookup never share a table within
+-- the same call. tools/profiler measured these chains as most of the
+-- render loop's remaining garbage.
+local drawModel, drawCaster, drawSnug = {}, {}, {}
 
 -- Draw one posed entity. Returns true if 3D geometry carried it, false
 -- when nothing could be built and the caller should fall back.
@@ -597,7 +632,9 @@ local function drawEntity(sprite, px, py, facing, phase, flip, gh, colors,
     local iw, ih = tex:getDimensions()
     local fy = frame * 16
     if fy + 16 > ih then fy = 0 end
-    Voxel3D.coatSheet = { iw, ih }
+    local cs = Voxel3D.coatSheet
+    if type(cs) ~= "table" then cs = {}; Voxel3D.coatSheet = cs end
+    cs[1], cs[2] = iw, ih
     Voxel3D.coatTop = fy / ih
   end
   -- only a body IN WATER rocks: `waterline` is also the cut tall grass and
@@ -607,9 +644,10 @@ local function drawEntity(sprite, px, py, facing, phase, flip, gh, colors,
     local t = (love.timer and love.timer.getTime and love.timer.getTime()) or 0
     roll = math.sin(t * 1.8 + (px or 0) * 0.05) * 0.07
   end
-  Voxel3D.draw(mesh, tex, billboardMatrix(px, py, y, mirror, roll),
+  Voxel3D.draw(mesh, tex, billboardMatrix(px, py, y, mirror, roll, drawModel),
                billboardPull(),
-               ShadowMap.snug(Voxel3D.casterMatrix(px, py, y, mirror)))
+               ShadowMap.snug(Voxel3D.casterMatrix(px, py, y, mirror, drawCaster),
+                              drawSnug))
   return true
 end
 
@@ -635,7 +673,7 @@ local function drawGhost(p)
     tex = TerrainAtlas.forSprite(def.image, p.colors) or tex
   end
   local y = p.gh + (p.lift or 0)
-  Voxel3D.draw(mesh, tex, billboardMatrix(p.px, p.py, y, mirror),
+  Voxel3D.draw(mesh, tex, billboardMatrix(p.px, p.py, y, mirror, nil, drawModel),
                billboardPull())
 end
 
@@ -1239,11 +1277,11 @@ local function castShadows(state, terrain, nbMesh, posed, cx, cy, vw, vh,
   -- authored figures cast too, for the same reason the flowers do: a
   -- handful of cards per map, and a person with no shadow reads as pasted on
   eachFigure(state.map, 0, 0, function(mesh, _, caster)
-    ShadowMap.draw(mesh, atlasFor(state.map), ShadowMap.snug(caster))
+    ShadowMap.draw(mesh, atlasFor(state.map), ShadowMap.snug(caster, drawSnug))
   end)
   for _, nb in ipairs(casters) do
     eachFigure(nb.map, nb.ox, nb.oy, function(mesh, _, caster)
-      ShadowMap.draw(mesh, atlasFor(nb.map), ShadowMap.snug(caster))
+      ShadowMap.draw(mesh, atlasFor(nb.map), ShadowMap.snug(caster, drawSnug))
     end)
   end
   for _, p in ipairs(posed) do
@@ -1254,7 +1292,8 @@ local function castShadows(state, terrain, nbMesh, posed, cx, cy, vw, vh,
       ShadowMap.draw(mesh, p.sprite:resolveImage(),
                      ShadowMap.snug(
                        Voxel3D.casterMatrix(p.px, p.py, p.gh + (p.lift or 0),
-                                            mirror)))
+                                            mirror, drawCaster),
+                       drawSnug))
     end
   end
   -- town street lamps cast from their poles (heads are small and would
@@ -1941,13 +1980,13 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor)
   Voxel3D.snowMap = snowState
   eachFigure(state.map, 0, 0, function(mesh, model, caster)
     Voxel3D.draw(mesh, atlasFor(state.map), model, figPull,
-                 ShadowMap.snug(caster))
+                 ShadowMap.snug(caster, drawSnug))
   end)
   Voxel3D.snowMap = nil
   for _, nb in ipairs(state.neighbors or {}) do
     eachFigure(nb.map, nb.ox, nb.oy, function(mesh, model, caster)
       Voxel3D.draw(mesh, atlasFor(nb.map), model, figPull,
-                   ShadowMap.snug(caster))
+                   ShadowMap.snug(caster, drawSnug))
     end)
   end
   -- and the snow is back on with them: a hedge, a tuft of grass and a flower
@@ -2006,10 +2045,12 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor)
             drewOne = true
           end
           local y = p.gh + (p.lift or 0)
-          Voxel3D.draw(mesh, img, billboardMatrix(p.px, p.py, y, false),
+          Voxel3D.draw(mesh, img,
+                       billboardMatrix(p.px, p.py, y, false, nil, drawModel),
                        cpull,
                        ShadowMap.snug(Voxel3D.casterMatrix(p.px, p.py, y,
-                                                           false)))
+                                                           false, drawCaster),
+                                      drawSnug))
         end
       end
     end
@@ -2054,9 +2095,11 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor)
             -- the ridge rides the card, lean and all, because it is snow
             -- on that drawing
             Voxel3D.draw(mesh, img,
-                         billboardMatrix(p.px, p.py, y, mirror), cpull,
+                         billboardMatrix(p.px, p.py, y, mirror, nil, drawModel),
+                         cpull,
                          ShadowMap.snug(Voxel3D.casterMatrix(p.px, p.py, y,
-                                                             mirror)))
+                                                             mirror, drawCaster),
+                                        drawSnug))
           end
         end
       end

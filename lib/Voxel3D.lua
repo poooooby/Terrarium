@@ -26,6 +26,9 @@
 local V = ...
 
 local Mat4 = V.require("Mat4")
+-- cold.* spans for the profiling drivers (tools/profiler); dark by
+-- default, one nil test per site
+local Perf = V.require("Perf")
 local RenderTarget = V.require("RenderTarget")
 local Voxel = V.require("VoxelState")
 local ShadowMap = V.require("ShadowMap")
@@ -3642,6 +3645,18 @@ local function crushMapBlankImg()
   return crushMapBlank or nil
 end
 
+-- Two- and three-wide uniform values, filled and sent per draw. sh:send
+-- copies the numbers into the uniform before it returns, so reusing one
+-- table per uniform is safe -- and it is what stops Voxel3D.draw making a
+-- handful of throwaway tables every call (tools/profiler: ~0.7 KB per
+-- draw, ~90 KB/frame in Lavender).
+local vCrushOrigin, vCrushInv = { 0, 0 }, { 0, 0 }
+local vWearOrigin = { 0, 0 }
+local vSnowOrigin, vSnowInv, vSnowTexel = { 0, 0 }, { 0, 0 }, { 0, 0 }
+local vCoatSheet = { 16, 16 }
+local vGrassLoad = { 0, 0, 0 }
+local function vec2(v, x, y) v[1], v[2] = x, y; return v end
+
 local function sendCrushMap(sh, m)
   local img, on, ox, oz, ix, iz = nil, 0, 0, 0, 0, 0
   if m and m.img then
@@ -3653,8 +3668,8 @@ local function sendCrushMap(sh, m)
   if not img then img = crushMapBlankImg() end
   if img then pcall(sh.send, sh, "crushMap", img) end
   pcall(sh.send, sh, "crushMapOn", on)
-  pcall(sh.send, sh, "crushOrigin", { ox, oz })
-  pcall(sh.send, sh, "crushInv", { ix, iz })
+  pcall(sh.send, sh, "crushOrigin", vec2(vCrushOrigin, ox, oz))
+  pcall(sh.send, sh, "crushInv", vec2(vCrushInv, ix, iz))
 end
 
 -- Always-bound stand-in for wearMap. Same rule as crushMap, with one
@@ -3689,7 +3704,7 @@ local function sendWearMap(sh, m)
   if not img then img = wearMapBlankImg() end
   if img then pcall(sh.send, sh, "wearMap", img) end
   pcall(sh.send, sh, "wearOn", on)
-  pcall(sh.send, sh, "wearOrigin", { ox, oz })
+  pcall(sh.send, sh, "wearOrigin", vec2(vWearOrigin, ox, oz))
   pcall(sh.send, sh, "wearInv", inv)
 end
 
@@ -3727,9 +3742,9 @@ local function sendSnowMap(sh, m)
   if not img then img = snowMapBlankImg() end
   if img then pcall(sh.send, sh, "snowMap", img) end
   pcall(sh.send, sh, "snowOn", on)
-  pcall(sh.send, sh, "snowOrigin", { ox, oz })
-  pcall(sh.send, sh, "snowInv", { ix, iz })
-  pcall(sh.send, sh, "snowTexel", { tu, tv })
+  pcall(sh.send, sh, "snowOrigin", vec2(vSnowOrigin, ox, oz))
+  pcall(sh.send, sh, "snowInv", vec2(vSnowInv, ix, iz))
+  pcall(sh.send, sh, "snowTexel", vec2(vSnowTexel, tu, tv))
   pcall(sh.send, sh, "snowSlope", slope)
   pcall(sh.send, sh, "snowPress", Voxel3D.SNOW_PRESS or 0)
 end
@@ -3742,7 +3757,7 @@ local function sendCoat(sh, on)
   pcall(sh.send, sh, "rainTime", Voxel3D.rainTime or 0)
   local sheet = Voxel3D.coatSheet
   pcall(sh.send, sh, "coatSheet",
-        sheet and { sheet[1] or 16, sheet[2] or 16 } or { 16, 16 })
+        vec2(vCoatSheet, sheet and sheet[1] or 16, sheet and sheet[2] or 16))
   pcall(sh.send, sh, "coatTop", Voxel3D.coatTop or 0)
 end
 
@@ -3890,6 +3905,7 @@ function Voxel3D.shader(grid)
               .. (cel and "c" or "-")
               .. (animeW and "w" or "-")
   if shaders[key] == nil then
+    local coldT0 = Perf.now()
     if grid and not derivativesOK() then
       shaders[key] = false
     else
@@ -3948,6 +3964,7 @@ function Voxel3D.shader(grid)
         if built then break end
       end
       shaders[key] = built or false
+      Perf.add("cold.shader.voxel", coldT0)
       -- Kept for the probes that read it, and for report() below.
       if not built then Voxel3D.shaderError = err end
       -- Nothing built WITH the anime sheet: give it up for the session and
@@ -5209,11 +5226,23 @@ end
 -- every vertex asks about the exact surface the sun recorded rather than
 -- one a few pixels behind it, and a figure cannot fringe itself. On the
 -- caster itself it is a no-op -- that quad is already flat.
-function Voxel3D.casterMatrix(px, py, y, mirror)
-  local m = Mat4.translate(px + 8, y, py + 8)
-  if mirror then m = Mat4.mul(m, Mat4.scale(-1, 1, 1)) end
-  return Mat4.mul(Mat4.mul(m, Mat4.translate(-8, 0, 0)),
-                  Mat4.scale(1, 1, 0))
+--
+-- Composed through scratch matrices, with only the returned table fresh:
+-- it runs per character per pass, and the four-table chain it used to
+-- build was the single biggest source of the render loop's garbage
+-- (tools/profiler, ~140 KB/frame in Lavender). Same products, same order.
+--
+-- `out` (optional) receives the result instead of a new table -- for a
+-- caller that hands it straight to a draw, which copies it on the spot.
+local casterA, casterB, casterK = {}, {}, {}
+function Voxel3D.casterMatrix(px, py, y, mirror, out)
+  local m, spare = Mat4.setTranslate(casterA, px + 8, y, py + 8), casterB
+  if mirror then
+    m, spare = Mat4.mulInto(spare, m, Mat4.setScale(casterK, -1, 1, 1)), m
+  end
+  m = Mat4.mulInto(spare, m, Mat4.setTranslate(casterK, -8, 0, 0))
+  if out then return Mat4.mulInto(out, m, Mat4.setScale(casterK, 1, 1, 0)) end
+  return Mat4.mul(m, Mat4.setScale(casterK, 1, 1, 0))
 end
 
 -- FALLBACK ONLY (no shadow map: headless, or a driver that cannot make the
@@ -5409,11 +5438,14 @@ function Voxel3D.draw(mesh, texture, model, pull, sunModel, sway)
     if sw > 0 then
       pcall(sh.send, sh, "grassH", Voxel3D.grassH or Voxel3D.GRASS_H)
       local l = Voxel3D.grassLoad
-      pcall(sh.send, sh, "grassLoad",
-            l and { l[1] or 0, l[2] or 0, l[3] or 0 } or { 0, 0, 0 })
+      local v = vGrassLoad
+      v[1], v[2], v[3] = l and l[1] or 0, l and l[2] or 0, l and l[3] or 0
+      pcall(sh.send, sh, "grassLoad", v)
     else
       pcall(sh.send, sh, "grassH", Voxel3D.GRASS_H)
-      pcall(sh.send, sh, "grassLoad", { 0, 0, 0 })
+      local v = vGrassLoad
+      v[1], v[2], v[3] = 0, 0, 0
+      pcall(sh.send, sh, "grassLoad", v)
     end
   end
   -- Foot-crush only on the grass (and flower) pass: the caller fills

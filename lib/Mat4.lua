@@ -24,9 +24,9 @@ function Mat4.identity()
            0, 0, 0, 1 }
 end
 
--- a * b, both row-major
-function Mat4.mul(a, b)
-  local o = {}
+-- a * b into `o`, both row-major. `o` must not BE `a` or `b`: a row is
+-- read after earlier rows of the result were written.
+function Mat4.mulInto(o, a, b)
   for r = 0, 3 do
     local a0, a1 = a[r * 4 + 1], a[r * 4 + 2]
     local a2, a3 = a[r * 4 + 3], a[r * 4 + 4]
@@ -34,6 +34,68 @@ function Mat4.mul(a, b)
       o[r * 4 + c] = a0 * b[c] + a1 * b[4 + c] + a2 * b[8 + c] + a3 * b[12 + c]
     end
   end
+  return o
+end
+
+-- a * b, both row-major, as a new table.
+--
+-- The result is sized by its constructor rather than grown from `{}`:
+-- filling an empty table to sixteen slots makes LuaJIT reallocate its
+-- array part on the way up, so the old shape threw away several arrays
+-- per product. The render loop takes hundreds of products a frame
+-- (tools/profiler: Mat4.mul was ~120 KB/frame of Lavender's garbage).
+-- Same arithmetic, same order -- Mat4.mulInto above.
+local mulInto = Mat4.mulInto
+function Mat4.mul(a, b)
+  return mulInto({ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, a, b)
+end
+
+-- In-place twins of the constructors below, for composing a chain through
+-- scratch matrices: each overwrites all sixteen entries of `o` with
+-- exactly what its constructor would return, and returns `o`. Only for a
+-- caller that consumes the result before the scratch is reused -- see
+-- Voxel3D.casterMatrix for the pattern (scratch in the middle, one fresh
+-- table out).
+function Mat4.setTranslate(o, x, y, z)
+  o[1], o[2], o[3], o[4] = 1, 0, 0, x
+  o[5], o[6], o[7], o[8] = 0, 1, 0, y
+  o[9], o[10], o[11], o[12] = 0, 0, 1, z
+  o[13], o[14], o[15], o[16] = 0, 0, 0, 1
+  return o
+end
+
+function Mat4.setScale(o, x, y, z)
+  o[1], o[2], o[3], o[4] = x, 0, 0, 0
+  o[5], o[6], o[7], o[8] = 0, y, 0, 0
+  o[9], o[10], o[11], o[12] = 0, 0, z, 0
+  o[13], o[14], o[15], o[16] = 0, 0, 0, 1
+  return o
+end
+
+function Mat4.setRotateY(o, a)
+  local c, s = math.cos(a), math.sin(a)
+  o[1], o[2], o[3], o[4] = c, 0, s, 0
+  o[5], o[6], o[7], o[8] = 0, 1, 0, 0
+  o[9], o[10], o[11], o[12] = -s, 0, c, 0
+  o[13], o[14], o[15], o[16] = 0, 0, 0, 1
+  return o
+end
+
+function Mat4.setRotateZ(o, a)
+  local c, s = math.cos(a), math.sin(a)
+  o[1], o[2], o[3], o[4] = c, -s, 0, 0
+  o[5], o[6], o[7], o[8] = s, c, 0, 0
+  o[9], o[10], o[11], o[12] = 0, 0, 1, 0
+  o[13], o[14], o[15], o[16] = 0, 0, 0, 1
+  return o
+end
+
+function Mat4.setRotateX(o, a)
+  local c, s = math.cos(a), math.sin(a)
+  o[1], o[2], o[3], o[4] = 1, 0, 0, 0
+  o[5], o[6], o[7], o[8] = 0, c, -s, 0
+  o[9], o[10], o[11], o[12] = 0, s, c, 0
+  o[13], o[14], o[15], o[16] = 0, 0, 0, 1
   return o
 end
 

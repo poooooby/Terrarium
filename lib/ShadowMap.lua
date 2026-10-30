@@ -650,11 +650,18 @@ ShadowMap.SNUG = 0.9
 -- Valid between begin() and the next begin(): `slack` and the sun hold
 -- still between redraws of the map, so a lit frame that reuses last
 -- frame's map computes the same displacement it was stored with.
-function ShadowMap.snug(model)
+--
+-- The translate is a scratch matrix: it is consumed by the product before
+-- this returns, and the product is the only table that leaves -- or none
+-- does, when the caller passes `out` (a draw that copies it on the spot).
+-- `out` must not be `model`.
+local snugT = {}
+function ShadowMap.snug(model, out)
   local f = sunDir()
   local s = -ShadowMap.slack * ShadowMap.SNUG
-  return Mat4.mul(Mat4.translate(f[1] * s, f[2] * s, f[3] * s),
-                  model or IDENTITY)
+  local t = Mat4.setTranslate(snugT, f[1] * s, f[2] * s, f[3] * s)
+  if out then return Mat4.mulInto(out, t, model or IDENTITY) end
+  return Mat4.mul(t, model or IDENTITY)
 end
 
 -- Whether the map has to be redrawn for `sig` -- a caller-built stamp of
