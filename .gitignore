@@ -24,6 +24,19 @@ PROMPT_*.md
 NOTES.md
 TODO.local.md
 
+# Assistant guidance and design plans (CLAUDE.md, PARTICLES-PLAN.md,
+# PRECACHE-PLAN.md, ...): working documents for whoever is developing on this
+# machine, not for players or the repository. Untracked in 1.50.x; they stay
+# on disk, and tools/gen_modkitignore.py still keeps them out of a modkit
+# pack (it lists every untracked file it finds).
+CLAUDE.md
+*-PLAN.md
+
+# The original maintainer's Quiver listing and packaged builds
+# (publish/BrenoBertucci@TERRARIUM/, publish-zip/*.zip). This fork releases
+# through .github/workflows/release.yml instead; kept locally for reference.
+publish/
+
 # graphify's own output: a derived knowledge graph of this repo, rebuilt with
 # `graphify . --code-only` whenever it is wanted. Nothing in it is source.
 graphify-out/

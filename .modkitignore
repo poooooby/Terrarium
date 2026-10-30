@@ -11,10 +11,7 @@
 
 
 # (root)
-CLAUDE.md
 MOBILE.md
-PARTICLES-PLAN.md
-PRECACHE-PLAN.md
 ROADMAP.md
 
 # assets
@@ -82,13 +79,6 @@ compat/porygonal/renderers/terrarium/terrarium_adapter.lua
 
 # concepts
 concepts/battle-dynamic/README.md
-
-# publish-zip
-publish-zip/TERRARIUM-1.16.0-mobile.rain.zip
-
-# publish
-publish/BrenoBertucci@TERRARIUM/description.md
-publish/BrenoBertucci@TERRARIUM/meta.json
 
 # (root)
 quiver-catalog-entry.json
@@ -341,6 +331,7 @@ tools/cut_snowflakes.py
 tools/deploy.cmd
 tools/essl1_check.py
 tools/extract_xy_assets.py
+tools/gen_modkitignore.py
 tools/grow_voxel_tree.py
 tools/install_mon_anim.py
 tools/install_mon_pack.py
@@ -397,8 +388,14 @@ tools/voxel-trees-workflow.md
 # On THIS machine and not tracked by git (local sprite packs, cut
 # third-party art, scratch output): listed so a pack built from this
 # checkout never carries them. Another machine regenerates its own.
+CLAUDE.md
+PARTICLES-PLAN.md
+PRECACHE-PLAN.md
 Terrarium.code-workspace
+publish-zip/TERRARIUM-1.16.0-mobile.rain.zip
 publish-zip/TERRARIUM-1.37.0-beta.zip
+publish/BrenoBertucci@TERRARIUM/description.md
+publish/BrenoBertucci@TERRARIUM/meta.json
 releases/TERRARIUM-1.40.3-beta.test3.zip
 releases/TERRARIUM-1.40.4-beta.test1.zip
 releases/TERRARIUM-1.40.4-beta.test2.zip
@@ -437,4 +434,3 @@ tools/_kit_out/sheet5.rgba
 tools/_kit_out/sheet6.rgba
 tools/_kit_out/sheet7.rgba
 tools/_kit_out/sheet8.rgba
-tools/gen_modkitignore.py

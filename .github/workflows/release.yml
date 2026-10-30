@@ -1,7 +1,16 @@
 name: Release
 
-# Packs the mod into an installable .zip and publishes it as a GitHub Release,
-# once per push to main.
+# Packs the mod into an installable .zip and publishes it as a GitHub Release.
+#
+# MANUAL ONLY. Until 1.50.0 this ran on every push to main, so merging
+# anything -- a docs fix, a .gitignore line -- published a release players
+# would download. A release is now cut only when the owner asks for one:
+#
+#   gh workflow run release.yml                      # version auto-resolved
+#   gh workflow run release.yml -f version=1.51.0    # exact version
+#
+# (or Actions > Release > Run workflow on GitHub). Pushing to main does not
+# release anything.
 #
 # Archive layout: every mod file at the archive root, manifest.json included.
 # That is one of the two shapes the game accepts on MODS > Import mod .zip
@@ -23,11 +32,6 @@ name: Release
 # MOD_ID below is stamped to this mod's id when the file is copied.
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '.github/**'
-      - '**.md'
   workflow_dispatch:
     inputs:
       version:
