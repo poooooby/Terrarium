@@ -36,6 +36,24 @@ throwaway matrices built per character and per pass. It now makes 124-201 KB
 picture is unchanged: every rewritten matrix chain is checked bit for bit
 against the old one (`tests/mat4_offline.lua`).
 
+### Smoother: no more multi-second freezes entering a town
+
+Entering Lavender could freeze the game for about 3 seconds, and Route 12
+for over 2. The trees asked for the town's building data before it had been
+built, and built all of it in one frame, while the background builder was
+already working on it. They now wait for it, and the building code pauses
+between rows. The worst single frame on a first visit is now under
+~160 ms in every town tested. Most towns finish appearing as fast or
+faster than before. Celadon and Vermilion take a little longer, because
+the work is spread over more frames instead of stalling.
+
+### Faster: going back is instant
+
+The last six places you were in (two on a phone) stay built. Walking back
+into a town you left two moves ago used to rebuild it, which took up to
+5 seconds of building work. It now shows on the first frame. Memory use went
+down, not up: what is kept is trimmed to the little the game still reads.
+
 ### Dev tooling: profiling
 
 For whoever works on this mod; nothing here runs in a player's session.

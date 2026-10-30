@@ -1056,12 +1056,46 @@ end
 
 -- Round-tree sites for a map, recorded by Structures.buildCylinders next to
 -- the hull stamps it skipped.
+--
+-- PEEKED, not built. This used to call Structures.forMap, which on a map
+-- whose analysis did not exist yet ran the WHOLE thing -- kits and all --
+-- synchronously inside Trees3D.draw: the profiler caught single frames of
+-- 1.5 s (Lavender) and 2-3 s (Route 12) spent here, while the mesher was
+-- already building that same analysis in time slices a few frames behind.
+-- Now a map whose analysis is not ready answers (nil, true) -- "not yet",
+-- which the callers must not cache as "no forest" -- and the trees appear
+-- when the mesher lands it.
+--
+-- While the mesher has a job queued for the map, it waits as long as that
+-- takes (Route 12's analysis lands ~1,000 frames after arrival). WAIT_ASKS
+-- is the safety net for the other case: nothing is building the analysis
+-- (a path that drew trees for a map the mesher never queued), so the old
+-- synchronous build runs after that many unanswered asks rather than
+-- leaving the map treeless. Counted only while NOTHING is building: an
+-- earlier cut counted every ask, ran out while the mesher was still
+-- working, and put the 1.4 s stall straight back.
+Trees3D.WAIT_ASKS = 240
+local waited = {}   -- map id -> asks answered "not yet" with no build queued
+
 local function sitesFor(map)
   if not map then return nil end
-  local ok, S = pcall(function()
-    return V.require("Structures").forMap(map)
-  end)
-  if not ok or not S then return nil end
+  local okR, Structures = pcall(V.require, "Structures")
+  if not okR or not Structures then return nil end
+  local S = Structures.peek and Structures.peek(map)
+  if not S then
+    local okC, CM = pcall(V.require, "ChunkMesher")
+    if okC and CM and CM.building and CM.building(map.id) then
+      waited[map.id] = nil
+      return nil, true
+    end
+    local n = (waited[map.id] or 0) + 1
+    waited[map.id] = n
+    if n < Trees3D.WAIT_ASKS then return nil, true end
+    local ok, built = pcall(Structures.forMap, map)
+    S = ok and built or nil
+  end
+  waited[map.id] = nil
+  if not S then return nil end
   return S.treeSites
 end
 
@@ -1198,7 +1232,10 @@ local function meshesFor(map)
 
   local st = pending[id]
   if not st then
-    local sites = sitesFor(map)
+    local sites, notYet = sitesFor(map)
+    -- the analysis is still being built: draw nothing this frame, and do
+    -- NOT cache that as "this map has no forest"
+    if notYet then return nil end
     local names = Trees3D.loaded()
     if not sites or #sites == 0 or #names == 0 then
       meshes[id] = false

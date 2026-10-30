@@ -49,9 +49,39 @@ cost. The per-frame cost shows in `cold.mesh.body` max and the worst frame.
 4. Shader compiles (`cold.shader.voxel`, ~33 ms over 2 variants) and Skyline
    impostors are paid once per session and are not worth a stage.
 
+## Done since: retention and the freezes (Unreleased)
+
+The first measurements above were taken before these changes.
+
+- **The "warm" finding was partly the probe's fault.** It went one map away
+  for only 30 frames, so the away map's neighbourhood was still building and
+  was charged to the return. The probe now settles on two away maps before
+  coming back.
+- **Retention.** `ChunkMesher.setLive` keeps the 6 most recently live maps
+  (2 on a phone) on top of the current and previous live sets. Their
+  analysis is trimmed (`Structures.trim`) to the few fields read at runtime.
+  Returning after two moves now takes 1 frame, where before it took
+  143-870 frames and 0.5-5.5 s of rebuilding, and Lua memory went *down*
+  (847-1,601 MB to 646-982 MB) because trimming frees more than retention
+  holds.
+- **The freezes.** `Trees3D` called `Structures.forMap` synchronously from
+  its draw. It now peeks and waits while the mesher has the map queued.
+  Kit `emit` and `Buildings.stamp` yield per row and per quad. Worst single
+  frame on a first visit: Lavender 3,121 to 143 ms, Route 12 2,250 to
+  147 ms, Pallet 738 to 117 ms. Every map is now under ~160 ms.
+- **Wall time to the full current-map mesh is mostly the same or better**
+  (Lavender 6.3 to 3.1 s, Route 8 2.7 to 1.2 s, Route 12 9.6 to 8.0 s).
+  Celadon (2.2 to 3.5 s) and Vermilion (6.8 to 7.2 s) are a little slower,
+  because the build now stays inside its 5 ms slice instead of stealing
+  whole frames.
+
+What is left is the first visit itself: several seconds of flat 2D before a
+kit town appears. That is what steps 2-4 below are for, and it is where a
+BUILD CACHE row would come in.
+
 ## What to build, in order
 
-### 1. Keep what was built (retention), before warming anything
+### 1. Keep what was built (retention), before warming anything -- DONE (see above)
 
 Warming a map that will be evicted the next frame is all cost and no win, so
 retention has to come first. Change `ChunkMesher.setLive` eviction from "live

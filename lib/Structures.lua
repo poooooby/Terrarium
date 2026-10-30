@@ -142,6 +142,34 @@ function Structures.peek(map)
   return (map and map.id and cache[map.id]) or nil
 end
 
+-- The fields anything reads AFTER a map's meshes are built: walk heights
+-- (liftAt), the lamps (StreetLamps), chimney smoke (HearthFX), the
+-- tower's chill (GhostFX, VoxelScene) and the round-tree sites (Trees3D).
+-- Everything else -- the quad lists above all -- exists only to be meshed.
+local KEEP = { "lift", "lights", "chimneys", "haunts", "treeSites",
+               "outdoor", "hideBareRing" }
+
+-- Drop the build-only bulk of a map that is RETAINED but no longer on or
+-- near the screen (ChunkMesher.setLive's history). Its meshes are kept, so
+-- coming back costs nothing; only the analysis that produced them goes.
+--
+-- Measured with tests/cold_cost_probe.lua and a one-off feasibility probe:
+-- the untrimmed analysis is 0.6-2.7 million Lua tables per kit map (Route
+-- 12: 2.66M tables, ~15M numbers), almost all of it objectQuads and
+-- spriteQuads. Keeping several of those for retention would cost far more
+-- memory than the meshes they made.
+--
+-- A trimmed entry still answers peek() and liftAt(); forMap() treats it as
+-- absent and rebuilds, which only happens if a mesh of that map has to be
+-- built again (a refresh, or a slot that was never built).
+function Structures.trim(mapId)
+  local S = mapId and cache[mapId]
+  if not S or S.trimmed then return end
+  local T = { trimmed = true }
+  for _, k in ipairs(KEEP) do T[k] = S[k] end
+  cache[mapId] = T
+end
+
 -- How high a modelled FLOOR stands over the tile (tx, ty) -- a slab a kit
 -- laid over the drawn ground (Buildings.stamp, `lift`) -- or nil. Read
 -- without building, for the same reason as peek: the caller is asking where
@@ -154,7 +182,10 @@ end
 
 function Structures.forMap(map)
   local S = cache[map.id]
-  if S then return S end
+  -- a TRIMMED analysis (Structures.trim) answers the runtime readers but
+  -- has lost what a mesh build needs, so a build that asks again gets a
+  -- fresh one
+  if S and not S.trimmed then return S end
   local coldT0 = Perf.now()
 
   local tileset = map.tileset

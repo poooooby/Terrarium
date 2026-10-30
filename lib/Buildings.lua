@@ -938,6 +938,12 @@ end
 Buildings.PHANTOM = -1
 
 local function emit(m, sp, atlasW, atlasH)
+  -- Budget.tick() once per z-ROW as well as once per y-slice: one slice of
+  -- a 4x4-block house is ~16k m.at() evaluations, and with the tick only
+  -- per slice a single mesher step ran 300-700 ms (tools/profiler,
+  -- overrun.structures.buildings.<template>.model: Vermilion's
+  -- flat_block_4x4, Lavender's Centre and Mart). tick() samples the clock
+  -- one call in 32, so the extra calls are free.
   local W = m.W
   local quads = { voxels = 0, shell = 0 }
   local cell = {}                        -- (y, z, x) -> sprite pixel index
@@ -961,6 +967,7 @@ local function emit(m, sp, atlasW, atlasH)
   for y = 0, ytop do
     Budget.tick()
     for z = zmin, zmax do
+      Budget.tick()
       local base = (y * zn + (z - zmin)) * xn - xmin
       for x = xmin, xmax do
         local v = m.at(x, y, z)
@@ -976,6 +983,7 @@ local function emit(m, sp, atlasW, atlasH)
   for y = 0, ytop do
     Budget.tick()
     for z = zmin, zmax do
+      Budget.tick()
       for x = xmin, xmax do
         local v = ci(x, y, z)
         if v and v >= 0 and not (ci(x + 1, y, z) and ci(x - 1, y, z)
@@ -1094,6 +1102,7 @@ local function emit(m, sp, atlasW, atlasH)
     for y = 0, ytop do
       Budget.tick()
       for z = zmin, zmax do
+        Budget.tick()
         local x = xmin
         while x <= xmax do
           local v = ci(x, y, z)
@@ -1168,6 +1177,7 @@ local function emit(m, sp, atlasW, atlasH)
       -- no camera here looks up at)
       if not (d == -1 and (y == 0 or m.noDown)) then
         for z = zmin, zmax do
+          Budget.tick()
           local x = xmin
           while x <= xmax do
             local v = ci(x, y, z)
@@ -2204,7 +2214,14 @@ function Buildings.stamp(S, map, quads, tx, ty, bw, bh)
     S.spriteQuads = S.spriteQuads or {}
   end
   local out = quads.tex and S.spriteQuads or S.objectQuads
+  -- Budget.tick per quad: one model can be tens of thousands of quads and
+  -- each copy is five tables, and this loop was the one step of a kit
+  -- build with no yield in it -- tools/profiler's overrun.structures.
+  -- buildings caught single mesher slices of 300-700 ms here (Lavender,
+  -- Route 8, Vermilion, Route 12). tick() is a counter that samples the
+  -- clock one call in 32, so it costs nothing per quad.
   for _, q in ipairs(quads) do
+    Budget.tick()
     out[#out + 1] = {
       { q[1][1] + mx, q[1][2] + my, q[1][3] + mz },
       { q[2][1] + mx, q[2][2] + my, q[2][3] + mz },

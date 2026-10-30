@@ -6,9 +6,13 @@
 --              drops Structures and Buildings -- TerrainAtlas, Trees3D),
 --              then setMap, then frames counted until the full mesh is in
 --              and nothing is left queued or stamping
---   warm:<id>  leave, come straight back with the caches kept: the same
---              walk with nothing to build, so cold minus warm is what a
---              pre-cache could take off that first visit
+--   warm:<id>  go TWO maps away (each fully settled, so their own builds
+--              are not charged to the return), then come back. With the
+--              caches doing their job this is a visit with nothing to
+--              build; whatever it does build is what retention lost.
+--              (An earlier version left for ONE map and only 30 frames,
+--              and charged the away map's neighbourhood builds to the
+--              return -- every "warm" row looked like a rebuild.)
 --
 -- The stages are the cold.* spans in the mod (ChunkMesher pump slices,
 -- Trees3D stamping, Structures.forMap, TerrainAtlas bakes, Voxel3D shader
@@ -52,7 +56,8 @@ return function(game)
     { id = "ROUTE_12", x = 10, y = 15 },
     { id = "CELADON_CITY", x = 10, y = 10 },
   }
-  local AWAY = { id = "PALLET_TOWN", x = 10, y = 11 }
+  local AWAY = { { id = "CERULEAN_CITY", x = 18, y = 18 },
+                 { id = "FUCHSIA_CITY", x = 18, y = 18 } }
 
   local function dropCaches()
     pcall(ChunkMesher.invalidate)
@@ -60,8 +65,30 @@ return function(game)
     pcall(Trees3D.invalidate)
   end
 
+  -- Three moments after arrival, in frames:
+  --   shown  this map has SOME terrain mesh (body or full) -- the first
+  --          frame the player is not looking at the flat 2D fallback
+  --   full   this map's full mesh is in
+  --   settle that, plus every neighbour built and nothing queued
+  -- "settle" alone overstated what the player waits for: it includes the
+  -- neighbours, which are only seen at the edges.
   local function settle(id, guard)
-    return Scenes.ready(game, V, id, guard)
+    local shown, full
+    for f = 1, guard do
+      coroutine.yield()
+      local map = game.overworld.map
+      if map and map.id == id then
+        if not shown and (ChunkMesher.peek(map, true) or ChunkMesher.peek(map, false)) then
+          shown = f
+        end
+        if not full and ChunkMesher.peek(map, false) then full = f end
+        if full and ChunkMesher.pending() == 0
+            and (Trees3D.buildsInFlight == nil or Trees3D.buildsInFlight() == 0) then
+          return f, shown, full
+        end
+      end
+    end
+    return nil, shown, full
   end
 
   local results = {}
@@ -72,25 +99,42 @@ return function(game)
     if not Scenes.visit(game, V, c, log, true) then
       Perf.setSegment(nil); return
     end
-    local frames = settle(c.id, 1800)
+    local frames, shown, full = settle(c.id, 3600)
     -- a few more frames so the last stage's tail lands in the segment
     for _ = 1, 30 do coroutine.yield() end
     Perf.setSegment(nil)
-    results[#results + 1] = { seg = seg, id = c.id, kind = kind, frames = frames }
+    -- memory after the visit settles: Lua heap after a full collect, and
+    -- which maps the mesher is holding (retention is a memory trade)
+    collectgarbage("collect"); collectgarbage("collect")
+    local held = ChunkMesher.cachedIds and ChunkMesher.cachedIds() or {}
+    local luaMB = collectgarbage("count") / 1024
+    results[#results + 1] = { seg = seg, id = c.id, kind = kind, frames = frames,
+                              shown = shown, full = full,
+                              luaMB = luaMB, held = #held }
   end
 
   for _, c in ipairs(MAPS) do
-    Scenes.visit(game, V, AWAY, log, true); Scenes.wait(30)
+    Scenes.visit(game, V, AWAY[1], log)
     dropCaches()
     measure(c, "cold")
-    Scenes.visit(game, V, AWAY, log, true); Scenes.wait(30)
+    Scenes.visit(game, V, AWAY[1], log)
+    Scenes.visit(game, V, AWAY[2], log)
     measure(c, "warm")
   end
 
   -- the ranked summary: per cold segment, frames to settle, worst frame,
   -- and the stages by total time, cold against warm
   log("")
-  log("map              kind  settle  worst-ms  >33ms   stage totals (ms; n slices; max)")
+  -- frame COUNTS mislead here: a frame that froze for 3 s counts as one.
+  -- So the same moments in wall-clock milliseconds, summed from the
+  -- segment's own frame log (Perf.frame, stamped per drawn frame).
+  local function msTo(seg, n)
+    if not (seg and n) then return "-" end
+    local t = 0
+    for i = 1, math.min(n, #seg.frames) do t = t + seg.frames[i] end
+    return ("%.0f"):format(t * 1000)
+  end
+  log("map              kind  shown  full  shownMs  fullMs  settle  worst-ms  >33ms  luaMB held   stage totals (ms; n slices; max)")
   for _, r in ipairs(results) do
     local seg = Perf.segments[r.seg]
     if seg then
@@ -107,9 +151,11 @@ return function(game)
         local s = stages[i]
         parts[#parts + 1] = ("%s %.1f;%d;%.1f"):format(s.lbl, s.total, s.n, s.max)
       end
-      log(("%-16s %-5s %6s %9.1f %6d   %s"):format(
-        r.id, r.kind, r.frames and tostring(r.frames) or "never",
-        fs.worst, fs.over33, table.concat(parts, "  ")))
+      log(("%-16s %-5s %5s %5s %8s %7s %6s %9.1f %6d %6.0f %4d   %s"):format(
+        r.id, r.kind, tostring(r.shown or "-"), tostring(r.full or "-"),
+        msTo(seg, r.shown), msTo(seg, r.full),
+        r.frames and tostring(r.frames) or "never",
+        fs.worst, fs.over33, r.luaMB or 0, r.held or 0, table.concat(parts, "  ")))
     end
   end
 

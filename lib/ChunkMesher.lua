@@ -1626,6 +1626,16 @@ function ChunkMesher.pending()
   return #jobs
 end
 
+-- Whether a build of `mapId` is queued or in flight -- i.e. whether its
+-- Structures analysis is on its way. Trees3D asks, so it can wait for the
+-- mesher instead of building the analysis synchronously itself.
+function ChunkMesher.building(mapId)
+  for _, j in ipairs(jobs) do
+    if j.id == mapId then return true end
+  end
+  return false
+end
+
 -- Advance queued builds inside a per-frame time budget. Urgent jobs (the
 -- current map) come first and get the larger slice -- the first voxel
 -- frame after a toggle is worth more milliseconds than a neighbour
@@ -1685,6 +1695,24 @@ function ChunkMesher.pump(covered)
     local t0 = Perf.now()
     local ok, err = coroutine.resume(pick.co, pick)
     Perf.add(COLD_LABEL[pick.slot] or "cold.mesh", t0)
+    -- A resume that ran far past its slice is a step with no Budget.tick
+    -- in it; name the pass it was in (ChunkMesher.stage / Structures.stage)
+    -- so the profiler can say which one. Only on an overrun, so the label
+    -- concatenation is never on the per-frame path.
+    if t0 and clock() - t0 > 0.05 then
+      local pass = ChunkMesher.stage and ChunkMesher.stage.pass or "?"
+      local sst = Structures.stage
+      if sst and sst.map == pick.id and sst.pass ~= "done" then
+        pass = "structures." .. tostring(sst.pass)
+        -- inside the kits: which template, and scanning or modelling
+        if sst.pass == "buildings" then
+          local okB, B = pcall(V.require, "Buildings")
+          local pr = okB and B and B.progress
+          if pr then pass = pass .. "." .. tostring(pr.id) .. "." .. tostring(pr.phase) end
+        end
+      end
+      Perf.add("overrun." .. tostring(pass), t0)
+    end
     Budget.finish()
     if not ok then
       finishJob(pick, false, err)
@@ -1822,17 +1850,59 @@ end
 -- door means rebuilding the whole neighbourhood on the way out -- a
 -- flat-world flash after every house. One set of history makes the
 -- round trip free while staying bounded at two neighbourhoods.
+--
+-- And beyond that, the RETAIN most recently live maps (an LRU), because
+-- one set of history turned out not to be enough: the live set changes
+-- more than once on a single trip (the neighbours fill in a frame or two
+-- after the warp), so "previous" was usually a half-built set and a
+-- player walking Lavender -> Route 8 -> Lavender rebuilt Lavender's kits
+-- (tests/cold_cost_probe.lua: warm revisits still spent 0.2-1.4 s in
+-- Structures and 0.6-1.7 s meshing). A retained map keeps its meshes and
+-- loses its build-only analysis (Structures.trim), which is what keeps the
+-- history affordable: the analysis is the part measured in millions of
+-- Lua tables. Bounded by COUNT, smaller on a phone, whose memory is the
+-- reason eviction exists at all.
 local prevLive = {}
+local lastLive = {}   -- map id -> setLive serial it was last live in
+local liveSerial = 0
+
+ChunkMesher.RETAIN = 6
+ChunkMesher.RETAIN_MOBILE = 2
+
+function ChunkMesher.retainCount()
+  local okD, Device = pcall(V.require, "Device")
+  local mobile = okD and Device and Device.mobile and Device.mobile()
+  return mobile and ChunkMesher.RETAIN_MOBILE or ChunkMesher.RETAIN
+end
 
 function ChunkMesher.setLive(live)
-  for id, c in pairs(cache) do
-    if not live[id] and not prevLive[id] then
-      releaseEntry(c)
+  liveSerial = liveSerial + 1
+  for id in pairs(live) do lastLive[id] = liveSerial end
+
+  -- the cached maps outside both live sets, most recently live first;
+  -- the first RETAIN stay (trimmed), the rest go
+  local outside = {}
+  for id in pairs(cache) do
+    if not live[id] and not prevLive[id] then outside[#outside + 1] = id end
+  end
+  table.sort(outside, function(a, b)
+    return (lastLive[a] or 0) > (lastLive[b] or 0)
+  end)
+  local keep = ChunkMesher.retainCount()
+  for i, id in ipairs(outside) do
+    if i <= keep then
+      Structures.trim(id)
+    else
+      releaseEntry(cache[id])
       cache[id] = nil
       gen[id] = (gen[id] or 0) + 1
       Structures.invalidate(id)
+      lastLive[id] = nil
     end
   end
+
+  -- builds are still only for what is (or just was) on screen: a retained
+  -- map's half-finished job is dropped, not finished in the background
   for i = #jobs, 1, -1 do
     local job = jobs[i]
     if not live[job.id] and not prevLive[job.id] then
@@ -1841,6 +1911,14 @@ function ChunkMesher.setLive(live)
     end
   end
   prevLive = live
+end
+
+-- For probes and Diag: how many maps hold meshes, and which.
+function ChunkMesher.cachedIds()
+  local out = {}
+  for id in pairs(cache) do out[#out + 1] = id end
+  table.sort(out)
+  return out
 end
 
 -- Drop one map's mesh (Cut swapped a block) or all of them (hot reload).

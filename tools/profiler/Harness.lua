@@ -52,6 +52,15 @@ Harness.WRAPS = {
   DayNight = { "update" },
   Structures = { "forMap" },
   Buildings = { "build" },
+  -- each kit's model constructor: called once per template (or per
+  -- placement), never per frame, and it runs without yielding -- so its
+  -- span is pure CPU, and the overrun.* labels point here
+  BridgeKit = { "model" }, CryptKit = { "model" }, FenceKit = { "model" },
+  LavenderCivicKit = { "model" }, LavenderGroundKit = { "model" },
+  LavenderHomeKit = { "model" }, LavenderHouseKit = { "model" },
+  LavenderTowerKit = { "model" }, LedgeKit = { "model" }, ReefKit = { "model" },
+  RoomKit = { "model" }, ShopKit = { "model" }, TowerKit = { "model" },
+  VermilionHomeKit = { "model" }, VermilionHouseKit = { "model" },
   TerrainAtlas = { "forSprite" },
   OverworldBattle = { "update" },
   BattleScene = { "render" },

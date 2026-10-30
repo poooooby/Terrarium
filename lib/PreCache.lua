@@ -7,13 +7,13 @@
 -- before registering a stage here.
 --
 -- Why it ships empty rather than with the obvious first stage (ask
--- ChunkMesher for every warp destination's mesh at the idle tier): the
--- cold-cost probe (tests/cold_cost_probe.lua) showed ChunkMesher.setLive
--- evicts every map outside the current and previous live sets. A mesh
--- warmed for a door the player has not taken yet would be evicted the
--- next frame and rebuilt on arrival -- all of the cost, none of the win.
--- Warming meshes needs the eviction policy to know about PreCache first,
--- and that is a design decision, not plumbing.
+-- ChunkMesher for every warp destination's mesh at the idle tier):
+-- ChunkMesher.setLive retains recently LIVE maps (an LRU, see there), but
+-- it still drops every queued job for a map outside the live sets, and a
+-- door the player has not taken yet is outside them. A warmed mesh would
+-- be cancelled before it landed. Warming needs setLive to know about
+-- PreCache's pins first (PRECACHE-PLAN.md, step 2), and that is a design
+-- decision, not plumbing.
 --
 -- Dark twice over: the PRECACHE row is only offered while Perf is on (a
 -- profiling session -- tools/profiler), and pump() needs BOTH Perf on and
