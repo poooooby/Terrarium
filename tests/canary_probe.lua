@@ -74,7 +74,6 @@ return function(game)
   game.overworld:setMap("ROUTE_17", 9, 60, "up")
   hold(300)
   releaseDirs()
-  MarioCam.recenter()
   for _ = 1, 2 do game:keypressed("e") hold(90) end
   hold(150)
   local p = game.overworld.player

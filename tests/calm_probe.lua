@@ -96,7 +96,7 @@ return function(game)
     local lastPx, lastPz = p.px, p.py
     local function sample(legTag, f)
       local yaw = math.deg(MarioCam.viewYaw())
-      local q = MarioCam.quadrant()
+      local q = 0 --[[ the camera no longer turns ]]
       local lk = MarioCam.lakitu
       local dx = lk.curFocus[1] - lk.curPos[1]
       local dy = lk.curFocus[2] - lk.curPos[2]
@@ -151,7 +151,7 @@ return function(game)
       log(("  leg %2d %-5s end: cell(%d,%d) yaw %7.1f quad %d dist %5.1f")
           :format(i, dir, math.floor((p.px + 8) / 16),
                   math.floor((p.py + 8) / 16), math.deg(MarioCam.viewYaw()),
-                  MarioCam.quadrant(), lastDist or 0))
+                  0 --[[ the camera no longer turns ]], lastDist or 0))
       if SHOT_AT[i] then shoot(("calm_%s_leg%d_rest"):format(tag, i)) end
     end
     local secs = m.frames / 60
@@ -173,7 +173,6 @@ return function(game)
     local parked = parkAt(MAP, CX, CY, "up", 200)
     log("  parked: " .. tostring(parked))
     if parked then
-      MarioCam.recenter()
       hold(120)
       shoot("calm_" .. rung[2] .. "_idle")
       runScript(rung[2])

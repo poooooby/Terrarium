@@ -128,7 +128,6 @@ return function(game)
     log(("-- pick %d: cell (%d,%d), occluder %.0f px tall to the south"):format(i, cx, cy, h))
     MarioCam.setting:setIndex(2, game)        -- ON, the orbit
     if parkAt(MAP, cx, cy, "up", 120) then
-      MarioCam.recenter()
       MarioCam.cut()
       hold(2)
       local ps = MarioCam.pullState

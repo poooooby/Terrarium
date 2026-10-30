@@ -329,38 +329,11 @@ end
 -- (same tables as SpriteRenderer). Shared by the billboard pass and the
 -- shadow pass so a walking character's shadow swings its legs too.
 --
--- ------- SPRITE BY ANGLE, and the moonwalk it exists to kill
---
--- The facing this asks about is the one the CAMERA sees, not the compass
--- one. Those were the same question for the entire life of this mod --
--- the camera could not turn, so north was always away from you -- and the
--- moment the orbit could swing they came apart, in the most visible way
--- there is: stand north of someone walking north and the sheet hands you
--- their BACK while they advance toward you. A figure moving one way and
--- facing the other is a moonwalk, and it is the first thing anybody
--- notices about a turned camera.
---
--- MarioCam.relativeFacing turns the compass facing by whatever quarter
--- turn the camera is under. Nothing about the WORLD changes: the character
--- still walks north, still collides north, still takes the ledge north.
--- Only the drawing picked for them changes, to the one a viewer standing
--- where the camera stands would actually see.
---
--- The mirror rides the relative facing too, because the mirror is the
--- whole mechanism by which the one profile drawing serves both sides --
--- leaving it on the compass facing would show a character in profile
--- facing the wrong way, which is the same defect wearing a smaller hat.
---
--- Four positions from three drawings is the ceiling here, and it is the
--- ROM's ceiling rather than a choice: SpriteRenderer's rows are
--- down / up / left, with right a mirror of left, and no Gen 1 sheet has a
--- diagonal in it. So the relative facing quantises to a quarter turn and
--- the hysteresis in MarioCam.quadrant is what keeps it from flickering at
--- the boundary. A true eight-way read would need art that does not exist
--- for any sprite in the game.
+-- (The follow camera used to turn, and this picked the drawing for the side
+-- it stood on. It no longer turns -- 2026-10-29 -- so the compass facing is
+-- always the right drawing again.)
 local function frameFor(def, facing, phase, flip)
   local SR = require("src.render.SpriteRenderer")
-  facing = V.require("MarioCam").relativeFacing(facing)
   local frame, mirror = 0, false
   if (def.frames or 1) > 1 then
     frame = (def.walker and phase == 1) and SR.WALK[facing]

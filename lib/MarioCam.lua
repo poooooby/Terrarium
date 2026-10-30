@@ -54,14 +54,15 @@
 --   a block that stands is answered by looking OVER it -- the lens lifts
 --   -- and only then by pulling in, gently (see collision and occlusion).
 --
---   CONTINUOUS YAW.  The sprites have four drawings and no diagonal, so a
---   camera resting between two cardinals shows a character walking
---   diagonally across the screen in art made for straight on. Every yaw
---   the camera RESTS at is now a quarter turn: the C keys step ninety
---   degrees, the stick snaps to a quarter when let go, the follow re-aims
---   to a cardinal, and the card no longer under-rotates toward its
---   drawing. The view still ARCS between bearings; it never stops in
---   between.
+--   A TURNING CAMERA AT ALL.  The sprites have four drawings and no
+--   diagonal, so a camera that orbits needs the D-pad and every
+--   sprite's facing re-mapped to whichever side it stands on -- and the
+--   D-pad remap was the one thing in the mod that changed how the game
+--   CONTROLS. The bearing is now fixed: the camera always looks from the
+--   default side (yaw 0, due south, where the free-roam orbit stands),
+--   in every mode. The C keys, the right stick, the SHOULDER rung's
+--   re-aim behind the player and the quarter-turn input/facing remap
+--   were all removed for that (2026-10-29).
 --
 -- ------- the scale
 --
@@ -78,29 +79,12 @@
 -- 173.8 is 8.05. U = 8, and a 16-pixel cell comes out 128 SM64 units --
 -- a Pokemon tile a little shorter than Mario, which is about right.
 --
--- ------- what it does, and the one thing it changes
+-- ------- what it does
 --
--- Almost all of this is presentational, like the rest of the mod: it
--- changes what the world LOOKS like and nothing about what it IS.
--- Collision, ledges, warps and scripts all still speak compass directions
--- and are untouched.
---
--- The exception is deliberate and it is SM64's own: MOVEMENT IS
--- CAMERA-RELATIVE. There, one line does it --
---
---     m->intendedYaw = atan2s(-stickY, stickX) + m->area->camera->yaw;
---
--- -- and push away from yourself and Mario runs away from you, whatever
--- the camera is doing. An orbiting camera without it is not a camera, it
--- is a puzzle: the world turns under you while Up keeps meaning north.
--- This port refused to do it at first, and hid behind a four-rung ladder
--- that let the player choose how much of that puzzle to accept. The
--- refusal was wrong and the ladder was a symptom; both are gone.
---
--- What that costs, precisely: pressing Up walks the player in whichever
--- world direction currently reads as "away from the camera". The walk
--- itself is an ordinary walk through ordinary collision. See
--- MarioCam.buttonFor.
+-- Presentational, like the rest of the mod: it changes what the world
+-- LOOKS like and nothing about what it IS. Collision, ledges, warps,
+-- scripts and the D-pad all still speak compass directions, and with the
+-- camera always on the default side, Up still means north on screen.
 
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
@@ -547,107 +531,33 @@ local function deadZoned(x, z, dt)
   return anchor.x, anchor.z
 end
 
--- ------------------------------------------------------ player controls --
+-- ---------------------------------------------------------- the distance --
 --
--- SM64 gives the player C-left/C-right to rotate, C-up/C-down to zoom, and
--- R to swap to an alternate mode -- and the design note behind all of it
--- is that the player is a CO-DIRECTOR: rather than try to predict every
--- bad framing, give them the tools to leave one.
---
--- The N64 pad's C buttons are four discrete presses, which is why SM64
--- rotates in 60-degree jumps. This machine has a right stick and a
--- keyboard, so the discrete steps are kept AND a continuous axis is added
--- -- the source doc lists that under "where to diverge" for the plain
--- reason that the hardware reason for the steps is gone.
---
--- The Game Boy buttons are untouched: every one of them is spoken for by
--- the game, and a camera that ate one would be a camera that broke it.
+-- SM64's three zoom rungs. The keys that walked them were removed with the
+-- turning; the camera stands at the default rung, and CLOSE (rooms) reads
+-- the near one.
 
 MarioCam.ZOOMS = { 800 / U, 1400 / U, 2000 / U }   -- close, default, far
 MarioCam.ZOOM_DEFAULT = 2
 
--- ------- A QUARTER TURN PER PRESS, and every resting yaw a quarter turn
---
--- SM64 swings 60 degrees per C press because Mario is a model and looks
--- right from anywhere. These characters are four drawings -- front, back,
--- one profile and its mirror -- and NO drawing for in between. Park the
--- camera at 60 degrees and the player walks diagonally across the screen
--- in art made for straight on: the sprite "sits on a diagonal". So the
--- step is ninety, the stick snaps to the nearest ninety when let go, and
--- the follow re-aims to a cardinal -- every angle the camera RESTS at is
--- one the sheet has a drawing for. The turn between them still arcs.
-MarioCam.C_STEP = degrees(90)
-
--- the nearest resting yaw to `a`
-local function detentYaw(a)
-  local step = MarioCam.C_STEP
-  return s16(math.floor(signed(a) / step + 0.5) * step)
-end
-
 local ctl = {
   zoom = MarioCam.ZOOM_DEFAULT,
-  offsetYaw = 0,          -- sModeOffsetYaw: the player's own bearing
-  goalOffsetYaw = 0,
-  stickHeld = false,      -- the stick was off centre last frame
-  buzz = false,           -- a refused input this frame, for the feedback
 }
 
 MarioCam.ctl = ctl
 
--- The stick, read straight from LOVE rather than through the engine's
--- Input: the engine maps a pad to Game Boy buttons and has no concept of a
--- second stick, so there is nothing there to ask. Nothing is bound that
--- the game uses.
-local function rightStick()
-  if not (love.joystick and love.joystick.getJoysticks) then return 0, 0 end
-  local ok, sticks = pcall(love.joystick.getJoysticks)
-  if not (ok and sticks and sticks[1]) then return 0, 0 end
-  local js = sticks[1]
-  if not (js.isGamepad and js:isGamepad()) then return 0, 0 end
-  local okx, x = pcall(js.getGamepadAxis, js, "rightx")
-  local oky, y = pcall(js.getGamepadAxis, js, "righty")
-  x = (okx and tonumber(x)) or 0
-  y = (oky and tonumber(y)) or 0
-  -- the same deadzone shape the engine uses on the left stick, so a worn
-  -- pad does not creep the camera round while nobody is touching it
-  if math.abs(x) < 0.25 then x = 0 end
-  if math.abs(y) < 0.25 then y = 0 end
-  return x, y
-end
-
--- probe seam: the unit probe has no pad, so it hands in a stick of its own
-MarioCam.readStick = rightStick
-
 -- ------------------------------------------------------------ the rungs --
 --
--- ON or OFF, and nothing in between.
+-- ON or OFF. ON is the follow camera: the two-layer chase, the
+-- floor-derived height, the pan, the dead zone, looking over a wall that
+-- stands between, the shake and the authored shots -- always from the
+-- default side. OFF is the free-roam orbit exactly as it was.
 --
--- This was a four-rung ladder -- OFF / SOFT / RADIAL / FREE -- and every
--- rung above OFF existed for ONE reason: the D-pad did not turn with the
--- camera, so every degree the camera swung was a degree of disagreement
--- between the button and the screen, and the ladder was how much of that
--- disagreement a player was willing to put up with.
---
--- Camera-relative movement removed the reason. Up now means "away from the
--- camera" at every angle (see MarioCam.buttonFor), so there is no
--- disagreement left to ration, and a ladder that rations nothing is three
--- extra things to explain. What is left is the camera: on, or not.
---
--- ON is the whole of it -- the orbit around the PLAYER at a bearing only
--- the player changes, the two-layer chase, the floor-derived height, the
--- pan, the dead zone, the pull-in for a wall that stands between, the
--- shake, camera-relative movement, and the sprite chosen by the angle
--- the camera sees. OFF is the free-roam orbit exactly
--- as it was before any of this existed.
---
--- SHOULDER is the third answer, and it is a STYLE rather than a ration:
--- the same rig as ON -- same chase, same avoidance, same relative input,
--- same authored shots -- but the default mode everywhere is BEHIND, the
--- over-the-shoulder follow modern RPGs park on. The camera stays at the
--- player's back at every step, closer and lower than the orbit, so the
--- frame is always "me, and where I am going".
-MarioCam.MODES = { "off", "on", "shoulder" }
-MarioCam.MODE_LABELS = { "OFF", "ON", "SHOULDER" }
+-- There was a SHOULDER rung, an over-the-shoulder follow that re-aimed
+-- behind the player; it went with the turning. A save that stored it
+-- reads as values[1], OFF (ModSetting's fallback for an unknown value).
+MarioCam.MODES = { "off", "on" }
+MarioCam.MODE_LABELS = { "OFF", "ON" }
 
 MarioCam.setting = ModSetting.new("mariocam", "FOLLOW CAM",
                                   MarioCam.MODES, MarioCam.MODE_LABELS)
@@ -682,22 +592,8 @@ end
 
 local modes = {}
 
--- ------- what a shot may PIN, and what that costs the player
+-- ------- what a shot may PIN
 --
--- A shot that pins the orbit's scalars -- or stands somewhere fixed -- has
--- taken framing decisions away from the player, and the player's framing
--- keys must say so OUT LOUD rather than silently doing nothing: a key that
--- goes quiet reads as a broken key, which is the exact failure the buzz
--- exists for (play_camera_buzz_if_cbutton). A shot that only names a MODE
--- (an "eight" corridor, a "behind" jetty) pins nothing, and the keys keep
--- working inside it.
-local function shotRefusesFraming()
-  local s = cam.shot
-  if not s then return false end
-  return (s.mode or "fixed") == "fixed"
-         or s.zoom ~= nil or s.pitch ~= nil
-end
-
 -- The two pins. Zoom is a DISTANCE in world pixels at the 144-line frame
 -- (the same scale ZOOMS speaks); pitch is DEGREES above the horizon, the
 -- convention the source doc uses for SM64's own numbers. Both clamp the
@@ -749,19 +645,15 @@ end
 -- diverge" is the answer: a world of streets wants an orbit centred on
 -- the player.
 --
--- ------- the ORBIT: player-centred, bearing held
+-- ------- the ORBIT: player-centred, bearing fixed
 --
--- The camera stands at (dist, pitch) from the player along a bearing that
--- ONLY THE PLAYER CHANGES -- the C keys, the stick, or R to put it at
--- their back. It never turns on its own, for any reason: not for where
--- they are on the map, not for which way they walk, not for a wall.
--- Every automatic turn this port has ever had was a thing the player
--- reported as "the camera changing out of nowhere", and a grid game with
--- four-facing sprites gives a turning camera nothing back for the cost.
--- What is left of SM64 is everything ELSE: the chase, the floor height,
--- the lead, the dead zone, the spherical arc between bearings.
+-- The camera stands at (dist, pitch) from the player, always on the
+-- default side (yaw 0). It never turns: not for where they are on the
+-- map, not for which way they walk, not for a wall. What is left of SM64
+-- is everything ELSE: the chase, the floor height, the lead, the dead
+-- zone.
 function modes.orbit(dt, vh)
-  cam.yaw = ctl.offsetYaw
+  cam.yaw = 0
   cam.pitch = shotPitch(ladderPitch())
   cam.dist = shotDist(vh, MarioCam.ZOOMS[ctl.zoom] * (vh / 144))
 
@@ -802,112 +694,24 @@ function modes.close(dt, vh)
   ctl.zoom, MarioCam.DEAD_ZONE = savedZoom, savedDead
 end
 
--- ------- CAMERA_MODE_BEHIND_MARIO
+-- ------- the WATER framing (was CAMERA_MODE_BEHIND_MARIO)
 --
--- Sits behind and follows the facing. SM64 switches to it underwater,
--- because swimming lets Mario control his own pitch and a camera in orbit
--- around a swimmer shows the swimmer's side instead of where they are
--- going.
---
--- Surfing is this world's swimming: the player crosses open water with no
--- landmarks, and the orbit -- keyed off the MAP's centre -- has nothing
--- useful to say out there. Behind the player it is, which also puts the
--- water they are heading into in frame.
--- Two tunings of the same follow: the WATER one (swimming has no
--- landmarks, the camera just keeps the heading readable) and the SHOULDER
--- rung's (an over-the-shoulder that lives closer, sits lower, turns a
--- touch quicker, and leads the walk with the pan -- the frame modern RPGs
--- park on). One function, because they are one idea at two distances.
-MarioCam.SHOULDER_DIST = 0.7          -- of the zoom rung's distance
-MarioCam.SHOULDER_DROP = 18           -- degrees below the VOXEL ladder
-
--- ------- THE FOLLOW COMMITS, IT DOES NOT TWITCH
---
--- The first cut of this mode aimed the camera at the FACING, and on a
--- grid game that is a washing machine: Pokemon movement is up, right,
--- up, right, a re-aim of the entire world on every tap, and the player
--- called it exactly what it was -- dizzying, "changing out of nowhere".
--- A modern follow camera on a grid holds its heading and lets the
--- character turn WITHIN the frame; it only re-aims when the player has
--- COMMITTED to a direction -- walked it, continuously, for long enough
--- to mean it. Turning in place moves nothing. A one-cell side-step moves
--- nothing. A held walk swings the world once, to the new back, and
--- holds again.
--- 1.2 seconds is four or five cells: a street, not a doorstep. The first
--- value here was 0.6 -- two cells -- and a town is nothing but two-cell
--- runs between corners, so the world re-aimed every few seconds of
--- ordinary walking; that is the "dizzy" the player reported, in seconds.
-MarioCam.FOLLOW_COMMIT = 1.2          -- seconds of sustained walk to re-aim
-
-local follow = { heading = nil, facing = nil, commit = 0, lull = 0 }
-
--- the yaw that puts the camera at a character's BACK: cam.yaw is
--- focus-to-pos, so it is the facing negated
-local function faceYaw(facing)
-  local v = FACE_VEC[facing] or FACE_VEC.down
-  return atan2s(-v[1], -v[2])
-end
-
+-- SM64 sits behind a swimmer. This used to as well -- surfing, and the
+-- SHOULDER rung everywhere -- re-aiming to the player's back after a
+-- committed walk. That re-aim was a turning camera and went with the
+-- rest of the turning (2026-10-29). What is left is the framing: on the
+-- water the camera drops lower and comes a little closer, looking ALONG
+-- the water rather than down at it, from the default side.
 function modes.behind(dt, vh)
-  local shoulder = MarioCam.rung() == "shoulder"
-  local faceGoal = faceYaw(geo.facing)
-
-  -- the commitment clock: same facing, actually walking, long enough.
-  -- geo.moving flickers between grid steps (a lesson the walk-clock bug
-  -- taught), so a short lull is forgiven rather than resetting the count.
-  if geo.facing ~= follow.facing then
-    follow.facing = geo.facing
-    follow.commit = 0
-  end
-  if geo.moving then
-    follow.commit = follow.commit + dt
-    follow.lull = 0
-  else
-    follow.lull = follow.lull + dt
-    if follow.lull > 0.2 then follow.commit = 0 end
-  end
-  if follow.heading == nil or follow.commit >= MarioCam.FOLLOW_COMMIT then
-    follow.heading = faceGoal
-  end
-  local goal = follow.heading
-  -- a slow swing, because the facing here snaps between four values and a
-  -- fast one would whip the world round on every turn; the shoulder rung
-  -- takes it slightly quicker, since turning is its whole steering wheel.
-  --
-  -- EXCEPT THE ABOUT-FACE. Walking back toward the lens flips the goal a
-  -- half turn, and at the polite divisor the camera ambles through an
-  -- entire side view before it finds the new back -- which reads as the
-  -- operator being lost, not smooth. A reversal is the one turn the
-  -- follow answers URGENTLY (divisor 3, at the player's back again in a
-  -- third of a second); the quarter turns keep the amble.
-  -- ...and the urgency LATCHES for the whole turn: gating on the raw gap
-  -- re-slows the swing the moment it gets going (the gap falls under the
-  -- threshold after three frames and the amble was back -- the unit probe
-  -- measured the fast path never engaging). Armed past 120, released
-  -- under 25, so one reversal is answered start to finish.
-  local gap = math.abs(signed(goal - cam.yaw))
-  if shoulder and gap > degrees(120) then cam.reversing = true end
-  if cam.reversing and gap < degrees(25) then cam.reversing = nil end
-  local div = shoulder and 6 or 8
-  if shoulder and cam.reversing then div = 3 end
-  cam.yaw = approachS16(cam.yaw, goal, rateDiv(div, dt))
-  -- lower than the orbit: looking ALONG the world rather than down at it
-  local drop = degrees(shoulder and MarioCam.SHOULDER_DROP or 10)
-  cam.pitch = shotPitch(clampPitch(ladderPitch() - drop,
+  cam.yaw = 0
+  cam.pitch = shotPitch(clampPitch(ladderPitch() - degrees(10),
                                    degrees(70), degrees(3)))
-  local factor = shoulder and MarioCam.SHOULDER_DIST or 0.85
-  cam.dist = shotDist(vh, MarioCam.ZOOMS[ctl.zoom] * (vh / 144) * factor)
+  cam.dist = shotDist(vh, MarioCam.ZOOMS[ctl.zoom] * (vh / 144) * 0.85)
 
   local px, pz = deadZoned(geo.px, geo.pz, dt)
-  local ax, az = 0, 0
-  if shoulder then
-    -- the walk leads the frame: over a shoulder, "where I am going" is
-    -- the whole point of the composition
-    ax, az = panAheadOfPlayer(dt)
-  end
-  cam.focus[1] = px + ax
+  cam.focus[1] = px
   cam.focus[2] = floorY()
-  cam.focus[3] = pz + az
+  cam.focus[3] = pz
   focusOnPlayer(cam.focus, cam.pos, 0, 0, cam.dist, cam.pitch, cam.yaw)
 end
 
@@ -1215,12 +1019,8 @@ end
 -- for the easy ninety percent, and the ten percent it cannot do is the
 -- part players remember.
 
--- What this map wants by default, from what the map IS -- unless the
--- player chose the SHOULDER rung, which is one answer everywhere: the
--- rung is a promise about where the camera stands, and a promise that
--- broke at every door would not be one.
+-- What this map wants by default, from what the map IS.
 local function defaultModeFor()
-  if MarioCam.rung() == "shoulder" then return "behind" end
   if geo.onWater then return "behind" end
   if geo.indoors then return "close" end
   return "orbit"
@@ -1254,8 +1054,8 @@ end
 -- The current pose, spoken in camera_shots.lua's OWN vocabulary and ready
 -- to paste -- both spellings of it, because a spot does not know yet
 -- whether it wants a parked camera or a pinned orbit. Authoring becomes:
--- walk there, frame it with the keys that already exist (q/e/f and the
--- VOXEL ladder), press the key, paste the one you meant.
+-- walk there, frame it (the right stick and the VOXEL ladder; the q/e/f
+-- camera keys were removed), press the key, paste the one you meant.
 function MarioCam.editorDump(vh)
   if not MarioCam.enabled() then return nil end
   vh = tonumber(vh) or 144
@@ -1312,31 +1112,16 @@ local function courseProcessing()
   -- the scenery.
   local map = geo.map
   if map ~= cam.lastMap then
-    local wasIndoors = cam.lastIndoors
     cam.lastMap = map
-    cam.lastIndoors = geo.indoors
     lakitu.smooth = false
     anchor.x, anchor.z = nil, nil
     pan.x, pan.z = 0, 0
     pull.t, pull.lift, pull.blocked = 1, 0, 0
-    follow.heading, follow.facing = nil, nil
-    follow.commit, follow.lull = 0, 0
-    cam.reversing = nil
     cam.shot = nil
     -- a map change is a cut, and the lens cuts with it: easing a leftover
     -- shot's 30-degree lens back to 45 across a door would be the one
     -- gradual thing in a frame where everything else snapped
     MarioCam.setFov("SET", MarioCam.FOV_DEFAULT)
-    -- THE BEARING SURVIVES A ROUTE CONNECTION. Walking off the edge of one
-    -- outdoor map onto the next is not a door: the world is continuous
-    -- and the player is mid-stride. Resetting the yaw there spun the view
-    -- home and remapped the D-pad under a held button, at the one moment
-    -- no key had been pressed to explain it. A door -- into a room, or
-    -- out of one -- is a cut in every sense and starts from the default.
-    if wasIndoors == nil or wasIndoors or geo.indoors then
-      ctl.offsetYaw, ctl.goalOffsetYaw = 0, 0
-    end
-    ctl.stickHeld = false
     cam.defMode = defaultModeFor()
     cam.mode = cam.defMode
     trans.frame, trans.max = 0, 0
@@ -1536,119 +1321,6 @@ local function updateLakitu(dt)
   lakitu.curPos[2] = approachF32(lakitu.curPos[2], lakitu.goalPos[2], pv)
 end
 
--- ------------------------------------------------------------- controls --
-
--- SM64 plays a sound for every accepted camera input and a BUZZ for every
--- refused one, so the player is never left wondering whether the press
--- registered. Cheap to add and expensive to notice missing -- so the
--- refusal is recorded here and surfaced as a flag the caller can act on
--- (see MarioCam.consumeBuzz), rather than silently dropped.
-
--- ------- WHICH YAW THE PLAYER IS TURNING
---
--- In the orbit it is the offset, and the mode reads it straight. In the
--- follow (water, and the SHOULDER rung) it is the follow's own heading:
--- a turn there is "look this way until I walk somewhere", so the next
--- committed walk puts the camera back at the player's back and the turn
--- is honestly gone. An offset that survived the re-aim would leave the
--- camera parked ninety degrees off the back for the rest of the walk.
-local function turnTarget()
-  if cam.mode == "behind" then
-    return follow.heading or faceYaw(geo.facing)
-  end
-  return ctl.goalOffsetYaw
-end
-
-local function setTurnTarget(yaw)
-  if cam.mode == "behind" then
-    follow.heading = yaw
-    follow.commit = 0
-  else
-    ctl.goalOffsetYaw = yaw
-  end
-end
-
-local function rotate(dir)
-  -- an authored shot that has taken the framing refuses the wheel, out
-  -- loud -- the buzz the caller surfaces as the Denied voice
-  if shotRefusesFraming() then
-    ctl.buzz = true
-    return false
-  end
-  -- from the nearest resting yaw, so a press mid-arc lands on the next
-  -- quarter rather than on a quarter-and-a-bit
-  setTurnTarget(detentYaw(turnTarget() + dir * MarioCam.C_STEP))
-  return true
-end
-
-function MarioCam.rotateLeft()  return rotate(-1) end
-function MarioCam.rotateRight() return rotate(1) end
-
--- C-down / C-up: three zoom rungs. Wraps, so one key walks the ladder.
-function MarioCam.cycleZoom()
-  if shotRefusesFraming() then
-    ctl.buzz = true
-    return nil
-  end
-  ctl.zoom = ctl.zoom % #MarioCam.ZOOMS + 1
-  return MarioCam.ZOOMS[ctl.zoom]
-end
-
--- The R button: put the camera at my back.
---
--- SM64's R swaps to the alternate mode -- the 45-degree-locked camera --
--- because the automatic camera there generates the complaint "it keeps
--- turning while I am trying to line something up". This camera never
--- turns on its own, so that complaint has nothing to attach to, and the
--- one framing key every modern follow camera has is the one that was
--- missing: R arcs the camera round to whichever way the player faces.
--- One deliberate turn, on request, to a cardinal.
-function MarioCam.snapBehind()
-  if shotRefusesFraming() then
-    ctl.buzz = true
-    return false
-  end
-  setTurnTarget(faceYaw(geo.facing))
-  return true
-end
-
-function MarioCam.recenter()
-  ctl.goalOffsetYaw = 0
-  ctl.stickHeld = false
-end
-
--- The refusal, for the caller to voice: an authored shot that has pinned
--- the framing declines the wheel and the zoom (see shotRefusesFraming),
--- and a key that goes quiet reads as a broken key -- the source document's
--- point about never leaving a press unanswered.
-function MarioCam.consumeBuzz()
-  local b = ctl.buzz
-  ctl.buzz = false
-  return b
-end
-
--- The right stick, folded into the same yaw the keys turn, so the two
--- ways of asking for a bearing cannot disagree about what the answer is.
--- Continuous while held -- 120 degrees a second at full deflection, fast
--- enough to be useful and slow enough that a flick does not lose the
--- player -- and SNAPPED to the nearest quarter turn when let go, so the
--- camera rests where the sprites have a drawing for it.
-local function stickYaw(dt)
-  local x = MarioCam.readStick()
-  if x ~= 0 then
-    -- the stick has no buzz to give, so inside a framing shot it is simply
-    -- inert -- same refusal as the keys, minus the voice it cannot carry
-    if shotRefusesFraming() then return end
-    setTurnTarget(s16(turnTarget() + x * degrees(120) * dt))
-    ctl.stickHeld = true
-  elseif ctl.stickHeld then
-    ctl.stickHeld = false
-    if not shotRefusesFraming() then
-      setTurnTarget(detentYaw(turnTarget()))
-    end
-  end
-end
-
 -- ---------------------------------------------------------- update_camera --
 --
 -- The per-frame order, and it is the decomp's order because the order is
@@ -1671,9 +1343,6 @@ function MarioCam.update(dt, vh)
   if not findPlayerFloor() then return end
   -- 2. what the world says about the camera
   courseProcessing()
-  -- 3. the player's own inputs
-  stickYaw(dt)
-  ctl.offsetYaw = approachS16(ctl.offsetYaw, ctl.goalOffsetYaw, rateDiv(6, dt))
   -- 4. the mode: writes cam.pos and cam.focus, and nothing else does
   local fn = modes[cam.mode] or modes.orbit
   fn(dt, vh)
@@ -1788,9 +1457,6 @@ function MarioCam.cut()
   lakitu.smooth = false
   anchor.x, anchor.z = nil, nil
   pull.t, pull.lift, pull.blocked = 1, 0, 0
-  follow.heading, follow.facing = nil, nil
-  follow.commit, follow.lull = 0, 0
-  cam.reversing = nil
 end
 
 -- The yaw the world is being seen from, in radians, for anything that has
@@ -1834,146 +1500,6 @@ function MarioCam.orbitAngle()
   if flat < 1e-6 then return 0 end
   -- the angle between the view ray and straight down
   return math.pi / 2 - math.atan2(-dy, flat)
-end
-
--- ------------------------------------------------ the world, in quadrants --
---
--- SM64 makes the stick camera-relative in one line:
---
---     m->intendedYaw = atan2s(-stickY, stickX) + m->area->camera->yaw;
---
--- Push away from yourself and Mario runs away from you, whatever the
--- camera is doing. It is not a convenience -- it is the reason an orbiting
--- camera is playable at all, and the header of this file used to explain
--- at length why this port would NOT do it. That was the wrong call and
--- this is the correction.
---
--- What makes it different here is that this world has FOUR directions, not
--- an analog circle. A Pokemon character walks on a grid, and every system
--- under them -- collision, ledges, warps, scripts, the sprite sheet -- is
--- written in world compass directions. So the rotation cannot be
--- continuous. It quantises to a QUARTER TURN, and everything below is that
--- quarter turn: which of the four world directions currently reads as
--- "away from the camera".
---
--- Clockwise from north, matching the compass and matching the order the
--- overworld's own movement loop walks.
-local DIRS = { "up", "right", "down", "left" }
-local DIR_INDEX = { up = 0, right = 1, down = 2, left = 3 }
-
-MarioCam.DIRS = DIRS
-MarioCam.DIR_INDEX = DIR_INDEX
-
--- Hysteresis on the quadrant boundary, in degrees past the midpoint.
---
--- Without it the mapping flips every frame while the camera hovers near 45
--- degrees, and a flip means the button under the player's thumb silently
--- becomes a different direction -- so a player walking a diagonal path
--- would have the controls swap back and forth under them, which is far
--- worse than either mapping. 8 degrees of overlap costs nothing and makes
--- the boundary a place you cross rather than a place you sit on.
-MarioCam.QUADRANT_HYST = 8
-
-local quad = 0
-
--- ------- THE MAPPING NEVER CHANGES UNDER THE PLAYER'S THUMB.
---
--- The hysteresis stops the boundary flickering; it does not stop the
--- boundary being CROSSED, and every quarter turn crosses one -- press E
--- while walking east and the view swings until, mid-stride, the held
--- button silently becomes a different world direction. "I was going right
--- and right turned into up" is that exact frame, and no width of
--- hysteresis fixes it, because the problem is not noise at the boundary,
--- it is a remap while the button is DOWN.
---
--- SM64 does not have the problem to solve: the stick is an angle, so a
--- turning camera bends the walk gradually. A D-pad is four discrete
--- meanings, so the only correct time to change what a button means is
--- while no button is held and no step is in flight. The quadrant LATCHES
--- during both, and re-reads the camera the moment the player lets go --
--- which is also the moment they can see what the buttons now mean.
---
--- main.lua supplies the "is a direction physically held" answer, because
--- only it holds the unwrapped Input (asking the wrapped one would recurse
--- straight back through buttonFor).
-local steering = function() return false end
-
-function MarioCam.setSteeringProbe(fn)
-  steering = fn or function() return false end
-end
-
--- Which quarter turn the world is under, 0..3. Zero means "no rotation",
--- which is what the free-roam orbit answers with the row off, so
--- every caller below is an identity for them.
-function MarioCam.quadrant()
-  if not MarioCam.enabled() then return 0 end
-  if geo.moving then return quad end
-  local okS, held = pcall(steering)
-  if okS and held then return quad end
-  local deg = math.deg(MarioCam.viewYaw())
-  -- distance, in degrees, from the quadrant currently held
-  local away = ((deg - quad * 90 + 180) % 360) - 180
-  if math.abs(away) > 45 + MarioCam.QUADRANT_HYST then
-    quad = math.floor((deg % 360) / 90 + 0.5) % 4
-  end
-  return quad
-end
-
--- ------- WHICH BUTTON THE GAME SHOULD BE ASKING ABOUT
---
--- The overworld's movement loop asks "is UP held?" when it is considering
--- moving the player north. With the world under a quarter turn, the answer
--- it wants is whether the button that currently MEANS north is held -- and
--- that is the physical button a quarter turn the other way.
---
--- Note the inverse: pressing physical up moves the player along
--- (p + k), so a query about world direction w has to look at (w - k).
--- Getting that backwards produces controls that are wrong by a half turn
--- at 180 degrees and feel almost right everywhere else, which is the worst
--- possible failure because it survives casual testing.
-function MarioCam.buttonFor(worldDir)
-  local w = DIR_INDEX[worldDir]
-  if not w then return worldDir end
-  local k = MarioCam.quadrant()
-  if k == 0 then return worldDir end
-  return DIRS[(w - k) % 4 + 1]
-end
-
--- ------- AND WHICH WAY A CHARACTER IS FACING, AS THE CAMERA SEES IT
---
--- The other half of the same rotation, and the fix for the walk that reads
--- as a moonwalk.
---
--- A sprite sheet here holds three drawings -- front, back, and a profile
--- that mirrors for the other side -- indexed by the character's compass
--- facing. That is exactly right for a camera that cannot move: north is
--- always away from you, so the north drawing is always the back.
---
--- Turn the camera and it is nonsense. Stand north of someone walking north
--- and the game hands you their BACK while they walk toward you: they
--- advance across the screen while facing the other way, which is a
--- moonwalk, and it is the single most-noticed artefact of the orbit.
---
--- So the frame is chosen by the facing RELATIVE TO THE CAMERA. The
--- character still walks north in the world -- collision, ledges, warps and
--- scripts are untouched and still speak compass -- but the drawing picked
--- for them is the one that shows what a viewer standing where the camera
--- stands would actually see.
-function MarioCam.relativeFacing(worldFacing)
-  local w = DIR_INDEX[worldFacing]
-  if not w then return worldFacing end
-  local k = MarioCam.quadrant()
-  if k == 0 then return worldFacing end
-  return DIRS[(w - k) % 4 + 1]
-end
-
--- Camera-relative movement is a REAL GAMEPLAY CHANGE and the only thing in
--- this mod that is, so it says so out loud rather than hiding inside
--- enabled(). It rides the rung that can turn the camera, because those are
--- the same question: a camera that turns without this is a camera you
--- cannot walk under.
-function MarioCam.rotatesInput()
-  return MarioCam.enabled()
 end
 
 -- The other two things ShadowMap.groundReach has to know about a camera

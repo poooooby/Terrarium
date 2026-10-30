@@ -59,17 +59,10 @@ local KEY_SKYLINE = "k"  -- HORIZON far silhouettes
 -- next on each press -- the only way to SEE the pack without a fight, and
 -- the way to tell "the row is off" apart from "the sheet did not decode".
 local KEY_FX = "j"
--- The SM64 camera and its own controls. `r` is SM64's own R button, kept
--- deliberately; `q`/`e` are the C-left/C-right pair, `f` walks the three
--- zoom rungs and `m` cycles the row itself. All five are free of the
--- engine's 2-5, of upstream DRAMATIC_SHAPE's 3/5/6/7/8/9, of every other
--- key above, and -- the one that matters -- of the Game Boy bindings in
--- src/core/Input.lua, every one of which the GAME needs.
+-- The SM64 camera's row. It had four keys of its own as well (q/e turn,
+-- r behind you, f zoom); they went with the turning camera (2026-10-29) --
+-- it now always looks from the default side.
 local KEY_SM64  = "m"   -- FOLLOW CAM ON / OFF
-local KEY_CAML  = "q"   -- C-left
-local KEY_CAMR  = "e"   -- C-right
-local KEY_CAMR2 = "r"   -- R: put the camera at my back
-local KEY_CAMZ  = "f"   -- C-down: the zoom ladder
 V.KEYS = {
   voxel = KEY_VOXEL, grid = KEY_GRID, tilt = KEY_TILT,
   curve = KEY_CURVE, battle = KEY_BATTLE, map = KEY_MAP,
@@ -1187,17 +1180,10 @@ local SETTINGS = {
     "The Super Mario 64 camera. A camera operator rather than a fixed "
     .. "mount: it turns to look at you far faster than it flies to where "
     .. "it wants to stand, takes its height from the GROUND under you so "
-    .. "steps do not bob the frame, and leads the way you are walking. "
-    .. "IT NEVER TURNS ON ITS OWN: the view holds its bearing until you "
-    .. "turn it, a quarter turn at a time, so the sprites always face the "
-    .. "lens square. Q and E turn it, R puts it at your back, F walks the "
-    .. "zoom, and the right stick turns it freely and settles on a "
-    .. "quarter. SHOULDER follows behind you and re-aims only after a "
-    .. "committed walk. MOVEMENT TURNS WITH IT, as in Mario 64: the "
-    .. "D-pad walks you AWAY FROM THE CAMERA rather than due north, and "
-    .. "characters are drawn from the side the camera is actually on. "
-    .. "This is the one row in the mod that changes how the game "
-    .. "CONTROLS and not only how it looks.",
+    .. "steps do not bob the frame, leads the way you are walking, and "
+    .. "looks over a wall that stands between you. It always looks from "
+    .. "the usual side, so the controls and the sprites are exactly the "
+    .. "game's own.",
     full = true },
   { Aerial.setting,
     "Distance haze: far ground fades into the hour's own sky colour, so "
@@ -1321,12 +1307,6 @@ local HOTKEYS = {
   [KEY_MAP]    = MiniMap.setting,
   [KEY_FX]     = "vfxdemo",
   [KEY_SM64]   = MarioCam.setting,
-  -- the four camera controls. Not settings and not pipelines, so they get
-  -- their own claim and are dispatched by name below.
-  [KEY_CAML]   = "cam:left",
-  [KEY_CAMR]   = "cam:right",
-  [KEY_CAMR2]  = "cam:alt",
-  [KEY_CAMZ]   = "cam:zoom",
 }
 
 -- ------- the shot editor, which players never see
@@ -1367,92 +1347,12 @@ end
 -- the mod should care that a human is walking the list one press at a time.
 local vfxDemoIndex = 0
 
--- ------- CAMERA-RELATIVE MOVEMENT
+-- ------- the battle costume's D-pad
 --
--- THE ONE PLACE THIS MOD TOUCHES CONTROL. Everything else in it is
--- presentational and says so; this is not, and it is here deliberately.
---
--- SM64 makes the stick camera-relative -- push away from yourself and
--- Mario runs away from you, whatever the camera is doing. Without it an
--- orbiting camera is not a camera, it is a puzzle: the world turns
--- underneath you and Up keeps meaning north, so walking a straight line
--- means re-deriving which button is "forward" every time the camera
--- swings. The first cut of this port refused to do it for the sake of the
--- "purely presentational" line, and refusing was the wrong call.
---
--- What is remapped is only WHICH BUTTON the movement loop consults for a
--- given world direction. The world itself is untouched and still speaks
--- compass in every direction that matters: collision, ledges, warps,
--- scripted walks and the sprite sheet all still take "north" to mean
--- north. Press up under a quarter turn and the player genuinely walks
--- west -- the same walk, through the same collision, as if west had been
--- pressed.
---
--- Gated three ways, and each gate earns its place:
---
---   the rung        SOFT pins the camera, so there is nothing to correct
---                   for and the controls are left exactly alone. OFF, the
---                   same. Only a camera that can TURN rotates input.
---   the free-roam   no diorama, no rotation. The flat 2D world is drawn
---                   north-up and always was.
---   the stack top   a menu is not the overworld. Screens read the same
---                   four buttons for their cursors, and a bag that scrolls
---                   sideways because the camera is pointed east would be
---                   an unambiguous bug.
---
--- Wrapped at Input:isDown rather than inside the controller because the
--- controller's movement loop is one `for` over the four names in the
--- middle of a long function, with no seam of its own -- and because this
--- way the shape of the change is exactly one sentence: the four direction
--- queries answer about a rotated world, and every other button is passed
--- through untouched.
+-- (This block used to also remap the overworld D-pad to whichever side the
+-- follow camera had turned to -- the one place the mod touched control.
+-- The turning camera was removed on 2026-10-29 and the remap with it.)
 do
-  local Input = require("src.core.Input")
-  local Game = require("src.core.Game")
-  local innerIsDown = Input.isDown
-
-  function Input:isDown(btn)
-    if MarioCam.DIR_INDEX[btn] and MarioCam.rotatesInput() then
-      local top = Game.stack and Game.stack:top()
-      if top and top == Game.overworld then
-        return innerIsDown(self, MarioCam.buttonFor(btn))
-      end
-    end
-    return innerIsDown(self, btn)
-  end
-
-  -- The SAME translation for the one other direction query the engine
-  -- makes: Player:turnWindow asks "is the TOUCH overlay holding my
-  -- facing's button" to widen the tap-to-turn window on touch. The facing
-  -- is a WORLD direction, so under a turned camera the touch button that
-  -- means it is buttonFor's answer -- exactly as with isDown above.
-  -- Wrapped conditionally: not every build of the engine ships the touch
-  -- overlay, and the call site already guards for its absence.
-  if Input.isTouchDown then
-    local innerIsTouchDown = Input.isTouchDown
-    function Input:isTouchDown(btn)
-      if MarioCam.DIR_INDEX[btn] and MarioCam.rotatesInput() then
-        local top = Game.stack and Game.stack:top()
-        if top and top == Game.overworld then
-          return innerIsTouchDown(self, MarioCam.buttonFor(btn))
-        end
-      end
-      return innerIsTouchDown(self, btn)
-    end
-  end
-
-  -- The camera may not change what a held button MEANS (see
-  -- MarioCam.quadrant), and to enforce that it has to know whether one is
-  -- held -- physically, on the unwrapped state, because asking the wrapped
-  -- isDown above would recurse through buttonFor. The live Input instance
-  -- keeps that state as a plain table, which is also what the probes
-  -- drive, so a synthetic hold latches exactly like a real one.
-  MarioCam.setSteeringProbe(function()
-    local st = Game.input and Game.input.state
-    if not st then return false end
-    return (st.up or st.down or st.left or st.right) and true or false
-  end)
-
   -- the battle costume's dpad: swallow the engine 2x2 / vertical list
   -- and walk the picture instead (see lib/BattleNav.lua)
   V.require("BattleNav").install()
@@ -1510,39 +1410,8 @@ do
           self:writeOptions()
           return
         end
-      elseif type(claim) == "string" and claim:sub(1, 4) == "cam:" then
-        -- The SM64 camera's own four controls, behind the same free-roam
-        -- gate as everything else here -- there is no camera to turn while
-        -- a warp or a cutscene owns the screen.
-        --
-        -- EVERY PRESS IS ANSWERED, ACCEPTED OR NOT. SM64 plays a distinct
-        -- sound for each camera input it takes (play_sound_cbutton_side,
-        -- play_sound_rbutton_changed) and a buzz for each one it refuses
-        -- (play_camera_buzz_if_cbutton), so the player never has to wonder
-        -- whether the button registered. The source document calls that out
-        -- as the detail that is cheap to add and expensive to notice
-        -- missing, and it is not decoration here: turning is refused on the
-        -- SOFT rung BY DESIGN, which is precisely the case that has to say
-        -- so out loud or it reads as a broken key.
-        --
-        -- The game's own three sounds, not invented ones: Tink for a C
-        -- press, Switch for the R button, Denied for a refusal. A camera
-        -- that spoke in a voice the rest of the game does not have would be
-        -- worse than one that said nothing.
-        if Pipelines.canToggle(PIPE_VOXEL, top, self.overworld)
-           and MarioCam.enabled() then
-          local what = claim:sub(5)
-          local voice = "Tink"
-          if what == "left" then MarioCam.rotateLeft()
-          elseif what == "right" then MarioCam.rotateRight()
-          elseif what == "alt" then MarioCam.snapBehind() voice = "Switch"
-          elseif what == "zoom" then MarioCam.cycleZoom() end
-          if MarioCam.consumeBuzz() then voice = "Denied" end
-          pcall(require("src.core.Sound").play, self.data, voice)
-        end
-        return
       elseif type(claim) == "string" and claim:sub(1, 5) == "shot:" then
-        -- the editor keys: free-roam only, like every camera key above
+        -- the editor keys: free-roam only, like every key above
         if Pipelines.canToggle(PIPE_VOXEL, top, self.overworld) then
           local what = claim:sub(6)
           if what == "reload" then
