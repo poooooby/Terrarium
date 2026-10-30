@@ -37,6 +37,9 @@ local PaletteFX = require("src.render.PaletteFX")
 -- (see Water.lua). Required here rather than pushed in: this file already
 -- owns the animation clock, and Water has no reverse dependency on us.
 local Water = V.require("Water")
+-- cold.* spans for the profiling drivers (tools/profiler); dark by
+-- default, one nil test per site
+local Perf = V.require("Perf")
 local RenderTarget = V.require("RenderTarget")
 
 local TerrainAtlas = {}
@@ -96,6 +99,7 @@ local function staticAtlas(map, colors)
   if cache[key] ~= nil then return cache[key] or base, cacheData[key] end
 
   local data
+  local coldT0 = Perf.now()
   local ok, img = pcall(function()
     local src = Assets.imageData(path)
     local w, h = src:getDimensions()
@@ -114,6 +118,7 @@ local function staticAtlas(map, colors)
   end)
   cache[key] = ok and img or false
   cacheData[key] = (ok and data) or false
+  Perf.add("cold.atlas.bake", coldT0)
   return cache[key] or base, cacheData[key]
 end
 

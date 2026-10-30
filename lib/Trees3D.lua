@@ -59,6 +59,9 @@
 local V = ...
 
 local Voxel3D = V.require("Voxel3D")
+-- cold.* spans for the profiling drivers (tools/profiler); dark by
+-- default, one nil test per site
+local Perf = V.require("Perf")
 local ModSetting = V.require("ModSetting")
 
 local Trees3D = {}
@@ -1221,11 +1224,15 @@ local function meshesFor(map)
 
   st.frames = st.frames + 1
   local last = math.min(st.i + Trees3D.SLICE_SITES - 1, #st.sites)
+  local t0 = Perf.now()
   Trees3D.stampRange(st, st.i, last)
+  Perf.add("cold.trees.stamp", t0)
   st.i = last + 1
   if st.i <= #st.sites then return nil end
 
+  t0 = Perf.now()
   local built = Trees3D.finishBuild(st)
+  Perf.add("cold.trees.finish", t0)
   pending[id] = nil
   meshes[id] = built or false
   builtSites[id] = #st.sites

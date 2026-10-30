@@ -52,6 +52,9 @@ local V = ...
 
 local Assets = require("src.render.Assets")
 local Structures = V.require("Structures")
+-- cold.* spans for the profiling drivers (tools/profiler); dark by
+-- default, one nil test per site
+local Perf = V.require("Perf")
 local TileShape = V.require("TileShape")
 local Voxel3D = V.require("Voxel3D")
 local Budget = V.require("BuildBudget")
@@ -1662,6 +1665,10 @@ local function nextJob()
   return pick
 end
 
+-- Perf labels per slot, built once: a label is concatenated nowhere on the
+-- per-frame path.
+local COLD_LABEL = { full = "cold.mesh.full", body = "cold.mesh.body" }
+
 function ChunkMesher.pump(covered)
   if #jobs == 0 then return end
   local pick = nextJob()
@@ -1675,7 +1682,9 @@ function ChunkMesher.pump(covered)
       pick.co = coroutine.create(runJob)
     end
     Budget.begin(pick.co, deadline - clock())
+    local t0 = Perf.now()
     local ok, err = coroutine.resume(pick.co, pick)
+    Perf.add(COLD_LABEL[pick.slot] or "cold.mesh", t0)
     Budget.finish()
     if not ok then
       finishJob(pick, false, err)

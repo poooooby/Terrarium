@@ -50,6 +50,21 @@ end
 
 Perf.enabled = (envFlag("DS_PERF") ~= nil) or flagFile()
 
+-- Two switches only a DRIVER sets (tools/profiler/Harness.lua); the mod
+-- never turns either on, so neither costs a player anything.
+--
+--   sink        function(label, t0, t1), called for every finished span.
+--               The harness forwards spans to AppleCake from here, so the
+--               trace and this module's tables are the same measurement.
+--   trackAlloc  Perf.wrap also reads collectgarbage("count") around each
+--               call and keeps the KB the call allocated. Only meaningful
+--               while the collector is STOPPED (tools/profiler/GcMeter.lua
+--               does that): with it running, a cycle that lands mid-call
+--               reads as a negative allocation. Inclusive -- a wrapped
+--               function that calls another wrapped one carries its KB too.
+Perf.sink = nil
+Perf.trackAlloc = false
+
 Perf.labels = {}      -- label -> { n, total, max }
 Perf.order = {}       -- insertion order, so a report reads chronologically
 Perf.counters = {}    -- name -> integer
@@ -104,21 +119,28 @@ end
 local function bump(store, order, label, dt)
   local s = store[label]
   if not s then
-    s = { n = 0, total = 0, max = 0 }
+    s = { n = 0, total = 0, max = 0, kb = 0 }
     store[label] = s
     order[#order + 1] = label
   end
   s.n = s.n + 1
   s.total = s.total + dt
   if dt > s.max then s.max = dt end
+  return s
 end
 
-function Perf.add(label, t0)
+function Perf.add(label, t0, kb)
   if t0 == nil then return end
-  local dt = clock() - t0
-  bump(Perf.labels, Perf.order, label, dt)
+  local t1 = clock()
+  local dt = t1 - t0
+  local s = bump(Perf.labels, Perf.order, label, dt)
   local seg = segmentEntry()
-  if seg then bump(seg.labels, seg.order, label, dt) end
+  local ss = seg and bump(seg.labels, seg.order, label, dt)
+  if kb then
+    s.kb = s.kb + kb
+    if ss then ss.kb = ss.kb + kb end
+  end
+  if Perf.sink then Perf.sink(label, t0, t1) end
 end
 
 -- Wrap a function in a table, in place. Used by drivers to instrument
@@ -129,6 +151,13 @@ function Perf.wrap(tbl, name, label)
   if not orig then return false end
   tbl[name] = function(...)
     if not Perf.enabled then return orig(...) end
+    if Perf.trackAlloc then
+      local k0 = collectgarbage("count")
+      local t0 = clock()
+      local a, b, c, d = orig(...)
+      Perf.add(label or name, t0, collectgarbage("count") - k0)
+      return a, b, c, d
+    end
     local t0 = clock()
     local a, b, c, d = orig(...)
     Perf.add(label or name, t0)
@@ -241,8 +270,8 @@ function Perf.printReport(title)
   print("[perf] ---- labels (ms, sorted by total) ----")
   for _, lbl in ipairs(sortedLabels(Perf.labels, Perf.order)) do
     local s = Perf.labels[lbl]
-    print(("[perf] %-46s n=%6d total=%9.1f max=%8.2f")
-      :format(lbl, s.n, s.total * 1000, s.max * 1000))
+    print(("[perf] %-46s n=%6d total=%9.1f max=%8.2f kb=%10.1f")
+      :format(lbl, s.n, s.total * 1000, s.max * 1000, s.kb))
   end
   local names = {}
   for k in pairs(Perf.counters) do names[#names + 1] = k end
@@ -281,8 +310,8 @@ local function labelsJson(store, order)
   local parts = {}
   for _, lbl in ipairs(sortedLabels(store, order)) do
     local s = store[lbl]
-    parts[#parts + 1] = ("%s:{\"n\":%d,\"total\":%s,\"max\":%s}")
-      :format(q(lbl), s.n, num(s.total * 1000), num(s.max * 1000))
+    parts[#parts + 1] = ("%s:{\"n\":%d,\"total\":%s,\"max\":%s,\"kb\":%s}")
+      :format(q(lbl), s.n, num(s.total * 1000), num(s.max * 1000), num(s.kb))
   end
   return "{" .. table.concat(parts, ",") .. "}"
 end

@@ -47,6 +47,9 @@ local V = ...
 local Assets = require("src.render.Assets")
 local Map = require("src.world.Map")
 local Buildings = V.require("Buildings")
+-- cold.* spans for the profiling drivers (tools/profiler); dark by
+-- default, one nil test per site
+local Perf = V.require("Perf")
 local TileShape = V.require("TileShape")
 local Budget = V.require("BuildBudget")
 
@@ -152,6 +155,7 @@ end
 function Structures.forMap(map)
   local S = cache[map.id]
   if S then return S end
+  local coldT0 = Perf.now()
 
   local tileset = map.tileset
   local shapes = TileShape.forMap(map)
@@ -561,6 +565,7 @@ function Structures.forMap(map)
 
   Structures.stage = { map = map.id, pass = "done" }
   cache[map.id] = S
+  Perf.add("cold.structures", coldT0)
   return S
 end
 

@@ -132,6 +132,7 @@ local DayTint = V.require("DayTint")
 local Quality = V.require("Quality")
 local Device = V.require("Device")
 local Diag = V.require("Diag")
+local Perf = V.require("Perf")
 local Lang = V.require("Lang")
 local Wind = V.require("Wind")
 local Trees3D = V.require("Trees3D")
@@ -498,6 +499,9 @@ mod.content.render_pipelines:register(PIPE_VOXEL, {
     -- while the mode is OFF and the engine may tick it more than once
     -- between two frames.  A no-op unless the RES row is on AUTO.
     Quality.frame()
+    -- Perf's frame ring, for a profiling driver (tools/profiler). Dark by
+    -- default: one boolean test unless a run turned measurement on.
+    Perf.frame()
     local canvas = VoxelScene.render(ctx.state, sw, sh,
                                      ctx.vw, ctx.vh, ctx.paletteFor)
     if not canvas then return nil end   -- fall back to the 2D path

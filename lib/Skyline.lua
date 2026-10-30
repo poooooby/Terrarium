@@ -48,6 +48,9 @@
 local V = ...
 
 local Voxel3D = V.require("Voxel3D")
+-- cold.* spans for the profiling drivers (tools/profiler); dark by
+-- default, one nil test per site
+local Perf = V.require("Perf")
 local Mat4 = V.require("Mat4")
 local WorldAtlas = V.require("WorldAtlas")
 local ModSetting = V.require("ModSetting")
@@ -405,7 +408,9 @@ function Skyline.draw(state, cx, cy, vh)
       local mesh = meshes[e.id]
       if mesh == nil and not builtThisFrame then
         builtThisFrame = true
+        local t0 = Perf.now()
         build(def, e.id)
+        Perf.add("cold.skyline", t0)
         mesh = meshes[e.id]
       end
       if mesh then
