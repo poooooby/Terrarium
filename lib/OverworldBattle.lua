@@ -810,6 +810,9 @@ local OFF = {
   player = { enemy = false, showEnemyTrainer = false },
 }
 
+-- once per session: a leaked transform push in the pics layer (see below)
+local leakWarned = false
+
 -- Render one side's pics layer into its canvas and report where the pic's
 -- feet ended up, in canvas coordinates.
 function OverworldBattle.sideTexture(battle, side)
@@ -835,6 +838,25 @@ function OverworldBattle.sideTexture(battle, side)
   for k, v in pairs(OFF[side]) do saved[k] = battle[k]; battle[k] = v end
   texturing = side
 
+  -- ------- THE TRANSFORM STACK COMES BACK BALANCED, WHATEVER HAPPENED IN THERE
+  --
+  -- The pics layer is a chain of other mods' wraps (g9-battle-sprites scales
+  -- a pic with push/pop; a battle-UI mod may wrap it again), and a wrap that
+  -- pushes, then catches its own error before it pops, leaks one level of
+  -- LOVE's transform stack. In the arena that is one level per side per
+  -- frame. LOVE's stack is 64 deep, so a few seconds into the move menu the
+  -- push below threw "Maximum stack depth reached", textures() dropped both
+  -- sides, and the mons vanished for the rest of the fight (2026-10-29, with
+  -- kanto_gear + g9-battle-sprites, reproduced by tests/moves_menu_probe.lua).
+  -- So every push and pop made during the render is counted, and whatever is
+  -- still pushed when it returns -- or throws -- is popped here.
+  local depth = 0
+  local push, pop = g.push, g.pop
+  g.push = function(...) depth = depth + 1; return push(...) end
+  g.pop = function(...)
+    if depth > 0 then depth = depth - 1 end
+    return pop(...)
+  end
   local ok, err = pcall(function()
     g.setCanvas(canvas)
     g.clear(0, 0, 0, 0)
@@ -846,6 +868,14 @@ function OverworldBattle.sideTexture(battle, side)
     innerPics(battle, 0, 0, 0)
     g.pop()
   end)
+  g.push, g.pop = push, pop
+  for _ = 1, depth do pcall(pop) end
+  if depth > 0 and not leakWarned then
+    leakWarned = true
+    V.mod.log:warn(("battle pic render left %d transform push(es) "
+                    .. "unpopped -- balanced here (another mod's pic wrap?)")
+                   :format(depth))
+  end
 
   texturing = nil
   for k in pairs(OFF[side]) do battle[k] = saved[k] end

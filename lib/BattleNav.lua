@@ -369,8 +369,14 @@ local function drawBall(g, fade, buttonTint)
   local function disc()
     g.circle("fill", 0, 0, R)
   end
-  g.stencil(disc, "replace", 1)
-  g.setStencilTest("greater", 0)
+  -- The clip needs a stencil buffer, and the canvas this lands on may not
+  -- have one: LOVE throws "Drawing to the stencil buffer with a Canvas
+  -- active requires..." there. That throw used to skip the hop's g.pop()
+  -- (see below) and leak a transform level every frame, until LOVE's
+  -- 64-deep stack overflowed and the mons vanished from the arena. Without
+  -- a stencil the belt is simply drawn unclipped.
+  local clipped = pcall(g.stencil, disc, "replace", 1)
+  if clipped then g.setStencilTest("greater", 0) end
 
   g.setColor(1, 1, 1, fade)
   g.circle("fill", 0, 0, R)
@@ -384,7 +390,9 @@ local function drawBall(g, fade, buttonTint)
   local belt = R * 0.20
   g.rectangle("fill", -R, -belt * 0.5, R * 2, belt)
 
-  if stMode then
+  if not clipped then
+    -- nothing was set, so nothing to restore
+  elseif stMode then
     g.setStencilTest(stMode, stValue)
   else
     g.setStencilTest()
@@ -515,7 +523,9 @@ function BattleNav.draw(shot)
     end)
   end
   if not usedSprite then
-    drawBall(g, 1, buttonTint)
+    -- pcall'd so the pop below always runs: a throw in here between the
+    -- push and the pop leaked one transform level per frame (see drawBall)
+    pcall(drawBall, g, 1, buttonTint)
   end
   g.pop()
 

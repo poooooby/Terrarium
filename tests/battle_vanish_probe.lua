@@ -54,6 +54,7 @@ return function(game)
   end
 
   local IDLE = os.getenv("DS_VANISH_IDLE") ~= nil
+  local MOVES = os.getenv("DS_VANISH_MOVES") ~= nil
   local Runtime = require("src.mods.Runtime")
   local function noUpdate() end
   local Pokemon = require("src.pokemon.Pokemon")
@@ -129,7 +130,10 @@ return function(game)
       end
       -- DS_VANISH_IDLE: reported as happening with no input at all, just
       -- left on screen -- so once the command menu is up, stop pressing
-      local idle = IDLE and battle.phase == "menu"
+      -- DS_VANISH_MOVES: idle in the attack menu instead (reported: the
+      -- sprites disappear as soon as the move list opens)
+      local idlePhase = MOVES and "moveSelect" or "menu"
+      local idle = IDLE and battle.phase == idlePhase
       if idle and not idleSince then
         idleSince = f
         log(("f%-5d idle from here: no more input"):format(f))
