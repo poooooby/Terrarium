@@ -180,6 +180,7 @@ much world is actually in view.
 | **Building kits** (TOWER / CRYPT / CRYPT-FX / SHOP / SHOP-FX / LEDGES / HAUNT / HEARTH / INDOOR) | NEW-vs-CLASSIC pairs for individual buildings and props -- the Pokemon Tower, its crypt interior and haunted lighting, the Poke Mart and its shader pass, hop-down ledges, Lavender's haunted glass, chimney smoke, and steaming mugs indoors. See [`FEATURES.md`](FEATURES.md) for each. |
 | **NEW KANTO** (no row: always on with VOXEL) | Lavender Town and Routes 8/10/12, Vermilion City and Routes 6/11 floored as one painted picture with their towns, their homes, Centre, Mart and the Pokemon Tower built in the town's stone; timber bridges and piers; Vermilion's fences; a water garden of reeds, lilies, kelp and coral that sways on its own; the clouds' shadows crossing the ground (its own CLOUD SHADOW row); and the visible wind drawn as strokes and leaves |
 | **BATTLE UI** | DYNAMIC (Modern JRPG), DYNAMIC MINIMAL (For Kanto Gear), CLASSIC (static rig, flat still panels), MINIMAL (CLASSIC without the menu/cards), OFF (none of this mod's own battle UI -- just the diorama, the mons and hit FX) |
+| **BATTLE THEME** | GLASS (smoked dark glass panels, light text, cyan selection), IVORY (the original cream panels) |
 
 ### A interface deste mod fala inglês por padrão, e português à escolha
 

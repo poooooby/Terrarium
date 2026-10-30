@@ -28,6 +28,15 @@ Tags and packages:
 
 ## Unreleased
 
+### BATTLE THEME: dark glass battle panels
+
+The battle panels are now smoked dark glass by default: the status plates,
+the message box, the command buttons and the move cards, in light text,
+with the selection ringed in cyan. The new BATTLE THEME row, next to
+BATTLE UI, switches back to IVORY, the original cream panels. It works in
+both DYNAMIC and CLASSIC and can be flipped mid-fight.
+(`tests/battle_theme_probe.lua` screenshots both themes.)
+
 ### Clearer option names
 
 Every Terrarium row on the OPTIONS menu now says what it does in plain

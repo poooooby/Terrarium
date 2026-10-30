@@ -455,6 +455,7 @@ local function msgPanel(shot, R, B, msgLines, battle)
                 .. ":" .. tostring(math.floor(uFrac * 16))
                 .. (typing and "T" or "-")
                 .. (caretOn and "C" or "-")
+                .. BattleHudXY.themeKey()      -- GLASS/IVORY flip repaints
     if S.msg.key ~= key then
       local ok = pcall(drawMsgFace, S.msg, B, msgLines, uFrac, caretOn, typing)
       if not (ok and S.msg.canvas) then return nil end
@@ -524,7 +525,7 @@ function BattlePanelsXY.menu(battle, shot, msgLines)
     if not (cmd and p) then return false end
     local slot = S.btns[i]
     if not slot then slot = {}; S.btns[i] = slot end
-    local key = cmd.art .. (i == sel and ":S" or ":-")
+    local key = cmd.art .. (i == sel and ":S" or ":-") .. BattleHudXY.themeKey()
     if slot.key ~= key then
       local okF = pcall(drawButtonFace, slot, B, cmd, i == sel, p[4], p[5])
       if not (okF and slot.canvas) then return false end

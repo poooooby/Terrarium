@@ -213,7 +213,75 @@ function BattleHudXY.nineSlice(img, x, y, w, h, ins, k, region)
   return true
 end
 
+-- ------- GLASS: the dark theme
+--
+-- The ivory atlas reads as paper laid over a lit diorama, and against the
+-- grass and the sky it is the brightest thing on screen -- brighter than
+-- the mons the panels are there to frame. GLASS draws the same four
+-- surfaces (status plate, message box, chip, selected chip) as smoked
+-- glass instead: a translucent near-black body over whatever BattleGlassFX
+-- has already frosted behind it, a hairline rim, a lit top edge, and a
+-- cyan ring for the selection. Drawn from primitives, so it is resolution
+-- free and needs no new art. IVORY keeps the atlas exactly as it was.
+--
+-- The palette swap is whole-table (INK, GOLD, PANEL, WELL, DANGER are
+-- reassigned, never mutated), and every caller reads those fields at draw
+-- time, so nothing that draws text needs to know which theme is up.
+local ModSetting = V.require("ModSetting")
+BattleHudXY.themeSetting = ModSetting.new("hudtheme", "BATTLE THEME",
+  { "glass", "ivory" }, { "GLASS", "IVORY" })
+
+local GLASS_BODY   = { 0.055, 0.075, 0.10, 0.80 }
+local GLASS_LIFT   = { 0.085, 0.13, 0.18, 0.88 }   -- the selected chip's body
+local GLASS_ACCENT = { 0.45, 0.82, 1.00 }
+
+function BattleHudXY.glass()
+  return BattleHudXY.themeSetting:get() == "glass"
+end
+
+-- One rounded surface. `k` scales the hairlines with the surface, so a chip
+-- on a 400 px face canvas and a plate drawn straight to the window keep the
+-- same proportions. No tables, no closures: this runs per plate per frame.
+local function glassPane(x, y, w, h, selected)
+  local g = love.graphics
+  local k = math.max(1, h / 90)
+  local r = math.min(h * 0.22, w * 0.5, 22 * k)
+  local b = selected and GLASS_LIFT or GLASS_BODY
+  g.setColor(b[1], b[2], b[3], b[4])
+  g.rectangle("fill", x, y, w, h, r, r)
+  -- sheen: the top half a shade lighter, which is what makes a dark pane
+  -- read as glass rather than as a hole cut in the picture
+  g.setColor(1, 1, 1, 0.045)
+  g.rectangle("fill", x + k, y + k, w - 2 * k, h * 0.46, r, r)
+  local a = GLASS_ACCENT
+  if selected then
+    g.setLineWidth(5 * k)
+    g.setColor(a[1], a[2], a[3], 0.16)
+    g.rectangle("line", x, y, w, h, r, r)
+    g.setLineWidth(2 * k)
+    g.setColor(a[1], a[2], a[3], 0.95)
+  else
+    g.setLineWidth(1.5 * k)
+    g.setColor(1, 1, 1, 0.16)
+  end
+  g.rectangle("line", x, y, w, h, r, r)
+  -- the lit top edge, kept off the corners
+  g.setLineWidth(1.2 * k)
+  g.setColor(1, 1, 1, selected and 0.34 or 0.24)
+  g.line(x + r, y + 1.5 * k, x + w - r, y + 1.5 * k)
+  g.setLineWidth(1)
+  g.setColor(1, 1, 1, 1)
+  return true
+end
+
+local GLASS_SURFACE = { panel = false, dialogue = false, button = false,
+                        selected = true }
+
 function BattleHudXY.uiSprite(name, x, y, w, h, sliced)
+  local sel = GLASS_SURFACE[name]
+  if sel ~= nil and BattleHudXY.applyTheme() then
+    return glassPane(x, y, w, h, sel)
+  end
   local img, region = uiArt(name), BattleHudXY.UI_REGIONS[name]
   if not (img and region) then return false end
   local g = love.graphics
@@ -282,6 +350,7 @@ end
 -- at all falls through to lib/BattleHud.lua's frosted Game Boy block.
 function BattleHudXY.available()
   if not BattleHudXY.ENABLED then return false end
+  BattleHudXY.applyTheme()
   if native() then return nativeFont() ~= nil end
   return art("frame_player") ~= nil and art("frame_enemy") ~= nil
     and art("hp_fill") ~= nil
@@ -604,6 +673,29 @@ end
 local function tube(g, x, y, w, h, frac, color, dim)
   frac = math.max(0, math.min(1, frac or 0))
   local rim = uiArt("bar")
+  if BattleHudXY.applyTheme() then
+    -- a dark well with a hairline, the liquid rounded inside it
+    local r = h * 0.5
+    g.setColor(0, 0, 0, 0.45)
+    g.rectangle("fill", x, y, w, h, r, r)
+    g.setLineWidth(math.max(1, h / 20))
+    g.setColor(1, 1, 1, 0.18)
+    g.rectangle("line", x, y, w, h, r, r)
+    g.setLineWidth(1)
+    local inset = math.max(1, h * 0.22)
+    local fw = math.max(0, w - inset * 2) * frac
+    local fh = h - inset * 2
+    if fw > 0 then
+      local fr = math.min(fh * 0.5, fw * 0.5)
+      g.setColor(color[1], color[2], color[3], dim or 1)
+      g.rectangle("fill", x + inset, y + inset, fw, fh, fr, fr)
+      g.setColor(1, 1, 1, 0.22 * (dim or 1))
+      g.rectangle("fill", x + inset + fr * 0.5, y + inset + fh * 0.12,
+                  math.max(0, fw - fr), fh * 0.28, fh * 0.14, fh * 0.14)
+    end
+    g.setColor(1, 1, 1, 1)
+    return
+  end
   if rim then
     g.setColor(1, 1, 1, 1)
     BattleHudXY.nineSlice(rim, x, y, w, h,
@@ -642,6 +734,7 @@ local function nativeBlock(info, x, y, w, expFrac)
   local S = w / BattleHudXY.FRAME_W            -- one scale for the whole plate
   local H = (isP and BattleHudXY.PLAYER_H or BattleHudXY.ENEMY_H) * S
   local PAD = 30 * S
+  BattleHudXY.applyTheme()
   plate(g, x, y, w, H)
 
   local nameH = 42 * S
@@ -741,5 +834,48 @@ function BattleHudXY.block(info, x, y, w, expFrac)
   end
   return true
 end
+
+-- ------- the theme's palette
+--
+-- Captured HERE, after every definition above, so IVORY is whatever the file
+-- says it is and cannot drift from it. WELL is a trough's colour (the move
+-- card's PP bar used INK for it, which under GLASS would be a white bar) and
+-- DANGER the NO PP / DISABLED red, which needs to be lighter on dark glass.
+local PALETTE = {
+  ivory = { INK = BattleHudXY.INK, GOLD = BattleHudXY.GOLD,
+            PANEL = BattleHudXY.PANEL, WELL = BattleHudXY.INK,
+            DANGER = { 0.65, 0.18, 0.17, 1 } },
+  glass = { INK = { 0.94, 0.96, 0.98, 1 }, GOLD = { 0.60, 0.77, 0.86, 1 },
+            PANEL = GLASS_BODY, WELL = { 0, 0, 0, 0.5 },
+            DANGER = { 1.00, 0.50, 0.46, 1 } },
+}
+local appliedTheme = nil
+
+-- Puts the current theme's palette on the module and says whether it is
+-- GLASS. Cheap enough to ask per surface (one cached ModSetting read and a
+-- string compare), and asked from every entry point that draws -- so a flip
+-- from either the OPTIONS row or the manager page lands on the next frame
+-- with no hook of its own.
+function BattleHudXY.applyTheme()
+  local t = BattleHudXY.themeSetting:get()
+  if t ~= appliedTheme then
+    local p = PALETTE[t] or PALETTE.ivory
+    BattleHudXY.INK, BattleHudXY.GOLD = p.INK, p.GOLD
+    BattleHudXY.PANEL, BattleHudXY.PLATE_FILL = p.PANEL, p.PANEL
+    BattleHudXY.WELL, BattleHudXY.DANGER = p.WELL, p.DANGER
+    appliedTheme = t
+  end
+  return t == "glass"
+end
+
+-- For the callers that cache a drawn face (BattleFanXY's cards,
+-- BattlePanelsXY's chips and message): part of their cache key, so a theme
+-- flip redraws the face instead of hanging the old one.
+function BattleHudXY.themeKey()
+  BattleHudXY.applyTheme()
+  return appliedTheme
+end
+
+BattleHudXY.applyTheme()
 
 return BattleHudXY

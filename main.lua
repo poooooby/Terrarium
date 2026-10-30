@@ -139,6 +139,7 @@ local Lang = V.require("Lang")
 local Wind = V.require("Wind")
 local Trees3D = V.require("Trees3D")
 local BattleDynamic = V.require("BattleDynamic")
+local BattleHudXY = V.require("BattleHudXY")
 local Water = V.require("Water")
 local WaterBody = V.require("WaterBody")
 local FloorArt = V.require("FloorArt")
@@ -872,6 +873,15 @@ local SETTINGS = {
     .. "mod's own battle UI at all -- just the diorama, the mons, and "
     .. "hit FX. Safe to flip mid-battle; every piece falls back on its "
     .. "own.",
+    full = true, when = function() return OverworldBattle.enabled() end },
+  -- Beside BATTLE UI because it dresses the same panels; same reasoning for
+  -- staying offered under FULL.
+  { BattleHudXY.themeSetting,
+    "How the battle panels are dressed. GLASS is smoked dark glass over "
+    .. "the frosted arena: the status plates, the message box, the "
+    .. "command chips and the move cards in light text, the selection "
+    .. "ringed in cyan. IVORY is the original cream panels with dark text "
+    .. "and sage borders.",
     full = true, when = function() return OverworldBattle.enabled() end },
   { Water.setting,
     "How much the water MOVES. The surface is geometry rather than a "

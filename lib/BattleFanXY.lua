@@ -220,11 +220,12 @@ end
 -- ------- the face
 --
 -- Rendered into the slot's canvas only when this key changes: the move, its
--- PP, and how the card is dressed (selected, swap-marked, disabled).
+-- PP, how the card is dressed (selected, swap-marked, disabled), and the
+-- BATTLE THEME, so flipping GLASS/IVORY mid-fight repaints the cards.
 local function faceKey(mv, def, sel, swap, disabled)
   return table.concat({ tostring(mv and mv.id), tostring(mv and mv.pp),
                         sel and "S" or "-", swap and "W" or "-",
-                        disabled and "D" or "-" }, ":")
+                        disabled and "D" or "-", BattleHudXY.themeKey() }, ":")
 end
 
 -- ------- what a card says about a move, beyond its name
@@ -265,8 +266,9 @@ local function drawFace(slot, mv, def, sel, swap, disabled)
   local tname = def and B.typeName(def.type)
   local tc = (tname and B.TYPE_COLOR[tname]) or B.TYPE_FALLBACK
   local pp, maxPP = B.ppOf(mv, def)
+  BattleHudXY.applyTheme()
   local ink, muted = BattleHudXY.INK, BattleHudXY.GOLD
-  local danger = { 0.65, 0.18, 0.17, 1 }
+  local danger = BattleHudXY.DANGER
   local prevCanvas = g.getCanvas()
   local prevBlend, prevAlpha = g.getBlendMode()
   local ok, err = pcall(function()
@@ -318,7 +320,7 @@ local function drawFace(slot, mv, def, sel, swap, disabled)
     local count = pp and ("%d / %d"):format(pp, maxPP or pp) or "--"
     local cw = BattleHudXY.textWidth(count) * 23 / 84
     text(count, W - 32 - cw, 319, 23, W - 96)
-    g.setColor(unpack(ink))
+    g.setColor(unpack(BattleHudXY.WELL))
     g.rectangle("fill", 32, 352, W - 64, 14)
     g.setColor(unpack(BattleFanXY.PP_COLOR[state] or BattleFanXY.PP_COLOR.disabled))
     g.rectangle("fill", 35, 355, (W - 70) * ratio, 8)
