@@ -924,7 +924,8 @@ local SETTINGS = {
     .. "normal and lands on whatever is on screen there, so the reflection "
     .. "travels with the crest carrying it (what is off screen cannot be "
     .. "reflected). MAX adds light shafts through the gaps, marched toward "
-    .. "the sun's own disc.",
+    .. "the sun's own disc. OFF by default: on some PCs the pass makes the "
+    .. "screen flicker black.",
     full = true },
   -- `full = true` for the reason WATER and LIGHT have it: this is a row
   -- about the LOOK, and FULL is the preset the look is watched from.

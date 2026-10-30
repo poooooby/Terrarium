@@ -138,9 +138,22 @@ local RayFX = {}
 -- an old save resolves to the same rung it always did; only the labels
 -- the player sees change ("RT" reads as "SSR": screen-space reflections,
 -- which is the effect that rung adds).
+--
+-- ------- OFF BY DEFAULT (2026-10-29)
+--
+-- values[1] is the default, and it was AUTO -- SSR on every desktop. With
+-- the pass on, the window strobed whole frames black about every 0.7 s,
+-- standing still outdoors with VOXEL on (seen on the monitor, over remote
+-- desktop and in a screen recording; gone with this row OFF). Every way of
+-- measuring it from inside the game forces a CPU/GPU sync and came back
+-- clean (tests/rayfx_watch_probe.lua: 7178 frames, none black), which
+-- points at a GPU timing problem around the readable depth buffer rather
+-- than at the shader's maths -- not found yet. So OFF comes first and the
+-- effect is opt-in. Values are stored by name, so a save that already says
+-- "auto" keeps AUTO; only a fresh install starts OFF.
 RayFX.setting = ModSetting.new("rayfx", "SCREEN FX",
-                               { "auto", "rt", "ao", "off", "max" },
-                               { "AUTO", "SSR", "AO", "OFF", "MAX" })
+                               { "off", "auto", "rt", "ao", "max" },
+                               { "OFF", "AUTO", "SSR", "AO", "MAX" })
 
 -- ------- the dials
 --
