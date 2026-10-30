@@ -106,7 +106,7 @@ local glowMesh = nil
 -- update would age it out and refill the map around it within seconds.
 AmbientLife.HOLD = false
 
-AmbientLife.setting = ModSetting.new("ambient", "AMBIENT",
+AmbientLife.setting = ModSetting.new("ambient", "WILDLIFE",
                                      { "on", "off" }, { "ON", "OFF" })
 
 function AmbientLife.enabled()

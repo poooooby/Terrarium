@@ -56,7 +56,7 @@ local ModSetting = V.require("ModSetting")
 local Aerial = {}
 
 Aerial.KEY = "haze"
-Aerial.LABEL = "V-HAZE"
+Aerial.LABEL = "DISTANCE FOG"
 
 -- Where the haze begins and where it tops out, in VIEW-HEIGHTS of extra
 -- path length past the player.

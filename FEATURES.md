@@ -46,37 +46,37 @@ menu.
 | control | does |
 | --- | --- |
 | `3`, or the **VOXEL** options row | OFF → 15 → 35 → 50 → 75 → OFF (camera pitch) |
-| `5`, or the **V-GRID** options row | OFF / ON — a one-pixel wireframe on every voxel |
+| `5`, or the **WIREFRAME** options row | OFF / ON — a one-pixel wireframe on every voxel |
 | `6`, or the **T-SHIFT** options row | OFF → 1 → 2 → 3 → OFF (miniature blur) |
-| `7`, or the **V-CURVE** options row | OFF → 1 → 2 → 3 — bend the world over the horizon |
-| `m`, or the **SM64CAM** options row | ON / OFF — the Super Mario 64 camera. A camera operator instead of a fixed mount: it turns to look at you far faster than it flies to where it wants to stand, takes its height from the **ground** under you so walking up a step does not bob the frame, leads the way you are walking, and looks **over** a wall that stands between you for more than a moment rather than steering round it. It orbits **you**, at a bearing only you change, a quarter turn at a time — it never turns on its own — and the **D-pad turns with it**, as in Mario 64. See below |
-| `8`, or the **3D-BTL** options row | ON / OFF — fight on the map instead of on a white field |
+| `7`, or the **WORLD CURVE** options row | OFF → 1 → 2 → 3 — bend the world over the horizon |
+| `m`, or the **FOLLOW CAM** options row | ON / OFF — the Super Mario 64 camera. A camera operator instead of a fixed mount: it turns to look at you far faster than it flies to where it wants to stand, takes its height from the **ground** under you so walking up a step does not bob the frame, leads the way you are walking, and looks **over** a wall that stands between you for more than a moment rather than steering round it. It orbits **you**, at a bearing only you change, a quarter turn at a time — it never turns on its own — and the **D-pad turns with it**, as in Mario 64. See below |
+| `8`, or the **3D BATTLES** options row | ON / OFF — fight on the map instead of on a white field |
 | the mon pack (always on when `assets/mons` is present) | the Pokemon standing on the field wear their Generation 5 (Black/White) sprites, front and back, in full colour, instead of the Game Boy pic through a palette. ADVANCED and the other COLORS modes do not touch them; the hour's light does. Trainer pics stay the engine's |
-| the **BACK SPRITES** options row | OFF / ON — your own Pokémon seen from behind, the series' shot: ON stands it on its tile in the arena wearing its back art, grown to a foreground hero (`OverworldBattle.BACK_HERO`) under the same light and shadow as the foe, with the move cards and the panels floating in front of it; OFF stands it on the map facing the foe, at the foe's own scale. Only on the menu while **3D-BTL** is on, because it decides nothing without it |
-| the **DAYTIME** options row | SYNC / DAY / NIGHT / DUSK / DAWN / CYCLE — what time it is outdoors, on the diorama *and* on the flat 2D world; held at SYNC (and off the menu) while VOXEL is FULL |
+| the **BACK VIEW** options row | OFF / ON — your own Pokémon seen from behind, the series' shot: ON stands it on its tile in the arena wearing its back art, grown to a foreground hero (`OverworldBattle.BACK_HERO`) under the same light and shadow as the foe, with the move cards and the panels floating in front of it; OFF stands it on the map facing the foe, at the foe's own scale. Only on the menu while **3D BATTLES** is on, because it decides nothing without it |
+| the **TIME OF DAY** options row | SYNC / DAY / NIGHT / DUSK / DAWN / CYCLE — what time it is outdoors, on the diorama *and* on the flat 2D world; held at SYNC (and off the menu) while VOXEL is FULL |
 | the **SCREEN FX** options row (was **RTX**) | AUTO / SSR / AO / OFF / MAX — the screen-space pass. Not ray tracing, and no RTX hardware involved; see below |
-| the **AMBIENT** options row | ON / OFF — butterflies and ground birds by day (the birds startle and fly off when you get close), dragonflies over the water, fireflies through the night, a flock crossing the sky, leaves on the wind |
-| the **CLOUD SHADE** options row | ON / OFF — the shadows of the clouds crossing the ground downwind: a smooth field evaluated per vertex that takes the sun's share of the light (and a little of the sky's) off the patch under a cloud, following the CLOUDS row's coverage; none under a flat overcast |
+| the **WILDLIFE** options row | ON / OFF — butterflies and ground birds by day (the birds startle and fly off when you get close), dragonflies over the water, fireflies through the night, a flock crossing the sky, leaves on the wind |
+| the **CLOUD SHADOW** options row | ON / OFF — the shadows of the clouds crossing the ground downwind: a smooth field evaluated per vertex that takes the sun's share of the light (and a little of the sky's) off the patch under a cloud, following the CLOUDS row's coverage; none under a flat overcast |
 | the **WEATHER** options row | AUTO / OFF / RAIN / SNOW — occasional showers, with the whole sky going over with them; snow through the winter of the SYNC clock. See below |
-| the **GROUND** options row | ON / OFF — what the weather leaves behind: puddles that gather through a shower and are still there afterwards, snow that settles in drifts, and footprints behind everybody walking on it. Only on the menu while **WEATHER** is on. See below |
-| the **LOAD FADE** options row | ON / OFF — the first time you walk into a Poké Mart (Celadon's floors too) or a floor of the Pokémon Tower, the screen stays black while the room is built in 3D and then fades in, instead of showing the flat floor and popping the room in over it. The room builds faster behind the black, and the screen is never held more than 5 seconds. Rooms you were in recently are already built and come in with the ordinary door fade. OFF shows the flat floor while it builds, as before |
-| the **TREES** options row | VOXEL / 3D — which trees stand on the round-tree sites. VOXEL (default) is the blocky tree grown by `tools/grow_voxel_tree.py`: 2.5-pixel cubes, a visible bole with roots, a crown of lobes with notches and tufts, four shapes (round, tiered, broad, tall) mixed across the wood — and no colour of its own: every leaf cube is painted at map load in the greens the map's own tree tile wears (`TerrainAtlas.tileShades`), so Route 2's trees are Route 2 green and the forest's are the forest's. 3D is `tools/bake_tree.py`'s finer bake: a smoother canopy under a fringe of photographed leaf cards, four species (oak, pine, birch, willow), in its own colours. Both bend in the wind while the trunk stays planted. The old carved ball from the tileset art is no longer a row option; it stands in only where a set fails to load. Flipping the row rebuilds the map's meshes over the next frames |
-| the **COMBAT** options row | DYNAMIC / DYNAMIC MINIMALL / CLASSIC / MINIMALL / OFF — the whole dynamic battle costume. DYNAMIC swings the camera in behind the attacker, floats the menu and the box on glass in the arena, hangs HP capsules beside the mons, and puts typed hit sheets at the blow — and the blow reaches the room: a spotlight closes on the attacker, the hit flashes the defender's cell in the move's colour, voxel cubes fly off the floor, a scorch / puddle / frost / crater stays under the defender's feet, a gold damage figure floats up, and every pane of glass leans with the shove, cracks or ripples where the wave strikes it, and prints a shadow on the floor. On the move menu the chosen card wears its element: lightning crawls an ELECTRIC card's edges, flames lick a FIRE card's foot, a swell rolls a WATER card, frost grows on ICE, rings breathe on PSYCHIC, with the type's colour running the rim. CLASSIC holds the camera, lays every panel flat and answers a blow with nothing but the engine's own anims. MINIMAL keeps the corner-pinned name/HP/EXP reading and the message text but draws no command menu and no move screen — not this mod's and not the engine's — leaving that phase to another battle-UI mod. OFF draws nothing at all: no box, no HUD, no menu, just the 3D scene and the models, which is the level to pick to hand the whole battle screen to another mod. Only on the menu while **3D-BTL** is on |
-| the **WATER** options row | AUTO / CALM / SWELL / FLAT — how much the water moves. AUTO lets the weather pick the swell. On every rung the surface remembers what touches it: surfers, raindrops and a fishing float leave rings that spread, bounce off the bank and cross each other (a wave equation, `lib/Ripples.lua`) |
+| the **GROUND MARKS** options row | ON / OFF — what the weather leaves behind: puddles that gather through a shower and are still there afterwards, snow that settles in drifts, and footprints behind everybody walking on it. Only on the menu while **WEATHER** is on. See below |
+| the **ROOM FADE** options row | ON / OFF — the first time you walk into a Poké Mart (Celadon's floors too) or a floor of the Pokémon Tower, the screen stays black while the room is built in 3D and then fades in, instead of showing the flat floor and popping the room in over it. The room builds faster behind the black, and the screen is never held more than 5 seconds. Rooms you were in recently are already built and come in with the ordinary door fade. OFF shows the flat floor while it builds, as before |
+| the **TREE STYLE** options row | VOXEL / 3D — which trees stand on the round-tree sites. VOXEL (default) is the blocky tree grown by `tools/grow_voxel_tree.py`: 2.5-pixel cubes, a visible bole with roots, a crown of lobes with notches and tufts, four shapes (round, tiered, broad, tall) mixed across the wood — and no colour of its own: every leaf cube is painted at map load in the greens the map's own tree tile wears (`TerrainAtlas.tileShades`), so Route 2's trees are Route 2 green and the forest's are the forest's. 3D is `tools/bake_tree.py`'s finer bake: a smoother canopy under a fringe of photographed leaf cards, four species (oak, pine, birch, willow), in its own colours. Both bend in the wind while the trunk stays planted. The old carved ball from the tileset art is no longer a row option; it stands in only where a set fails to load. Flipping the row rebuilds the map's meshes over the next frames |
+| the **BATTLE UI** options row | DYNAMIC / DYNAMIC MINIMALL / CLASSIC / MINIMALL / OFF — the whole dynamic battle costume. DYNAMIC swings the camera in behind the attacker, floats the menu and the box on glass in the arena, hangs HP capsules beside the mons, and puts typed hit sheets at the blow — and the blow reaches the room: a spotlight closes on the attacker, the hit flashes the defender's cell in the move's colour, voxel cubes fly off the floor, a scorch / puddle / frost / crater stays under the defender's feet, a gold damage figure floats up, and every pane of glass leans with the shove, cracks or ripples where the wave strikes it, and prints a shadow on the floor. On the move menu the chosen card wears its element: lightning crawls an ELECTRIC card's edges, flames lick a FIRE card's foot, a swell rolls a WATER card, frost grows on ICE, rings breathe on PSYCHIC, with the type's colour running the rim. CLASSIC holds the camera, lays every panel flat and answers a blow with nothing but the engine's own anims. MINIMAL keeps the corner-pinned name/HP/EXP reading and the message text but draws no command menu and no move screen — not this mod's and not the engine's — leaving that phase to another battle-UI mod. OFF draws nothing at all: no box, no HUD, no menu, just the 3D scene and the models, which is the level to pick to hand the whole battle screen to another mod. Only on the menu while **3D BATTLES** is on |
+| the **WATER MOTION** options row | AUTO / CALM / SWELL / FLAT — how much the water moves. AUTO lets the weather pick the swell. On every rung the surface remembers what touches it: surfers, raindrops and a fishing float leave rings that spread, bounce off the bank and cross each other (a wave equation, `lib/Ripples.lua`) |
 | the **WATER STYLE** options row | ANIME / CLASSIC — how the water is drawn. ANIME: flat light and shadow patches, star glints, rings with a white crescent on the sunward side, bright rings on the bed of the shallows, whitecap scribbles in a gale, the next wave's line coming in to the shore. CLASSIC: the four-colour dithered sheet |
-| the **SOUNDS** options row | ON / OFF — crickets after dark, birdsong by day, water within earshot, rain when it rains and thunder after the flash. CC0 recordings, crossfaded by what the world is doing, with the Game Boy's own channels as the fallback. See below |
-| the **INDOOR** options row | ON / OFF — mugs still steaming on the tables of the houses |
-| the **HEARTH** options row | ON / OFF — chimneys that smoke. The house family stands a chimney on its roof, and a house with a fire going puts a chain of cel puffs off it that climb, cool, take the wind and thin away. Most houses at dusk, some at dawn, a few through the night, and the cold lights the rest. See below |
-| the **TOWER** options row | NEW / CLASSIC — which Pokemon Tower stands in Lavender: the tower modelled by hand (default), or the building kit's plain fold of the same drawing, as it stood before. Flipping it rebuilds the map's meshes on the spot. See below |
-| the **LEDGES** options row | BANK / CLASSIC — what a hop-down ledge is: a bank of earth that rises steeply on the side you stand on, crests, and falls gently toward where you land, the ground's own grass rolling over its top and the drawing's earth showing where the fall is steep; or the profile's six-pixel box wearing the ledge drawing on top, as before. Every route in Kanto. See below |
-| the **HAUNT** options row | ON / OFF — the tower of graves is haunted. Lavender's Pokemon Tower stands as a tower now (plinth, ashlar body with a pointed portal, storeys of pointed windows under cornices, a lantern storey, a pagoda roof and a spire), its glass burns cold, sparse and breathing after dark, and pale wisps drift out of it. The row is the wisps and the cold glass; the tower stands either way. See below |
-| the **CRYPT** options row | NEW / CLASSIC — what the inside of the Pokemon Tower is. NEW stands its seven floors and Agatha's room as a crypt: one continuous octagon of grey stone (the stones proud of their joints, the corners chamfered, a plinth battering into the room) climbing out of the light, the near walls ramping down to a coped parapet so the camera looks over them, the dark beyond, every headstone on a plinth; candle lanterns in wall sconces, the room held dim and cool, a violet haze and wisps sighing out of the graves on the haunted floors, dark flagstones underfoot. CLASSIC is the profile's pins as they were. Flipping it rebuilds the map's meshes. See below |
-| the **CRYPT-FX** options row | ON / OFF — the crypt's light, in the shader: every wall and headstone lit by the face it actually turns to the lantern, a hemisphere of fill from above read through the stone's relief, a wet sheen on the stone under each flame, ground mist drifting through the graves, weathered stone and granite on the walls and the headstones with their grain in the light — the walls standing those stones in depth so a lantern rakes a block, not a crate — and the flames blooming into a split-toned frame. OFF lights the crypt the way the streets are lit. Only inside the tower, with CRYPT on NEW |
-| the **UI LANG** options row | ENGLISH / PORTUGUÊS — the language of the three places this mod writes its own words: the battle command buttons (FIGHT / PKMN / BAG / RUN), the bag's pocket tabs and the start menu's MAP row. English by default, because that is what they already said and what the engine's own menus say beside them; PORTUGUES is for a save running under a Portuguese translation mod. Nothing the engine prints — dialogue, item names, the flat menus this mod silences — is affected either way |
-| the **RES** options row | 1/2 / FULL / 1/3 / 1/4 — what fraction of the panel the 3D pass rasterises at |
+| the **AMBIENCE** options row | ON / OFF — crickets after dark, birdsong by day, water within earshot, rain when it rains and thunder after the flash. CC0 recordings, crossfaded by what the world is doing, with the Game Boy's own channels as the fallback. See below |
+| the **HOME DETAIL** options row | ON / OFF — mugs still steaming on the tables of the houses |
+| the **CHIMNEYS** options row | ON / OFF — chimneys that smoke. The house family stands a chimney on its roof, and a house with a fire going puts a chain of cel puffs off it that climb, cool, take the wind and thin away. Most houses at dusk, some at dawn, a few through the night, and the cold lights the rest. See below |
+| the **TOWER STYLE** options row | NEW / CLASSIC — which Pokemon Tower stands in Lavender: the tower modelled by hand (default), or the building kit's plain fold of the same drawing, as it stood before. Flipping it rebuilds the map's meshes on the spot. See below |
+| the **LEDGE STYLE** options row | BANK / CLASSIC — what a hop-down ledge is: a bank of earth that rises steeply on the side you stand on, crests, and falls gently toward where you land, the ground's own grass rolling over its top and the drawing's earth showing where the fall is steep; or the profile's six-pixel box wearing the ledge drawing on top, as before. Every route in Kanto. See below |
+| the **GHOSTS** options row | ON / OFF — the tower of graves is haunted. Lavender's Pokemon Tower stands as a tower now (plinth, ashlar body with a pointed portal, storeys of pointed windows under cornices, a lantern storey, a pagoda roof and a spire), its glass burns cold, sparse and breathing after dark, and pale wisps drift out of it. The row is the wisps and the cold glass; the tower stands either way. See below |
+| the **TOWER INSIDE** options row | NEW / CLASSIC — what the inside of the Pokemon Tower is. NEW stands its seven floors and Agatha's room as a crypt: one continuous octagon of grey stone (the stones proud of their joints, the corners chamfered, a plinth battering into the room) climbing out of the light, the near walls ramping down to a coped parapet so the camera looks over them, the dark beyond, every headstone on a plinth; candle lanterns in wall sconces, the room held dim and cool, a violet haze and wisps sighing out of the graves on the haunted floors, dark flagstones underfoot. CLASSIC is the profile's pins as they were. Flipping it rebuilds the map's meshes. See below |
+| the **TOWER LIGHT** options row | ON / OFF — the crypt's light, in the shader: every wall and headstone lit by the face it actually turns to the lantern, a hemisphere of fill from above read through the stone's relief, a wet sheen on the stone under each flame, ground mist drifting through the graves, weathered stone and granite on the walls and the headstones with their grain in the light — the walls standing those stones in depth so a lantern rakes a block, not a crate — and the flames blooming into a split-toned frame. OFF lights the crypt the way the streets are lit. Only inside the tower, with CRYPT on NEW |
+| the **LANGUAGE** options row | ENGLISH / PORTUGUÊS — the language of the three places this mod writes its own words: the battle command buttons (FIGHT / PKMN / BAG / RUN), the bag's pocket tabs and the start menu's MAP row. English by default, because that is what they already said and what the engine's own menus say beside them; PORTUGUES is for a save running under a Portuguese translation mod. Nothing the engine prints — dialogue, item names, the flat menus this mod silences — is affected either way |
+| the **RESOLUTION** options row | 1/2 / FULL / 1/3 / 1/4 — what fraction of the panel the 3D pass rasterises at |
 | the **SHADOWS** options row | LOW / OFF / HIGH / SOFT — the sun pass; SOFT widens each shadow's edge with distance from what throws it |
 
-**3D-BTL** is on by default and is independent of **VOXEL**: battles draw
+**3D BATTLES** is on by default and is independent of **VOXEL**: battles draw
 on the world whether or not the free-roam camera is pitched over.
 
 Two of the engine's own rows are taken away while this mod is installed:
@@ -86,7 +86,7 @@ off rather than merely hidden — a row that is not there cannot switch off a
 value an older save arrived with. Uninstall and both come back, at whatever
 they were last set to.
 
-## The SM64 camera (SM64CAM)
+## The SM64 camera (FOLLOW CAM)
 
 A port of Super Mario 64's camera, from the decomp (`n64decomp/sm64`,
 `src/game/camera.c`). Off by default; the whole of it lives in
@@ -193,7 +193,7 @@ camera in the ten percent of cases that are hard. It ships empty on purpose.
 
 ### The art of the flock
 
-The flock that crosses the sky (the **AMBIENT** row) is Pokémon. Gen 1 draws
+The flock that crosses the sky (the **WILDLIFE** row) is Pokémon. Gen 1 draws
 no Pokémon on the map, though: eleven species have an overworld sheet
 because a script stands one somewhere; the other hundred and forty have
 exactly one drawing each, and it is the battle front pic. Resampling that
@@ -254,7 +254,7 @@ once, and the thunder arrives afterwards by however far away the strike was.
 **Snow** drifts *in* the diorama rather than across the lens — a flake has a
 position in the world, wanders down through it on the wind and lands, which is
 the whole reason snow looks like snow. AUTO chooses it on its own through the
-winter of the same wall clock the DAYTIME row's SYNC rung follows. Which
+winter of the same wall clock the TIME OF DAY row's SYNC rung follows. Which
 hemisphere that winter belongs to is the one thing in the feature that cannot
 be derived — a timezone is a longitude and the seasons are a latitude — so it
 is a constant, `Weather.HEMISPHERE` at the top of `lib/Weather.lua`, shipped
@@ -438,7 +438,7 @@ included, so a body and the tuft beside it are never on two schedules.
 
 ### Wind you can hear, in the grass
 
-With the SOUNDS row on, the wind swells as each gust patch crosses you and
+With the AMBIENCE row on, the wind swells as each gust patch crosses you and
 falls back in the lull — the same patches the grass bends to — and it is
 fuller in a meadow than on a street. On the crest of a gust the meadow
 itself hisses: little rustles land in the tall grass all around you. Your
@@ -489,7 +489,7 @@ harder, soaked leaves stick, and under snow the litter is buried.
 
 The ground remembers the last three maps you walked. It costs next to nothing
 per frame: the lying leaves are one mesh, rewritten only where a leaf lands or
-leaves, and the **PFX** row scales how many leaves the air and the ground may
+leaves, and the **PARTICLES** row scales how many leaves the air and the ground may
 hold.
 
 ## What the meadow remembers — the wear field
@@ -534,7 +534,7 @@ On the cheap quality rungs the tufts stop thinning and the earth still shows:
 the ground is drawn on the processor, so the world keeps remembering even where
 the grass has stopped commenting on it.
 
-## What the rain leaves behind — the GROUND row
+## What the rain leaves behind — the GROUND MARKS row
 
 The WEATHER row draws what is falling. This draws what has **fallen**, and
 the difference between them is time: a shower is over in two minutes and the
@@ -687,7 +687,7 @@ snow **sheds** it in pinches off the hat and shoulders. Once the thaw starts,
 the eaves **drip** meltwater. And the windows wear a feathered **rime** with
 the cold, thickest at the edges of every pane.
 
-## The sound of the place — the SOUNDS row
+## The sound of the place — the AMBIENCE row
 
 Crickets after dark, birdsong through the morning and the day, water moving
 whenever there is water within a few cells of you, rain when it rains, thunder
@@ -735,7 +735,7 @@ Where there is water is counted by **looking**, in cells, rather than kept as
 a list of maps with ponds on them — so a route with one pond in the corner
 only sounds like water when you are in that corner.
 
-## Houses somebody lives in — the INDOOR row
+## Houses somebody lives in — the HOME DETAIL row
 
 **Mugs left on the tables, still steaming.** Where a table is comes from this
 mod's own shape profile rather than from a list of coordinates: every interior
@@ -755,7 +755,7 @@ camera on.
 a real map object — it blocked, and it answered A — so it went with the rest of
 the gameplay in 1.41.0.)
 
-## Chimneys that smoke — the HEARTH row
+## Chimneys that smoke — the CHIMNEYS row
 
 Every house in Kanto has had a stove going since 1996 and not one of them has
 ever shown it. The building kit already knew how to stand a **chimney** on a
@@ -765,7 +765,7 @@ care and the doorless blocks that share their drawings all carry a small stack
 at the back of the roof, capped in the drawing's own outline shade.
 
 **And a house with a fire going puts smoke on it.** A puff leaves the flue
-every second or so (the **PFX** row scales that), climbs hard at first and
+every second or so (the **PARTICLES** row scales that), climbs hard at first and
 slower as it cools — the lift dies with the puff's age, squared — takes
 whatever air the **WIND** row is moving and its eddies, spreads as it rises
 and thins into nothing over about five seconds. Rain weighs the plume down and
@@ -774,7 +774,7 @@ up, which is exactly when the wind's own field has nothing to draw.
 
 **Which houses.** Not every house, and not all day. Each chimney holds a
 stable number from a hash of the house's own place on the map — the same
-trick the **INDOOR** row picks its mugs by, so the same houses always
+trick the **HOME DETAIL** row picks its mugs by, so the same houses always
 light first. Against it stands one figure: how many of the town's hearths are
 lit *right now*. It rises with the meals of the day — nearly everyone at dusk,
 about half at dawn, the banked fires through the night, almost nobody at noon
@@ -796,7 +796,7 @@ dusk figure, the rate against the module's own clock, the climb, the drift
 with and without wind, the batches, and an ON/OFF pair of captures above each
 stack.
 
-## The tower of graves — the HAUNT row
+## The tower of graves — the GHOSTS row
 
 Lavender's Pokemon Tower was the one building in Kanto whose Game Boy drawing
 is a **tower** — a three-tier latticed roof over twelve rows of windowed
@@ -838,7 +838,7 @@ the portal's mouth, a rare one off the spire; they climb, hang, take the
 **WIND** row's air and its eddies and thin into the violet haze over about
 eight seconds. Each is a teardrop card with a halo behind it, drawn flattened
 toward its own glow so the night cannot put it out, in the diorama's 3D pass
-with depth writes off, like the smoke. The **HAUNT** row is the wisps and the
+with depth writes off, like the smoke. The **GHOSTS** row is the wisps and the
 cold glass; the tower stands either way. Wants the **VOXEL** camera on.
 
 **The terrace.** Lavender draws the edge of the tower's yard as hop-down
@@ -855,9 +855,9 @@ is a wall you hop over. And the speckled ground of the yard and the strip east
 of it — half of Kanto's routes wear the same tile and keep it — is paved one
 voxel deep in grey flagstones of two sizes, the same white held down.
 
-**Which tower.** The **TOWER** options row picks NEW — this one — or CLASSIC,
+**Which tower.** The **TOWER STYLE** options row picks NEW — this one — or CLASSIC,
 the building kit's plain fold of the same drawing, as it stood before.
-Flipping it rebuilds the map's meshes on the spot, the way the **TREES** row
+Flipping it rebuilds the map's meshes on the spot, the way the **TREE STYLE** row
 does; the cold glass, the wisps and the terrace wall belong to the NEW
 tower only.
 
@@ -867,7 +867,7 @@ occluder height, the shader compiles, the wisps are live at night, frame time
 at a fixed frame day and night — and screenshots from the plaza, the door and
 the orbit, at dawn, day and night (`tests/run_tower.cmd`).
 
-## The crypt — the CRYPT and CRYPT-FX rows
+## The crypt — the TOWER INSIDE and TOWER LIGHTING rows
 
 The tower's seven floors and Agatha's room draw with one tileset: a ring of
 wall panels cut out of a grey mass, a field of headstones, a flight up and a
@@ -921,7 +921,7 @@ the white lattice. Every floor carries its own air: a dark haze below, the
 town's violet heavier on 3F–6F, so the far wall sinks back; and on those
 floors one grave in six sighs a wisp, small and low, in still air.
 
-**The shader's share — the CRYPT-FX row.** The lanterns light every flank by
+**The shader's share — the TOWER LIGHTING row.** The lanterns light every flank by
 the face it actually turns to them (the real face normal, from the world
 position's derivatives — exact on voxels), so a wall turned away goes dark;
 a wet sheen sits on the stone under each flame; a ground mist drifts through
@@ -942,12 +942,12 @@ no cycle of the photograph has keeps the eye from finding the repeat. The
 flames bloom into the frame and throw rays across it, the corners are
 shaded, and the frame is finished with a contrast curve, a split tone (the
 darks toward the crypt's violet, the lights toward the flame), a vignette
-and a breath of grain. The voxel wireframe and the ANIME row's cel step
+and a breath of grain. The voxel wireframe and the CEL MOTION row's cel step
 both stand aside while this is on. OFF lights the crypt the way the
-streets are lit; CLASSIC on the **CRYPT** row is the interior as it stood
+streets are lit; CLASSIC on the **TOWER INSIDE** row is the interior as it stood
 before, whole.
 
-## What a ledge is — the LEDGES row
+## What a ledge is — the LEDGE STYLE row
 
 A Gen 1 ledge is a one-way step: you stand on the high side, press toward
 it, and hop down to the landing. The overworld draws it as a bump of hatched
@@ -990,7 +990,7 @@ build with their ground variants, the shared tiles stay unclaimed, the
 CLASSIC row brings the boxes back, and frame time on Route 4's hundred-odd
 ledge cells — with screenshots of each kind (`tests/run_ledges.cmd`).
 
-## Water with a bed — the WATER row
+## Water with a bed — the WATER MOTION row
 
 CALM / SWELL / FLAT is still what the row says, and it still means what it
 meant: how much the surface heaves. What changed is underneath it. The
@@ -1039,7 +1039,7 @@ it), plus one quad per water tile in a group of its own culled with the
 terrain and bank walls a few pixels taller. Measured on the i3 + UHD at
 FULL and SCREEN FX MAX, on the two wettest shots (the Route 25 lake, the Route
 21 sea): about a tenth to a seventh slower than the flat water was --
-and RES 1/2 or SCREEN FX SSR gives it all back. Land is untouched.
+and RESOLUTION 1/2 or SCREEN FX SSR gives it all back. Land is untouched.
 
 ## Screen-space effects — the SCREEN FX row
 
@@ -1073,7 +1073,7 @@ readable depth canvas; where one cannot, the row still cycles and nothing
 happens, exactly like every other capability this mod asks for.
 
 The whole row runs at the resolution the scene was *rasterised* at, so
-turning **RES** down turns this down with it — quadratically, like
+turning **RESOLUTION** down turns this down with it — quadratically, like
 everything else in the frame.
 
 Everything the battle screen draws as a box — the two HUD blocks, the text

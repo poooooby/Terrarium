@@ -48,7 +48,7 @@ local sin = math.sin
 -- floors flat, lays no flagstones, carries no air and breathes no wisps --
 -- the interior as it stood before, whole. (lib/CryptKit.lua re-exports the
 -- setting and adds the remesh its own step needs.)
-Crypt.setting = ModSetting.new("crypt", "CRYPT",
+Crypt.setting = ModSetting.new("crypt", "TOWER INSIDE",
                                { "new", "classic" },
                                { "NEW", "CLASSIC" })
 
@@ -65,7 +65,7 @@ end
 -- Its own row because it is the costlier half, and because a player who
 -- wants the geometry without the picture-processing should be able to say
 -- so. Off, the crypt is lit exactly as the streets are.
-Crypt.fxSetting = ModSetting.new("cryptfx", "CRYPT-FX",
+Crypt.fxSetting = ModSetting.new("cryptfx", "TOWER LIGHT",
                                  { "on", "off" }, { "ON", "OFF" })
 
 function Crypt.fxOn()

@@ -52,7 +52,7 @@ local Water = {}
 -- Stored values are unchanged for the three old rungs, so a save from before
 -- AUTO existed reads back as what it was; only a save that never touched the
 -- row lands on the new default.
-Water.setting = ModSetting.new("swell", "WATER",
+Water.setting = ModSetting.new("swell", "WATER MOTION",
                                { "auto", 0.8, 1.4, 0 },
                                { "AUTO", "CALM", "SWELL", "FLAT" })
 

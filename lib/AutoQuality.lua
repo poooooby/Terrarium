@@ -321,7 +321,7 @@ end
 -- Everything a report or a probe wants to know, in one line.
 function AutoQuality.report()
   local m = (ringN >= AutoQuality.WINDOW) and median() or nil
-  return ("RES AUTO = 1/%d (%s) | window %d/%d%s | moves %d%s")
+  return ("RESOLUTION AUTO = 1/%d (%s) | window %d/%d%s | moves %d%s")
     :format(AutoQuality.divisor(), AutoQuality.lastReason,
             ringN, AutoQuality.WINDOW,
             m and (" | median %.1f ms"):format(m) or "",

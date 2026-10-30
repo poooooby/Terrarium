@@ -55,7 +55,7 @@ local floor, abs, min, max, sin = math.floor, math.abs, math.min, math.max,
 
 -- ------------------------------------------------------------- the row --
 
-TowerKit.setting = ModSetting.new("tower", "TOWER",
+TowerKit.setting = ModSetting.new("tower", "TOWER STYLE",
                                   { "new", "classic" },
                                   { "NEW", "CLASSIC" })
 

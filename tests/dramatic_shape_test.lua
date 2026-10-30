@@ -382,14 +382,14 @@ local hookedRows = Runtime.call("ui.options.rows", function(_, r) return r end,
 T.eq(#hookedRows, 6, "the options hook added a row per setting")
 local grid, curve, battles = hookedRows[2], hookedRows[3], hookedRows[4]
 local backRow, daytime = hookedRows[5], hookedRows[6]
-T.eq(daytime.label, "DAYTIME", "the day/night row carries its label")
+T.eq(daytime.label, "TIME OF DAY", "the day/night row carries its label")
 T.eq(daytime.value(), "SYNC",
   "and defaults to SYNC -- no value set follows the clock on the wall")
-T.eq(grid.label, "V-GRID", "the grid row carries its label")
+T.eq(grid.label, "WIREFRAME", "the grid row carries its label")
 T.eq(grid.value(), "OFF", "the grid starts off")
 T.eq(curve.label, "V-CURVE", "the curve row carries its label")
 T.eq(curve.value(), "OFF", "the curve starts off")
-T.eq(battles.label, "3D-BTL", "the overworld-battle row carries its label")
+T.eq(battles.label, "3D BATTLES", "the overworld-battle row carries its label")
 T.eq(battles.value(), "ON",
   "overworld battles are on by default -- the mode's headline is the world "
   .. "in 3D, and a battle is where the player spends half the game")

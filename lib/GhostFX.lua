@@ -65,7 +65,7 @@ local rand = math.random
 local floor = math.floor
 local sin = math.sin
 
-GhostFX.setting = ModSetting.new("haunt", "HAUNT",
+GhostFX.setting = ModSetting.new("haunt", "GHOSTS",
                                  { "on", "off" }, { "ON", "OFF" })
 
 function GhostFX.enabled()
@@ -214,7 +214,7 @@ local function updateBody(dt, voxelOn)
   if not live then
     GhostFX.lastGate =
       (not voxelOn and "voxelOn=false")
-      or (not GhostFX.enabled() and "HAUNT off")
+      or (not GhostFX.enabled() and "GHOSTS off")
       or (not (ow and ow.map and ow.player) and "no overworld/map/player")
       or (not (outdoor or crypt) and "indoors")
       or (not (Game.stack and Game.stack:top() == ow) and "overworld not on top")

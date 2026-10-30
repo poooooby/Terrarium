@@ -51,7 +51,7 @@ local Quality = V.require("Quality")
 
 local Vfx = {}
 
-Vfx.setting = ModSetting.new("vfx", "IMPACT",
+Vfx.setting = ModSetting.new("vfx", "HIT FRAMES",
                              { "off", "on" },
                              { "OFF", "ON" })
 

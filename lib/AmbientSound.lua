@@ -77,7 +77,7 @@ local Map = require("src.world.Map")
 
 local AmbientSound = {}
 
-AmbientSound.setting = ModSetting.new("ambsound", "SOUNDS",
+AmbientSound.setting = ModSetting.new("ambsound", "AMBIENCE",
                                       { "on", "off" }, { "ON", "OFF" })
 
 function AmbientSound.enabled()

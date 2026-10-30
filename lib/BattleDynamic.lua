@@ -43,7 +43,7 @@ local ModSetting = V.require("ModSetting")
 
 local BattleDynamic = {}
 
-BattleDynamic.setting = ModSetting.new("battledyn", "COMBAT",
+BattleDynamic.setting = ModSetting.new("battledyn", "BATTLE UI",
   { "dynamic", "dynamic_minimal", "classic", "minimal", "off" },
   { "DYNAMIC", "DYNAMIC MINIMAL", "CLASSIC", "MINIMAL", "OFF" })
 

@@ -104,7 +104,7 @@ local function game()
   return require("src.core.Game")
 end
 
-GroundFX.setting = ModSetting.new("ground", "GROUND",
+GroundFX.setting = ModSetting.new("ground", "GROUND MARKS",
                                   { "on", "off" }, { "ON", "OFF" })
 
 function GroundFX.enabled()

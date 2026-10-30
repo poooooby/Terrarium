@@ -118,7 +118,7 @@ return function(game)
 
   -- ------- claim 1: the default is the full costume
   local row = Dyn.setting:row()
-  verdict(row and row.label == "COMBAT" and row.value() == "DYNAMIC",
+  verdict(row and row.label == "BATTLE UI" and row.value() == "DYNAMIC",
           "the COMBAT row exists and reads DYNAMIC",
           ("label=%s value=%s"):format(tostring(row and row.label),
                                        tostring(row and row.value())))

@@ -30,7 +30,7 @@ local VoxelGrid = {}
 -- the key under options.modOptions.<mod.id>, shared by the row in
 -- OPTIONS and the mod manager's own settings page for this mod
 VoxelGrid.KEY = "grid"
-VoxelGrid.LABEL = "V-GRID"
+VoxelGrid.LABEL = "WIREFRAME"
 
 -- How far toward black a seam pulls the surface it cuts across. The
 -- wireframe reads as a shading of the model rather than an overlay drawn

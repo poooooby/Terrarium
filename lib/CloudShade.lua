@@ -48,7 +48,7 @@ local Map = require("src.world.Map")
 
 local CloudShade = {}
 
-CloudShade.setting = ModSetting.new("cloudshade", "CLOUD SHADE",
+CloudShade.setting = ModSetting.new("cloudshade", "CLOUD SHADOW",
                                     { "on", "off" }, { "ON", "OFF" })
 
 CloudShade.PERIOD = 1400        -- world px the field repeats over

@@ -649,7 +649,7 @@ MarioCam.readStick = rightStick
 MarioCam.MODES = { "off", "on", "shoulder" }
 MarioCam.MODE_LABELS = { "OFF", "ON", "SHOULDER" }
 
-MarioCam.setting = ModSetting.new("mariocam", "SM64CAM",
+MarioCam.setting = ModSetting.new("mariocam", "FOLLOW CAM",
                                   MarioCam.MODES, MarioCam.MODE_LABELS)
 
 function MarioCam.rung()

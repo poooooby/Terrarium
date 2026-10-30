@@ -102,7 +102,7 @@ local Quality = {}
 --
 -- The order of the rest is unchanged, so every value already in a save
 -- still resolves to itself and cycling still walks the same direction.
-Quality.setting = ModSetting.new("renderScale", "RES",
+Quality.setting = ModSetting.new("renderScale", "RESOLUTION",
                                  { "auto", 2, 1, 3, 4, 6, 8 },
                                  { "AUTO", "1/2", "FULL", "1/3", "1/4",
                                    "1/6", "1/8" })
@@ -144,7 +144,7 @@ Quality.shadowSetting = ModSetting.new("shadowQuality", "SHADOWS",
 -- to clear, because frame time on that machine is not repeatable enough to
 -- define one (two runs of the same probe disagreed by five to seven fps).
 -- What IS repeatable is the count, so the rungs are defined in counts.
-Quality.particleSetting = ModSetting.new("particleFx", "PFX",
+Quality.particleSetting = ModSetting.new("particleFx", "PARTICLES",
                                          { 1, 0, 2, 3 },
                                          { "ON", "LOW", "HIGH", "MAX" })
 

@@ -28,6 +28,35 @@ Tags and packages:
 
 ## Unreleased
 
+### Clearer option names
+
+Every Terrarium row on the OPTIONS menu now says what it does in plain
+words. The two rows that were both called MAP are now RADAR and TOWN MAP.
+Your settings are kept: rows are stored by an internal key, not by their
+name.
+
+| Was | Now | | Was | Now |
+|---|---|---|---|---|
+| RES | RESOLUTION | | INDOOR | HOME DETAIL |
+| PFX | PARTICLES | | HEARTH | CHIMNEYS |
+| UI LANG | LANGUAGE | | TOWER | TOWER STYLE |
+| DIAG | DEBUG INFO | | CRYPT | TOWER INSIDE |
+| TREES | TREE STYLE | | CRYPT-FX | TOWER LIGHT |
+| COMBAT | BATTLE UI | | SHOP | MART INSIDE |
+| 3D-BTL | 3D BATTLES | | SHOP-FX | MART LIGHT |
+| BACK SPRITES | BACK VIEW | | LEDGES | LEDGE STYLE |
+| WATER | WATER MOTION | | HAUNT | GHOSTS |
+| LIGHT | LIGHTING | | V-GRID | WIREFRAME |
+| ANIME | CEL MOTION | | V-CURVE | WORLD CURVE |
+| IMPACT | HIT FRAMES | | V-HAZE | DISTANCE FOG |
+| AMBIENT | WILDLIFE | | SM64CAM | FOLLOW CAM |
+| SOUNDS | AMBIENCE | | DAYTIME | TIME OF DAY |
+| CLOUD SHADE | CLOUD SHADOW | | N-DARK | NIGHT LEVEL |
+| GROUND | GROUND MARKS | | LAMPS | STREET LAMPS |
+| MAP (corner) | RADAR | | MAP (Town Map) | TOWN MAP |
+
+Unchanged: SHADOWS, WIND, WATER STYLE, SCREEN FX, WEATHER, CLOUDS, HORIZON.
+
 ### Faster: half the per-frame garbage
 
 The 3D world made 265-564 KB of Lua garbage every frame, almost all of it
@@ -36,7 +65,7 @@ throwaway matrices built per character and per pass. It now makes 124-201 KB
 picture is unchanged: every rewritten matrix chain is checked bit for bit
 against the old one (`tests/mat4_offline.lua`).
 
-### New: LOAD FADE, a black fade into the Marts and the Pokémon Tower
+### New: ROOM FADE, a black fade into the Marts and the Pokémon Tower
 
 The first time you walk into a Poké Mart or up a floor of the Pokémon Tower,
 the screen used to show the flat 2D floor for 1-3 seconds and then pop the
@@ -45,7 +74,7 @@ fades in when it is ready. It also builds faster behind the black: Lavender
 Mart is ready about 4x sooner than the flat floor's pop was, and Tower 1F
 about 3x. The black is never held longer than 5 seconds, and text boxes
 still show over it. Rooms you were in recently are already built and come
-in with the normal door fade. The new **LOAD FADE** row turns it off.
+in with the normal door fade. The new **ROOM FADE** row turns it off.
 
 ### Smoother: no more multi-second freezes entering a town
 

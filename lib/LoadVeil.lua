@@ -28,7 +28,7 @@ local ChunkMesher = V.require("ChunkMesher")
 
 local LoadVeil = {}
 
-LoadVeil.setting = ModSetting.new("loadveil", "LOAD FADE",
+LoadVeil.setting = ModSetting.new("loadveil", "ROOM FADE",
                                   { "on", "off" }, { "ON", "OFF" })
 
 function LoadVeil.row() return LoadVeil.setting:row() end

@@ -65,7 +65,7 @@ local WorldMap3D = {}
 WorldMap3D.ENABLED = true
 
 -- The row. CLASSIC hands the screen back to the engine untouched.
-WorldMap3D.setting = ModSetting.new("worldmap", "MAP",
+WorldMap3D.setting = ModSetting.new("worldmap", "TOWN MAP",
                                     { "3d", "classic" }, { "3D", "CLASSIC" })
 
 function WorldMap3D.classic()

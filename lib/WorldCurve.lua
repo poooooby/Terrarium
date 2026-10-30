@@ -42,7 +42,7 @@ local ModSetting = V.require("ModSetting")
 local WorldCurve = {}
 
 WorldCurve.KEY = "curve"
-WorldCurve.LABEL = "V-CURVE"
+WorldCurve.LABEL = "WORLD CURVE"
 
 -- The ladder, calibrated against the FAR EDGE of the visible ground -- a
 -- little over two view-heights out at the low camera rungs. Since the drop

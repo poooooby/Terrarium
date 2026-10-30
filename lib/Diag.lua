@@ -31,7 +31,7 @@ local ModSetting = V.require("ModSetting")
 
 local Diag = {}
 
-Diag.setting = ModSetting.new("diag", "DIAG", { "off", "on" }, { "OFF", "ON" })
+Diag.setting = ModSetting.new("diag", "DEBUG INFO", { "off", "on" }, { "OFF", "ON" })
 
 function Diag.on()
   local ok, v = pcall(Diag.setting.get, Diag.setting)
@@ -148,7 +148,7 @@ function Diag.lines()
   local Quality = mod("Quality")
   local AutoQuality = mod("AutoQuality")
   if Quality then
-    add(("RES      %s -> 1/%s   SHADOWS %s")
+    add(("RESOLUTION %s -> 1/%s   SHADOWS %s")
           :format(rowOf("Quality", "setting"),
                   tostring(try(Quality.scale) or "?"),
                   rowOf("Quality", "shadowSetting")))
@@ -158,12 +158,12 @@ function Diag.lines()
   end
 
   local RayFX = mod("RayFX")
-  add(("SCREENFX %s -> %s   PFX %s")
+  add(("SCREENFX %s -> %s   PARTICLES %s")
         :format(rowOf("RayFX", "setting"),
                 RayFX and tostring(try(RayFX.level) or "?") or "?",
                 rowOf("Quality", "particleSetting")))
 
-  add(("rows     TOWER=%s SHOP=%s CRYPT=%s TREES=%s")
+  add(("rows     TOWER STYLE=%s MART INSIDE=%s TOWER INSIDE=%s TREE STYLE=%s")
         :format(rowOf("TowerKit"), rowOf("Shop"), rowOf("Crypt"),
                 rowOf("Trees3D")))
 

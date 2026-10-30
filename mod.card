@@ -12,7 +12,7 @@ return {
   -- UI LANG setting (this mod's own menus default to English rather than
   -- the hardcoded Portuguese they shipped with, with a Portuguese option
   -- kept), a start-menu visibility/sizing fix, an engine-compat crash guard,
-  -- and wiring the SHOP/SHOP-FX rows into the options menu (they existed in
+  -- and wiring the MART INSIDE / MART LIGHTING rows into the options menu (they existed in
   -- lib/Shop.lua but were never registered, so SHOP-FX -- and the RTX floor
   -- it forces on in every Poke Mart -- had no OFF a player could reach).
   -- As of 1.41.0 it also merges Breno's final, unpushed build (Lavender and
@@ -45,12 +45,12 @@ return {
       "T-SHIFT options row and hotkey t (OFF / 1 / 2 / 3), the miniature blur",
       "V-GRID on hotkey g and V-CURVE on hotkey c",
       "3D-BTL on hotkey b (ON / OFF, on by default), battles fought on the world map",
-      "BACK SPRITES options row (OFF / ON, off by default), which keeps your own Pokemon on the battle menu in its classic slot while the foe stands out on the map",
+      "BACK VIEW options row (OFF / ON, off by default), which keeps your own Pokemon on the battle menu in its classic slot while the foe stands out on the map",
       "a day/night clock that reaches the flat 2D overworld as well as the diorama -- outdoor maps only, and only when the hour is not midday",
       "an over-the-shoulder battle camera on a slow parallax orbit, with a depth-of-field pass that holds both mons sharp",
       "a sky behind the diorama at the 75-degree rung, outdoor maps only, coloured by the active palette mode",
       "a hand-authored tile shape profile (data/voxel_heights.lua) a mod can extend",
-      "RES options row (1/2 / FULL / 1/3 / 1/4, 1/2 by default), the fraction of the panel's resolution the 3D pass renders at before it is scaled back up",
+      "RESOLUTION options row (1/2 / FULL / 1/3 / 1/4, 1/2 by default), the fraction of the panel's resolution the 3D pass renders at before it is scaled back up",
       "SHADOWS options row (LOW / OFF / HIGH / SOFT, LOW by default): LOW is a quarter-size shadow map with a hard edge, no neighbouring maps casting and a redraw every other frame while walking; OFF puts the flat drop shadows back; SOFT is HIGH plus a blocker search, so a shadow's edge widens with distance from whatever throws it",
       "SCREEN FX options row (AUTO / SSR / AO / OFF / MAX, AUTO by default; called RTX up to 1.36.0-beta -- it is not ray tracing), a screen-space pass marched across the 3D pass's own depth buffer: ambient occlusion in the corners the sky cannot reach, reflections that leave the water along the swell's own normal and land on whatever is actually standing there, and -- at MAX -- light shafts marched toward the sun's disc",
       "WIND options row (AUTO / BREEZE / GALE / OFF, AUTO by default): the tall grass and the flowers are geometry here, so the wind is a bend rather than a slid picture -- the base stays planted, the tip gives, and because the wave's phase comes from each vertex's own world position the gust TRAVELS across a meadow instead of every tuft moving in unison. AUTO hands the row itself to the climate: near-still on a calm night, breeze by day, and it reaches gale on its own under a front, so a storm feels like a storm without a trip to this menu",
@@ -61,7 +61,7 @@ return {
       "wind goes AROUND buildings: how sheltered each cell is gets baked once per map out of the walls already there, so a meadow in a house's lee stands still while the open field waves, and the edge of the calm never moves -- because buildings do not",
       "wind you can see off the grass: flat comet-tail streaks of what the air is carrying -- dust on a clear day, the rain's own pale blue as spray, blown white under a fall -- plus a gust FRONT thrown abreast off the same squall envelope the grass is bending to, so a rank crosses the frame as a line while the meadow bows under it. Outdoors only, above a wind floor, and nothing at all under WIND OFF",
       "ambient sound beds under the map music (crickets, birds, water, rain, thunder, plus town / wind / forest / waves / cave / indoor when the CC0 files are present) driven by hour, weather, wind, water size and map kind -- see assets/audio/CREDITS.md",
-      "GROUND options row (ON / OFF, ON by default): puddles that gather through a shower and drain over four minutes, snow settling in two ranks of drift and melting over seven, and footprints behind every walker in the snow. Drawn as depth-tested decals between the terrain and the characters, so they take the hour's light and never paint over anybody's feet. Only offered while WEATHER is on",
+      "GROUND MARKS options row (ON / OFF, ON by default): puddles that gather through a shower and drain over four minutes, snow settling in two ranks of drift and melting over seven, and footprints behind every walker in the snow. Drawn as depth-tested decals between the terrain and the characters, so they take the hour's light and never paint over anybody's feet. Only offered while WEATHER is on",
       "assets/ground/puddle.png, drift.png and print.png -- strips of 16x16 frames that replace the generated decal shapes, used as-is at whatever frame count the image is wide",
       "puddles are found by the SCREEN FX row's screen-space reflection and carry the sky, the trees and whatever stands across them -- identified by the FRACTION of the height they float at (0.7 world px above whatever ground they lie on), because the pass has only a colour buffer and a depth buffer to look at. Snow floats at a whole 1.0 and stays out of it",
       "puddles sit on a three-cell block grid, one pool per block at most, so a wet street is a few wide pools with dry ground between them rather than a stipple",
@@ -72,13 +72,13 @@ return {
       "god rays for the length of the post-rain spell, drawn where the deck is THIN out of the cloud density the raymarch already computed, so the whole effect costs one atan and one sin over work already done. Hard rungs and the sky's own checker dither, never a soft ramp; a moon throws none",
       "a STORM sky: heavy rain bruises the sky violet rather than only greying it, blended after the stratus on the same hour weight, and only above the same power threshold that arms the lightning -- so a drizzle keeps the neutral grey it always had and a purple sky is one that can flash. The world tint goes with it",
       "stars go out ONE AT A TIME as cloud comes over -- each has its own threshold, mostly its own magnitude with a scatter off its twinkle phase, so the field empties in a scattered order with the faint ones first instead of dimming as one sheet. A clear deep night is unchanged",
-      "ANIME options row (OFF / CEL / FULL): cel-banded light, rim light and an ink line, with no new render pass at any rung -- CEL is arithmetic inside the scene shader that already runs, so it works even with SCREEN FX off entirely",
-      "IMPACT options row (OFF / ON): hand-drawn sprite-sheet effects in the overlay pass beside the butterflies and the rain. CC0 packs from OpenGameArt rather than generated art -- see assets/vfx/LICENSE.md",
-      "V-HAZE options row and hotkey h (OFF / 1 / 2 / 3): aerial perspective -- far ground goes paler, flatter and bluer, mixed toward the sky's own palest band. Equal contrast reads as equal distance, which is most of why a small map read small",
+      "CEL MOTION options row (OFF / CEL / FULL): cel-banded light, rim light and an ink line, with no new render pass at any rung -- CEL is arithmetic inside the scene shader that already runs, so it works even with SCREEN FX off entirely",
+      "HIT FRAMES options row (OFF / ON): hand-drawn sprite-sheet effects in the overlay pass beside the butterflies and the rain. CC0 packs from OpenGameArt rather than generated art -- see assets/vfx/LICENSE.md",
+      "DISTANCE FOG options row and hotkey h (OFF / 1 / 2 / 3): aerial perspective -- far ground goes paler, flatter and bluer, mixed toward the sky's own palest band. Equal contrast reads as equal distance, which is most of why a small map read small",
       "HORIZON options row and hotkey k (OFF / NEAR / FAR / ALL): the rest of Kanto standing on the skyline. The connection graph already places eight to twenty-one further maps spanning some thirty view-heights -- none of it was missing, all of it was unplaced, and lib/WorldAtlas.lua places it by reusing the engine's own BFS rather than walking it again",
       "Lavender Town and Routes 8/10/12, and Vermilion City and Routes 6/11, floored as one painted picture with their towns, with their own homes, Centre, Mart and the Pokemon Tower built in the town's stone",
       "bridges and piers built as timber, Vermilion's fences as heavy crossbuck, and a water garden -- reeds, lilies, seagrass, kelp and coral -- growing in the big waters and swaying on its own",
-      "WATER options row (AUTO / CALM / SWELL / FLAT) over a real wave equation, so a surfer, a raindrop or a fishing float leaves rings that spread and bounce off the bank; WATER STYLE (ANIME / CLASSIC) picks how it is drawn",
+      "WATER MOTION options row (AUTO / CALM / SWELL / FLAT) over a real wave equation, so a surfer, a raindrop or a fishing float leaves rings that spread and bounce off the bank; WATER STYLE (ANIME / CLASSIC) picks how it is drawn",
       "the visible wind drawn as strokes and leaves rather than sprite puffs, and the clouds throwing shadows that cross the ground downwind",
       "a fishing float on the end of the line, read off the engine's own fishing state",
     },
@@ -94,7 +94,7 @@ return {
       "everything the SCREEN FX row does is screen-space, which means it can only reflect or shade what is ON SCREEN: a reflection whose ray leaves the frame fills in with the sky rather than with the bank it would have hit, and a corner at the very edge of the view shades a little less than one in the middle",
       "terrain is chunked and culled against the camera, so a route submits only the cells it can still see ground on and a connected map you are not facing costs nothing. The battle arena is drawn whole -- its camera is placed rather than orbited, and the free-roam culling box does not describe it",
       "optional third-party art (the X/Y GUI pack, Generation 5 battle sprites) is never in the zip -- install scripts live under tools/; missing art degrades, it does not remove the feature",
-      "the GROUND row's decals are geometry in the 3D pass, so they need the VOXEL camera on -- the flat 2D path has no depth buffer to test them against and no pass to sit between. The accumulation itself keeps running either way",
+      "the GROUND MARKS row's decals are geometry in the 3D pass, so they need the VOXEL camera on -- the flat 2D path has no depth buffer to test them against and no pass to sit between. The accumulation itself keeps running either way",
     },
   },
   credits = {

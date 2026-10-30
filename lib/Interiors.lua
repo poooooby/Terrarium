@@ -37,7 +37,7 @@ local Map = require("src.world.Map")
 
 local Interiors = {}
 
-Interiors.setting = ModSetting.new("indoor", "INDOOR",
+Interiors.setting = ModSetting.new("indoor", "HOME DETAIL",
                                    { "on", "off" }, { "ON", "OFF" })
 
 function Interiors.enabled()

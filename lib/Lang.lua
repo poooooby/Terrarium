@@ -26,7 +26,7 @@ local ModSetting = V.require("ModSetting")
 
 local Lang = {}
 
-Lang.setting = ModSetting.new("language", "UI LANG",
+Lang.setting = ModSetting.new("language", "LANGUAGE",
   { "en", "pt" }, { "ENGLISH", "PORTUGUÊS" })
 
 function Lang.get()

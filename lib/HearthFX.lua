@@ -67,7 +67,7 @@ local HearthFX = {}
 local rand = math.random
 local floor = math.floor
 
-HearthFX.setting = ModSetting.new("hearth", "HEARTH",
+HearthFX.setting = ModSetting.new("hearth", "CHIMNEYS",
                                   { "on", "off" }, { "ON", "OFF" })
 
 function HearthFX.enabled()
@@ -236,7 +236,7 @@ local function updateBody(dt, voxelOn)
   if not live then
     HearthFX.lastGate =
       (not voxelOn and "voxelOn=false")
-      or (not HearthFX.enabled() and "HEARTH off")
+      or (not HearthFX.enabled() and "CHIMNEYS off")
       or (not (ow and ow.map and ow.player) and "no overworld/map/player")
       or (not Map.isOutdoor(ow.map.def) and "indoors")
       or (not (Game.stack and Game.stack:top() == ow) and "overworld not on top")

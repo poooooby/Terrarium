@@ -61,7 +61,7 @@ local floor, sqrt, max, min, sin = math.floor, math.sqrt, math.max, math.min,
 
 -- ------------------------------------------------------------- the row --
 
-LedgeKit.setting = ModSetting.new("ledges", "LEDGES",
+LedgeKit.setting = ModSetting.new("ledges", "LEDGE STYLE",
                                   { "bank", "classic" },
                                   { "BANK", "CLASSIC" })
 

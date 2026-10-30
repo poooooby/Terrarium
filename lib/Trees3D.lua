@@ -88,7 +88,7 @@ local Trees3D = {}
 -- The set is chosen at chunk-build time -- Structures records sites when
 -- available() is true -- so flipping the row has to drop the built meshes
 -- (remesh below) or the forest keeps the shape it was built with.
-Trees3D.setting = ModSetting.new("trees3d", "TREES",
+Trees3D.setting = ModSetting.new("trees3d", "TREE STYLE",
                                  { "voxel", "3d" },
                                  { "VOXEL", "3D" })
 

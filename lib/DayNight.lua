@@ -61,7 +61,7 @@ DayNight.BLEND = 75           -- seconds of palette blend either side of a twili
 DayNight.T = { dawn = 0, day = 300, dusk = 600, night = 900 }
 
 DayNight.KEY = "daytime"
-DayNight.LABEL = "DAYTIME"
+DayNight.LABEL = "TIME OF DAY"
 
 -- "sync" first: an unset or unreadable value follows the machine's own
 -- clock, per the row's contract (ModSetting values[1] is the default) --
@@ -291,7 +291,7 @@ DayNight.TINTS = {
 --
 -- Only night and violet move.  Day/golden/dawn/dusk stay put: this row is
 -- about the dark half of the cycle, not a global dimmer.
-DayNight.darkSetting = ModSetting.new("nightDark", "N-DARK",
+DayNight.darkSetting = ModSetting.new("nightDark", "NIGHT LEVEL",
                                       { "deep", "soft" },
                                       { "DEEP", "SOFT" })
 

@@ -53,7 +53,7 @@ local ModSetting = V.require("ModSetting")
 
 local Light = {}
 
-Light.setting = ModSetting.new("light", "LIGHT",
+Light.setting = ModSetting.new("light", "LIGHTING",
                                { true, false },
                                { "SKY", "FLAT" })
 

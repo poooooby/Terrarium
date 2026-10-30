@@ -66,7 +66,7 @@ local Anime = {}
 -- like, and a mod that repaints someone's game on update without being
 -- asked is a mod that gets uninstalled. Same reasoning Quality uses to put
 -- its cheap rung first, for a different reason.
-Anime.setting = ModSetting.new("anime", "ANIME",
+Anime.setting = ModSetting.new("anime", "CEL MOTION",
                                { "off", "cel", "full" },
                                { "OFF", "CEL", "FULL" })
 

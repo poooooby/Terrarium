@@ -32,7 +32,7 @@ local Quality = V.require("Quality")
 local MiniMap = {}
 
 -- Ladder: default ON (cheap always-on). FULL is the denser local view.
-MiniMap.setting = ModSetting.new("minimap", "MAP",
+MiniMap.setting = ModSetting.new("minimap", "RADAR",
                                  { "on", "full", "off" },
                                  { "ON", "FULL", "OFF" })
 

@@ -47,12 +47,12 @@ V.PIPE_VOXEL, V.PIPE_TILT = PIPE_VOXEL, PIPE_TILT
 -- Letter keys: free of engine 2-5 and of upstream DRAMATIC_SHAPE's 3/5/6/7/8/9,
 -- so both mods can be enabled without fighting for the same presses.
 local KEY_VOXEL  = "v"   -- VOXEL camera ladder (skips FULL)
-local KEY_GRID   = "g"   -- V-GRID wireframe
+local KEY_GRID   = "g"   -- WIREFRAME
 local KEY_TILT   = "t"   -- T-SHIFT blur
-local KEY_CURVE  = "c"   -- V-CURVE horizon
-local KEY_BATTLE = "b"   -- 3D-BTL
-local KEY_MAP    = "p"   -- minimap ON/FULL/OFF
-local KEY_HAZE   = "h"   -- V-HAZE aerial perspective
+local KEY_CURVE  = "c"   -- WORLD CURVE
+local KEY_BATTLE = "b"   -- 3D BATTLES
+local KEY_MAP    = "p"   -- RADAR ON/FULL/OFF
+local KEY_HAZE   = "h"   -- DISTANCE FOG
 local KEY_SKYLINE = "k"  -- HORIZON far silhouettes
 -- Free of engine 2-5, of upstream DRAMATIC_SHAPE's 3/5/6/7/8/9, and of every
 -- letter above. Fires one impact sheet at the player's feet and steps to the
@@ -65,7 +65,7 @@ local KEY_FX = "j"
 -- engine's 2-5, of upstream DRAMATIC_SHAPE's 3/5/6/7/8/9, of every other
 -- key above, and -- the one that matters -- of the Game Boy bindings in
 -- src/core/Input.lua, every one of which the GAME needs.
-local KEY_SM64  = "m"   -- SM64CAM ON / OFF
+local KEY_SM64  = "m"   -- FOLLOW CAM ON / OFF
 local KEY_CAML  = "q"   -- C-left
 local KEY_CAMR  = "e"   -- C-right
 local KEY_CAMR2 = "r"   -- R: put the camera at my back
@@ -777,7 +777,8 @@ local SETTINGS = {
     .. "then fades in, instead of showing the flat floor and popping the "
     .. "room in over it. Rooms you have been in recently are already "
     .. "built and fade in as usual. OFF shows the flat floor while it "
-    .. "builds, as before." },
+    .. "builds, as before.",
+    full = true },
   { PreCache.setting,
     "DEV PREVIEW, shown only during a profiling session (tools/profiler). "
     .. "Warms what the maps one step away will need while the current one "
@@ -816,7 +817,7 @@ local SETTINGS = {
     "How much air there is: the dust and the seeds on the wind, the rain's "
     .. "own falling shafts, the splashes it lands in, the snow, and the "
     .. "water still coming off the eaves after a shower. Its own row "
-    .. "because it used to hang off RES, which meant asking for more "
+    .. "because it used to hang off RESOLUTION, which meant asking for more "
     .. "weather also asked the grass, the shadows and the cloud raymarch "
     .. "to get heavier. ON is exactly what every rung already had; HIGH "
     .. "doubles the counts and MAX quadruples them, both without the rest "
@@ -968,7 +969,7 @@ local SETTINGS = {
     .. "it brings lightning, and the thunder arrives after the flash by "
     .. "however far away the strike was. SNOW drifts instead, in the "
     .. "diorama rather than across the lens, and AUTO chooses it on its own "
-    .. "through the winter of the same clock the DAYTIME row's SYNC rung "
+    .. "through the winter of the same clock the TIME OF DAY row's SYNC rung "
     .. "follows.",
     full = true },
   -- `full = true` like WEATHER: clouds are what the sky is doing, not a
@@ -978,7 +979,7 @@ local SETTINGS = {
     .. "pushed along by the WIND row. ON keeps a few fair-weather puffs that "
     .. "thicken into a deck as a shower builds (DayNight.overcast). THICK is "
     .. "a heavy sky even on a clear hour. OFF is bands only. Step count "
-    .. "follows the RES row so a phone never raymarches what it cannot "
+    .. "follows the RESOLUTION row so a phone never raymarches what it cannot "
     .. "afford; at 1/4 the clouds switch off with the other ornaments.",
     full = true },
   -- `full = true` like CLOUDS: the shade IS the clouds, seen from below.
@@ -1073,7 +1074,7 @@ local SETTINGS = {
     .. "spire -- every voxel a texel of the drawing, the grey done with "
     .. "light rather than paint. CLASSIC is the building kit's plain fold "
     .. "of the same drawing, as it stood before. Flipping it rebuilds the "
-    .. "map's meshes. The HAUNT row's cold glass and wisps belong to the "
+    .. "map's meshes. The GHOSTS row's cold glass and wisps belong to the "
     .. "NEW tower only.",
     full = true },
   -- `full = true` like TOWER: what the inside of the tower of graves is
@@ -1090,7 +1091,7 @@ local SETTINGS = {
     .. "on a plinth wearing its own drawing. Candle lanterns hang where the light is: "
     .. "warm pools on the stone, flames breathing, the room held dim and "
     .. "cool, a violet haze on the haunted floors, and on those floors "
-    .. "wisps sigh out of the graves (the HAUNT row). CLASSIC is the "
+    .. "wisps sigh out of the graves (the GHOSTS row). CLASSIC is the "
     .. "profile's pins as they were. Flipping it rebuilds the map's meshes.",
     full = true },
   -- `full = true` like CRYPT: the crypt's light is the look of the place.
@@ -1107,9 +1108,9 @@ local SETTINGS = {
     .. "photographed rubble masonry and STAND those stones in depth, so a "
     .. "lantern rakes the side of a block; there is no sun in here, only "
     .. "a fill from above read through the stone's grain. The wireframe "
-    .. "and the ANIME row's cel step stand aside while this is on. OFF "
+    .. "and the CEL MOTION row's cel step stand aside while this is on. OFF "
     .. "lights the crypt the way the streets are lit. Only inside the "
-    .. "Pokemon Tower and Agatha's room, and only with the CRYPT row on NEW.",
+    .. "Pokemon Tower and Agatha's room, and only with the TOWER INSIDE row on NEW.",
     full = true },
   -- `full = true` like CRYPT: what a Poke Mart is inside is the look of the
   -- place, not a knob on the camera. Missing from this table for a while --
@@ -1136,7 +1137,7 @@ local SETTINGS = {
     .. "still free to go higher; this floor only ever raises it, never "
     .. "lowers it). OFF lights the mart the way the streets are lit and "
     .. "stops asking RTX for anything -- an RTX OFF choice is then honoured "
-    .. "inside a mart too. Only with the SHOP row on NEW.",
+    .. "inside a mart too. Only with the MART INSIDE row on NEW.",
     full = true },
   -- `full = true` like TOWER: what a ledge is made of is the look of every
   -- route, not a knob on the camera. Remeshes on its own step, like TREES.
@@ -1270,13 +1271,12 @@ mod.options:define(schema)
 -- ------- this mod's hotkeys
 --
 --   v  VOXEL    cycle the camera ladder      (skips FULL)
---   g  V-GRID   toggle the wireframe
+--   g  WIREFRAME   toggle the wireframe
 --   t  T-SHIFT  cycle the blur ladder
---   c  V-CURVE  cycle the horizon bend
---   b  3D-BTL   toggle overworld battles
---   n  WILD     cycle ROAM / MIX / OFF
---   p  MAP      minimap ON / FULL / OFF
---   m  SM64CAM  the Mario 64 camera, ON / OFF
+--   c  WORLD CURVE cycle the horizon bend
+--   b  3D BATTLES  toggle overworld battles
+--   p  RADAR       minimap ON / FULL / OFF
+--   m  FOLLOW CAM  the Mario 64 camera, ON / OFF
 --   q  camera left      (SM64's C-left)
 --   e  camera right     (SM64's C-right)
 --   r  camera lock      (SM64's R: 45-degree steps)

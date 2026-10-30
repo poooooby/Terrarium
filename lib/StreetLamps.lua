@@ -30,7 +30,7 @@ local function game()
   return require("src.core.Game")
 end
 
-StreetLamps.setting = ModSetting.new("lamps", "LAMPS",
+StreetLamps.setting = ModSetting.new("lamps", "STREET LAMPS",
                                      { true, false },
                                      { "ON", "OFF" })
 

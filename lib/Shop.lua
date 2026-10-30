@@ -43,7 +43,7 @@ local Shop = {}
 -- to it: on CLASSIC the kit stamps nothing (and lib/RoomKit.lua's old
 -- fixtures stand again, whole) AND the scene lights the room flat, lays no
 -- tiles and carries no materials.
-Shop.setting = ModSetting.new("shop", "SHOP",
+Shop.setting = ModSetting.new("shop", "MART INSIDE",
                               { "new", "classic" },
                               { "NEW", "CLASSIC" })
 
@@ -57,7 +57,7 @@ end
 -- relief the tubes rake across, the sheen on the floor and the bloom that
 -- makes a diffuser a light rather than a pale rectangle. Its own row
 -- because it is the costlier half, exactly as CRYPT-FX is.
-Shop.fxSetting = ModSetting.new("shopfx", "SHOP-FX",
+Shop.fxSetting = ModSetting.new("shopfx", "MART LIGHT",
                                 { "on", "off" }, { "ON", "OFF" })
 
 function Shop.fxOn()
