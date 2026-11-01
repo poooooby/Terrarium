@@ -1599,8 +1599,8 @@ local function terrariumRows(game)
       rows[#rows + 1] = row
     end
   end
-  for _, row in ipairs(settingRows(full)) do rows[#rows + 1] = row end
-  rows[#rows + 1] = {
+  local actions = {}
+  actions[#actions + 1] = {
     id = mod.id .. ":buildworld",
     label = Lang.pick("BUILD 3D WORLD", "CONSTRUIR MUNDO 3D"),
     -- what is on disk now, so the row says whether there is anything to do
@@ -1610,7 +1610,7 @@ local function terrariumRows(game)
     end,
     activate = function(g) BuildVeil.open(g) end,
   }
-  rows[#rows + 1] = {
+  actions[#actions + 1] = {
     id = mod.id .. ":clearcache",
     label = Lang.pick("CLEAR 3D CACHE", "LIMPAR CACHE 3D"),
     -- two presses: one A on the wrong row should not cost a phone the
@@ -1624,6 +1624,20 @@ local function terrariumRows(game)
       pcall(BuildCache.clear)
     end,
   }
+  -- the two actions sit right under the 3D CACHE row they act on, rather
+  -- than forty rows below it at the foot of the page; appended only if
+  -- that row is somehow not offered
+  local placed = false
+  for _, row in ipairs(settingRows(full)) do
+    rows[#rows + 1] = row
+    if row.id == mod.id .. ":" .. BuildCache.setting.key then
+      for _, a in ipairs(actions) do rows[#rows + 1] = a end
+      placed = true
+    end
+  end
+  if not placed then
+    for _, a in ipairs(actions) do rows[#rows + 1] = a end
+  end
   return rows
 end
 

@@ -26,6 +26,10 @@ Tags and packages:
 - Zip asset: `TERRARIUM-1.50.0.zip`
 - `manifest.json` / catalog `version` field: `1.50.0`
 
+## Unreleased
+
+- **BUILD 3D WORLD and CLEAR 3D CACHE moved** from the foot of the TERRARIUM page to right under the 3D CACHE row they act on.
+
 ## 1.52.0-beta (pre-release)
 
 ### Every Terrarium setting on one page

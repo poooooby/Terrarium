@@ -70,6 +70,11 @@ return function(game)
   check(has["pipeline:terrarium_voxel"] ~= nil, "VOXEL is on the page")
   check(has["pipeline:terrarium_tiltshift"] ~= nil, "T-SHIFT is on the page")
   check(has[prefix .. "buildcache"] ~= nil, "3D CACHE is on the page")
+  local order = {}
+  for i, row in ipairs(menu.rows or {}) do order[tostring(row.id)] = i end
+  local at = order[prefix .. "buildcache"] or -9
+  check(order[prefix .. "buildworld"] == at + 1 and order[prefix .. "clearcache"] == at + 2,
+        "BUILD 3D WORLD and CLEAR 3D CACHE sit right under 3D CACHE")
 
   -- CLEAR 3D CACHE: armed by the first A, done by the second
   local BuildCache = H.V.require("BuildCache")
