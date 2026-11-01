@@ -16,7 +16,7 @@ MAJOR.MINOR.PATCH
 
 The old `-mobile` channel is retired. Historical tags keep it (`v1.28.0-mobile` and earlier). New tags do not.
 
-The `-beta` suffix is retired too, as of 1.40.5. Historical tags keep it (`v1.40.4-beta` and earlier). New tags do not.
+The `-beta` suffix was retired as of 1.40.5 (`v1.40.4-beta` and earlier keep it). Since 1.51.0 it marks a GitHub **pre-release** only: the game's updater offers players the newest release that is *not* a pre-release, so a `-beta` reaches only those who pick it. The stable release that follows drops the suffix (`1.51.0-beta` → `1.51.0`).
 
 **Do not** encode features in the version string (no `.water`, `.rain`, `.grass`, …). Feature names live in this changelog and in release notes.
 
@@ -26,7 +26,7 @@ Tags and packages:
 - Zip asset: `TERRARIUM-1.50.0.zip`
 - `manifest.json` / catalog `version` field: `1.50.0`
 
-## Unreleased
+## 1.51.0-beta (pre-release)
 
 ### The 3D world is built once, then loads in about a second
 
