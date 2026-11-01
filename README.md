@@ -72,11 +72,11 @@ The full list, with every option explained, is in [`FEATURES.md`](FEATURES.md).
 3. In the game, open **MODS → Import mod .zip** and pick it. (Or unzip it into
    `mods/TERRARIUM` yourself.)
 
-Then load your save and look around. The settings live in **OPTIONS**.
+Then load your save and look around. The settings live in **OPTIONS → OPEN TERRARIUM**.
 
 ## Settings and performance
 
-Every feature is a row on the **OPTIONS** menu, and every row has an OFF. If
+Every feature is a row on the **TERRARIUM** page (**OPTIONS → OPEN TERRARIUM**), and every row has an OFF. If
 something is too slow, too bright or too much, switch that row off; nothing
 depends on anything else.
 

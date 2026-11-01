@@ -130,6 +130,7 @@ local LoadVeil = V.require("LoadVeil")
 local BuildCache = V.require("BuildCache")
 local BuildBadge = V.require("BuildBadge")
 local BuildVeil = V.require("BuildVeil")
+local ColorsPrompt = V.require("ColorsPrompt")
 local Perf = V.require("Perf")
 local Lang = V.require("Lang")
 local Wind = V.require("Wind")
@@ -1482,31 +1483,6 @@ do
   end
 end
 
--- ------- the mode's rows, kept together
---
--- The engine splices a pipeline's row in beside TILT, because a display mode
--- belongs with the other display modes; a mod's own ui.options.rows
--- additions land at the END of the list. That left this mod's four rows in
--- two places with unrelated engine rows between them, which reads as two
--- unrelated features rather than one mode with settings.
---
--- So the plain settings are inserted directly after the last of this mod's
--- PIPELINE rows instead of appended. Nothing else moves: the block lands
--- where the engine already decided display modes go.
-local function insertGrouped(out, extra)
-  local anchor = nil
-  for i, row in ipairs(out) do
-    local id = type(row) == "table" and row.id
-    if id == "pipeline:" .. PIPE_VOXEL or id == "pipeline:" .. PIPE_TILT then anchor = i end
-  end
-  if not anchor then
-    for _, row in ipairs(extra) do out[#out + 1] = row end
-    return out
-  end
-  for i, row in ipairs(extra) do table.insert(out, anchor + i, row) end
-  return out
-end
-
 -- FULL owns the settings that describe the LOOK, so while it is selected those
 -- are taken off the menu rather than left to be changed under it -- including
 -- T-SHIFT, which is a pipeline row the engine put there. A row that no longer
@@ -1561,6 +1537,104 @@ local function pinEngineFx(game)
   if changed and game.writeOptions then pcall(game.writeOptions, game) end
 end
 
+-- ------- one TERRARIUM page
+--
+-- This mod used to put every one of its rows on the top level of OPTIONS --
+-- VOXEL, T-SHIFT and some forty settings after them -- which buried the
+-- engine's own rows under a list longer than the rest of the menu put
+-- together, and gave a player no single place that said "these are
+-- Terrarium's". Now the top level carries ONE row, OPEN TERRARIUM, and the
+-- page it opens holds all of them: the two pipeline rows (nothing needs
+-- them at the top -- the v and t hotkeys drive the pipelines directly), every
+-- SETTINGS row, and two actions the old flat list had no room for: BUILD
+-- 3D WORLD (the boot's ALL / NEAREST / NONE prompt, on demand) and CLEAR 3D
+-- CACHE.
+--
+-- The page is the engine's own sub-page screen -- OptionsMenu.new(game,
+-- { rows = ... }), the same one BATTLE OPTIONS and VIDEO open -- so it looks
+-- and steps exactly like the rest of OPTIONS. Its list is FIXED once built,
+-- though, so the OptionsMenu.update wrap further down rebuilds it (from
+-- terrariumRows, marked by `page.terrarium`) on the steps that change which
+-- rows exist: crossing FULL, 3D-BTL, WEATHER at OFF.
+--
+-- The mod manager's page (MODS > TERRARIUM) still lists every SETTINGS row
+-- from the schema; it has no action rows and no pipeline rows to offer, so
+-- the two actions and VOXEL / T-SHIFT live here only.
+local OPEN_ID = mod.id .. ":open"
+local clearArmed = false
+
+local function settingRows(full)
+  local extra = {}
+  for _, entry in ipairs(SETTINGS) do
+    -- Two things decide whether a row is offered.
+    --
+    -- FULL: a preset that owns the look, so the rows that describe the look go
+    -- with it. The BATTLE rows are not that -- 3D-BTL decides what a fight is
+    -- drawn OVER and BACK SPRITES how it is framed, and neither is a knob on
+    -- the diorama FULL is a preset for. FULL still SETS them on arrival (see
+    -- applyFull); it does not hold them, so leaving them on the menu is the
+    -- difference between a preset and a lock.
+    --
+    -- And a row whose own switch is off the table this frame (BACK SPRITES,
+    -- which needs a staged fight to be about) is left off with it. The mod
+    -- manager's page carries every one of them either way.
+    local offered = (entry.full or not full)
+                    and (not entry.when or entry.when())
+    if offered then extra[#extra + 1] = entry[1]:row() end
+  end
+  return extra
+end
+
+local function terrariumRows(game)
+  local Pipelines = require("src.render.Pipelines")
+  local full = Voxel.isFull(Pipelines.level(PIPE_VOXEL))
+  -- FULL owns the blur too -- except on a device where the blur is a
+  -- performance row rather than a look (see applyFull)
+  local tiltOwned = full and not Device.mobile()
+  local rows = {}
+  for _, row in ipairs(Pipelines.rows(game)) do
+    local id = type(row) == "table" and row.id
+    if id == "pipeline:" .. PIPE_VOXEL
+       or (id == "pipeline:" .. PIPE_TILT and not tiltOwned) then
+      rows[#rows + 1] = row
+    end
+  end
+  for _, row in ipairs(settingRows(full)) do rows[#rows + 1] = row end
+  rows[#rows + 1] = {
+    id = mod.id .. ":buildworld",
+    label = Lang.pick("BUILD 3D WORLD", "CONSTRUIR MUNDO 3D"),
+    -- what is on disk now, so the row says whether there is anything to do
+    value = function()
+      local ok, n = pcall(BuildCache.totalBytes)
+      return ("%.0f MB"):format((ok and n or 0) / 1048576)
+    end,
+    activate = function(g) BuildVeil.open(g) end,
+  }
+  rows[#rows + 1] = {
+    id = mod.id .. ":clearcache",
+    label = Lang.pick("CLEAR 3D CACHE", "LIMPAR CACHE 3D"),
+    -- two presses: one A on the wrong row should not cost a phone the
+    -- minutes ALL took to build
+    value = function()
+      return clearArmed and Lang.pick("PRESS A AGAIN", "A DE NOVO") or ""
+    end,
+    activate = function()
+      if not clearArmed then clearArmed = true; return end
+      clearArmed = false
+      pcall(BuildCache.clear)
+    end,
+  }
+  return rows
+end
+
+local function openTerrarium(game)
+  clearArmed = false
+  local OptionsMenu = require("src.ui.OptionsMenu")
+  local page = OptionsMenu.new(game, { rows = terrariumRows(game) })
+  page.terrarium = true
+  game.stack:push(page)
+end
+
 -- call next() first and decorate what comes back, so every other mod's
 -- rows survive this one
 mod.hooks:wrap("ui.options.rows", function(next, game, rows)
@@ -1583,35 +1657,28 @@ mod.hooks:wrap("ui.options.rows", function(next, game, rows)
     OverworldBattle.forceOG(game)
     dropRow(out, "battleLayout")
   end
-  local full = Voxel.isFull(Pipelines.level(PIPE_VOXEL))
-  if full then
-    -- FULL owns the rows that PARAMETERISE the diorama -- the wireframe, the
-    -- horizon bend, the blur, the hour -- so those come off the menu and
-    -- DAYTIME is held at SYNC while its row is unreachable.
-    DayNight.forceSync(game)
-    -- ...but not the blur, on a device where the blur is a performance row
-    -- rather than a look. See applyFull.
-    if not Device.mobile() then dropRow(out, "pipeline:" .. PIPE_TILT) end
+  -- FULL owns the rows that PARAMETERISE the diorama -- the wireframe, the
+  -- horizon bend, the blur, the hour -- so those come off the TERRARIUM page
+  -- (terrariumRows) and DAYTIME is held at SYNC while its row is unreachable.
+  if Voxel.isFull(Pipelines.level(PIPE_VOXEL)) then DayNight.forceSync(game) end
+  -- this mod's two pipeline rows move onto the TERRARIUM page, and one
+  -- OPEN TERRARIUM row takes their place on the top level
+  local at = nil
+  for i, row in ipairs(out) do
+    local id = type(row) == "table" and row.id
+    if not at and (id == "pipeline:" .. PIPE_VOXEL or id == "pipeline:" .. PIPE_TILT) then
+      at = i
+    end
   end
-  local extra = {}
-  for _, entry in ipairs(SETTINGS) do
-    -- Two things decide whether a row is offered.
-    --
-    -- FULL: a preset that owns the look, so the rows that describe the look go
-    -- with it. The BATTLE rows are not that -- 3D-BTL decides what a fight is
-    -- drawn OVER and BACK SPRITES how it is framed, and neither is a knob on
-    -- the diorama FULL is a preset for. FULL still SETS them on arrival (see
-    -- applyFull); it does not hold them, so leaving them on the menu is the
-    -- difference between a preset and a lock.
-    --
-    -- And a row whose own switch is off the table this frame (BACK SPRITES,
-    -- which needs a staged fight to be about) is left off with it. The mod
-    -- manager's page carries every one of them either way.
-    local offered = (entry.full or not full)
-                    and (not entry.when or entry.when())
-    if offered then extra[#extra + 1] = entry[1]:row() end
-  end
-  return insertGrouped(out, extra)
+  dropRow(out, "pipeline:" .. PIPE_VOXEL)
+  dropRow(out, "pipeline:" .. PIPE_TILT)
+  table.insert(out, math.min(at or (#out + 1), #out + 1), {
+    id = OPEN_ID,
+    label = Lang.pick("OPEN TERRARIUM", "ABRIR TERRARIUM"),
+    value = function() return "" end,
+    activate = openTerrarium,
+  })
+  return out
 end)
 
 -- The mod manager writes and persists on its own, so the only thing left
@@ -1764,7 +1831,8 @@ do
     local inner = OptionsMenu.update
 
     local function idAt(menu, index)
-      local row = menu.rows and menu.rows[index or 1]
+      local rows = menu.view or menu.rows
+      local row = rows and rows[index or 1]
       return type(row) == "table" and row.id or nil
     end
 
@@ -1782,15 +1850,20 @@ do
          -- no sky there is never a puddle for that row to decide anything
          -- about
          or Weather.enabled() ~= hadWeather then
-        local rebuilt = OptionsMenu.new(self.game)
-        self.rows = rebuilt.rows
+        if self.terrarium then
+          local rows = terrariumRows(self.game)
+          self.rows, self.view = rows, rows
+        elseif not self.sub then
+          local rebuilt = OptionsMenu.new(self.game)
+          self.rows, self.view = rebuilt.rows, rebuilt.view
+        end
         -- Follow the row the cursor was ON rather than the slot it was in:
         -- 3D-BTL takes BATTLE LAYOUT off the list ABOVE itself, which would
         -- otherwise slide the cursor onto the row under the one just used.
-        for i = 1, #self.rows do
+        for i = 1, #(self.view or self.rows) do
           if wasOn and idAt(self, i) == wasOn then self.index = i; break end
         end
-        local cancel = #self.rows + 1
+        local cancel = #(self.view or self.rows) + 1
         if (self.index or 1) > cancel then self.index = cancel end
       end
     end
@@ -2034,6 +2107,10 @@ mod.hooks:wrap("render.hud", function(next, game, viewport)
     pcall(BuildVeil.draw)
     return a, b
   end
+  if ColorsPrompt.active() then
+    pcall(ColorsPrompt.draw)
+    return a, b
+  end
   if Voxel.active() and BuildBadge.showing() then
     local top = game and game.stack and game.stack:top()
     if top and top == game.overworld then pcall(BuildBadge.draw) end
@@ -2054,9 +2131,15 @@ end)
 
 mod.hooks:wrap("core.update", function(next, game, dt)
   local a, b = next(game, dt)
-  local ok, err = pcall(BuildVeil.update, game,
-                        require("src.render.Pipelines").level(PIPE_VOXEL) > 0)
+  local voxelOn = require("src.render.Pipelines").level(PIPE_VOXEL) > 0
+  local ok, err = pcall(BuildVeil.update, game, voxelOn)
   if not ok then print("[warn] 3D build prompt: " .. tostring(err)) end
+  -- "Terrarium needs ADVANCED colours" (lib/ColorsPrompt.lua): once, in
+  -- free roam, when COLORS is anything else; never over the build prompt
+  if not BuildVeil.active() then
+    ok, err = pcall(ColorsPrompt.update, game, dt, voxelOn)
+    if not ok then print("[warn] colours prompt: " .. tostring(err)) end
+  end
   return a, b
 end)
 

@@ -225,9 +225,11 @@ end
 local Prompt = {}
 Prompt.__index = Prompt
 
-function Prompt.new(game, stale)
+-- `root` is the map NEAREST builds around: the save's at the title, the
+-- one the player stands on when opened from the TERRARIUM page in play.
+function Prompt.new(game, stale, root)
   return setmetatable({
-    game = game, stale = stale or 0, phase = "ask", cursor = 1,
+    game = game, stale = stale or 0, root = root, phase = "ask", cursor = 1,
     choices = {
       { key = "all", label = Lang.pick("ALL", "TODOS") },
       { key = "near", label = Lang.pick("NEAREST", "PROXIMOS") },
@@ -289,7 +291,7 @@ function Prompt:update(dt)
       if key == "all" then
         self:start(BuildVeil.allIds())
       elseif key == "near" then
-        self:start(BuildVeil.nearestIds(BuildVeil.saveMap()))
+        self:start(BuildVeil.nearestIds(self.root or BuildVeil.saveMap()))
       else
         self:close()
       end
@@ -350,6 +352,20 @@ end
 
 function BuildVeil.active()
   return veil ~= nil
+end
+
+-- From the TERRARIUM page's BUILD 3D WORLD row: the same three choices,
+-- any time, over whatever screen is up (B or NONE goes back to it). In
+-- play, NEAREST builds around the map the player is on.
+function BuildVeil.open(game)
+  if veil or not (game and game.stack) then return false end
+  local ow = game.overworld
+  local root = ow and ow.map and ow.map.id or nil
+  -- stale 0: asked for, so the panel is the plain question rather than
+  -- the boot's "N areas changed"
+  veil = Prompt.new(game, 0, root)
+  game.stack:push(veil)
+  return true
 end
 
 -- --------------------------------------------------------------- drawing

@@ -26,6 +26,27 @@ Tags and packages:
 - Zip asset: `TERRARIUM-1.50.0.zip`
 - `manifest.json` / catalog `version` field: `1.50.0`
 
+## Unreleased
+
+### Every Terrarium setting on one page
+
+OPTIONS used to carry all of Terrarium's rows on its top level (VOXEL, T-SHIFT and some forty settings), burying the game's own rows. Now:
+
+- **One row on the top level: OPEN TERRARIUM.** It opens a TERRARIUM page with everything: VOXEL and T-SHIFT first, then every setting, in the same order as before. The v / t hotkeys still work from anywhere.
+- **Two new actions at the bottom of the page:**
+  - **BUILD 3D WORLD**: the ALL / NEAREST / NONE build prompt from first boot, any time. In play, NEAREST builds around the map you are on. The row shows how much is on disk.
+  - **CLEAR 3D CACHE**: empties the 3D cache. It takes two presses of A, so a stray press does not throw away a long build. The next boot asks ALL / NEAREST / NONE again.
+- **The mod manager's page** (MODS → TERRARIUM) still lists the settings as before.
+
+### A prompt when COLORS is not ADVANCED
+
+The voxels only appear in the ADVANCED colour mode. On SGB, OG, CLASSIC or any other COLORS mode the game simply stays 2D, so players thought the mod was not working, and nothing in the game said why.
+
+- **Asked once in free roam.** With the 3D view on and COLORS on anything other than ADVANCED, a panel asks **SWITCH TO ADVANCED** or **KEEP**. It waits until the player is in free roam, never during a warp, a cutscene or a trainer walking up.
+- **SWITCH** sets COLORS exactly as the engine's own COLORS hotkey (2) does, and it is saved.
+- **KEEP (2D ONLY)** (or B) is remembered for that mode, so the panel does not come back. It asks again only if the player later picks another non-ADVANCED mode, or goes back to ADVANCED and leaves it again.
+- Nothing is changed without the player's answer. COLORS stays under OPTIONS as before.
+
 ## 1.51.0-beta (pre-release)
 
 ### The 3D world is built once, then loads in about a second

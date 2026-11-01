@@ -121,6 +121,9 @@ tests/battleribbon_probe.lua
 tests/battlescreen_probe.lua
 tests/battleshot_probe.lua
 tests/black_flicker_probe.lua
+tests/build_cache_probe.lua
+tests/build_cache_restore_probe.lua
+tests/build_veil_probe.lua
 tests/buildings_baseline_probe.lua
 tests/buildings_perf_probe.lua
 tests/calm_probe.lua
@@ -129,6 +132,7 @@ tests/cave_ab_probe.lua
 tests/cave_stairs_probe.lua
 tests/coexist_probe.lua
 tests/cold_cost_probe.lua
+tests/colors_prompt_probe.lua
 tests/daynight_dial_probe.lua
 tests/diag_probe.lua
 tests/diag_row_probe.lua
@@ -395,10 +399,6 @@ CLAUDE.md
 PARTICLES-PLAN.md
 PRECACHE-PLAN.md
 Terrarium.code-workspace
-lib/BuildBadge.lua
-lib/BuildCache.lua
-lib/BuildVeil.lua
-lib/MeshBytes.lua
 publish-zip/TERRARIUM-1.16.0-mobile.rain.zip
 publish-zip/TERRARIUM-1.37.0-beta.zip
 publish/BrenoBertucci@TERRARIUM/description.md
@@ -408,9 +408,6 @@ releases/TERRARIUM-1.40.4-beta.test1.zip
 releases/TERRARIUM-1.40.4-beta.test2.zip
 releases/Terrarium.code-workspace
 releases/sha256sums.txt
-tests/build_cache_probe.lua
-tests/build_cache_restore_probe.lua
-tests/build_veil_probe.lua
 tools/_kit_out/CryptKit_POKEMON_TOWER_4F.faces
 tools/_kit_out/CryptKit_POKEMON_TOWER_4F.json
 tools/_kit_out/CryptKit_POKEMON_TOWER_4F.png

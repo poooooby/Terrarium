@@ -40,8 +40,8 @@ about what Kanto looks like, never about how the game plays.
 
 ## Controls
 
-Every key is free-roam only, and each one is also a row on the OPTIONS
-menu.
+Every key is free-roam only, and each one is also a row on the TERRARIUM
+page (**OPTIONS → OPEN TERRARIUM**).
 
 | control | does |
 | --- | --- |
