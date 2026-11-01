@@ -26,7 +26,9 @@ Tags and packages:
 - Zip asset: `TERRARIUM-1.50.0.zip`
 - `manifest.json` / catalog `version` field: `1.50.0`
 
-## Unreleased
+## 1.52.1
+
+The first stable release with everything from 1.51.0-beta and 1.52.0-beta below (the 3D build cache, the TERRARIUM options page, the ADVANCED colours prompt).
 
 - **BUILD 3D WORLD and CLEAR 3D CACHE moved** from the foot of the TERRARIUM page to right under the 3D CACHE row they act on.
 
