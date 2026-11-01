@@ -208,7 +208,16 @@ jobs:
           fi
           printf 'Release notes:\n%s\n' "$notes"
 
+          # A suffixed version (1.51.0-beta) is published as a pre-release
+          # from the first second. The game's updater (ModUpdate.pickBest)
+          # offers the newest NON-pre-release, so a beta reaches only the
+          # players who pick it; flagging it after the fact would leave a
+          # window where it was everyone's "latest".
+          pre=()
+          case "$VERSION" in *-*) pre=(--prerelease) ;; esac
+
           gh release create "$TAG" \
+            "${pre[@]}" \
             --target "$GITHUB_SHA" \
             --title "$VERSION" \
             --notes "$notes" \
