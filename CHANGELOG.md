@@ -26,7 +26,7 @@ Tags and packages:
 - Zip asset: `TERRARIUM-1.50.0.zip`
 - `manifest.json` / catalog `version` field: `1.50.0`
 
-## Unreleased
+## 1.52.0-beta (pre-release)
 
 ### Every Terrarium setting on one page
 
