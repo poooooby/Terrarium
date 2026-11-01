@@ -26,6 +26,60 @@ Tags and packages:
 - Zip asset: `TERRARIUM-1.50.0.zip`
 - `manifest.json` / catalog `version` field: `1.50.0`
 
+## Unreleased
+
+### The 3D world is built once, then loads in about a second
+
+On a phone the first visit to a map could show flat 2D for 7-10 seconds
+or more (Android runs LuaJIT with the JIT off) before the diorama popped
+in, and nothing on screen said anything was happening, so it looked like
+the mod was not working. Now each map is built once and kept on disk,
+through the engine's per-mod cache:
+
+- **The first time** the CONTINUE / NEW GAME page comes up with the 3D view
+  on, it asks: **ALL** (build every map now, behind a progress screen; B
+  stops early and keeps what is done), **NEAREST** (the map your save is in
+  and the maps around it, including the town outside a house), or **NONE**.
+  It asks once; later only if maps already built have changed.
+- **A map not built yet** shows a "Building voxels N%" badge over the flat
+  picture, timed against how fast this device has been building, and is
+  written to the cache when it lands.
+- **While you play**, the maps one step away (connections and door
+  destinations) are built into the cache with the time the frame has left,
+  never while the current map is still building.
+- **The new 3D CACHE row** (ON by default) turns all of it off; OFF builds
+  every map each session, as before.
+
+A cached file is used only if it matches exactly what would be built now:
+the cache format, the mod version, the game version, the tileset's art,
+the map's blocks (a cut tree or an opened door changes them) and every row
+that changes the world's shape. Anything else is rebuilt, and a damaged
+file is a miss, not a crash. Measured on the desktop
+(`tests/build_cache_restore_probe.lua`), time until the scene is ready:
+Lavender 19.4 s built vs 1.6 s restored, Vermilion 16.7 vs 0.6, Route 12
+22.6 vs 0.7, Pallet 5.4 vs 0.2, with screenshots matching inside the
+run-to-run noise. All 225 maps come to 288 MB (`tests/build_cache_probe.lua`;
+48 s to build them all on the desktop with the JIT off).
+
+Along the way:
+
+- **Meshes are built from packed bytes** (`lib/MeshBytes.lua`) instead of
+  one Lua table per vertex, the same bytes the cache stores.
+- **A map with nothing built yet gets a bigger build slice** (12 ms instead
+  of 5): the screen is the cheap flat 2D picture then, so most of the frame
+  is free.
+- **RES AUTO no longer samples build frames.** The flat 2D frames of a
+  first visit used to count against the resolution.
+- **Kit heights** (what the camera and the snow read) now live with the
+  map's analysis instead of on the Map object, so a restored map keeps them.
+- `lib/PreCache.lua` is no longer a dark skeleton: its stage is the
+  background pre-build above. `tests/precache_probe.lua`,
+  `tests/build_veil_probe.lua`, `tests/build_cache_probe.lua` and
+  `tests/build_cache_restore_probe.lua` cover it.
+
+Trees are not cached yet: they still build on each visit and fade in a
+moment after the terrain.
+
 ## 1.50.0
 
 The first release of this fork since v1.40.6. It carries everything below,

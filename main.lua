@@ -127,6 +127,9 @@ local Device = V.require("Device")
 local Diag = V.require("Diag")
 local PreCache = V.require("PreCache")
 local LoadVeil = V.require("LoadVeil")
+local BuildCache = V.require("BuildCache")
+local BuildBadge = V.require("BuildBadge")
+local BuildVeil = V.require("BuildVeil")
 local Perf = V.require("Perf")
 local Lang = V.require("Lang")
 local Wind = V.require("Wind")
@@ -457,11 +460,14 @@ mod.content.render_pipelines:register(PIPE_VOXEL, {
     -- them announces it. Ahead of the active() gate, so switching it
     -- while voxel mode is OFF still invalidates what is cached.
     voidFill.check()
-    if not Voxel.active() then return end
+    if not Voxel.active() then BuildBadge.reset(); return end
     local Game = require("src.core.Game")
     local ow = Game and Game.overworld
     if ow and ow.map and ow.camera then
       pcall(VoxelScene.prefetch, ow)
+      -- "Building voxels... N%" over the flat 2D picture while this map's
+      -- 3D is still on its way (lib/BuildBadge.lua; drawn in render.hud)
+      BuildBadge.note(ow.map, Voxel.ready)
     end
     -- COVERED says nothing of the world is on screen to hitch, which is
     -- worth four times the slice (see ChunkMesher's own note). Another
@@ -504,7 +510,11 @@ mod.content.render_pipelines:register(PIPE_VOXEL, {
     -- only kind of frame that is evidence about the rung.  update() ticks
     -- while the mode is OFF and the engine may tick it more than once
     -- between two frames.  A no-op unless the RES row is on AUTO.
-    Quality.frame()
+    -- Not while the map is still building: those frames are the flat 2D
+    -- path plus a build slice (ChunkMesher's COLD_SLICE), and RES has
+    -- nothing to do with either -- counted, they would talk the governor
+    -- down a rung on every first visit.
+    if Voxel.ready ~= false then Quality.frame() end
     -- Perf's frame ring, for a profiling driver (tools/profiler). Dark by
     -- default: one boolean test unless a run turned measurement on.
     Perf.frame()
@@ -773,6 +783,7 @@ local SETTINGS = {
     .. "built and fade in as usual. OFF shows the flat floor while it "
     .. "builds, as before.",
     full = true },
+  { BuildCache.setting, BuildCache.help(), full = true },
   { PreCache.setting,
     "DEV PREVIEW, shown only during a profiling session (tools/profiler). "
     .. "Warms what the maps one step away will need while the current one "
@@ -2011,6 +2022,42 @@ mod.hooks:wrap("world.tod", function(next, tod, ctx)
   local out = next(tod, ctx)
   if out ~= tod then return out end
   return DayNight.tod()
+end)
+
+-- The build badge (lib/BuildBadge.lua) in screen space, over the finished
+-- frame -- the only hook that draws on the engine's flat 2D path too, which
+-- is exactly the picture the badge has to sit on. Only while the overworld
+-- is the screen: a menu opened mid-build covers the map anyway.
+mod.hooks:wrap("render.hud", function(next, game, viewport)
+  local a, b = next(game, viewport)
+  if BuildVeil.active() then
+    pcall(BuildVeil.draw)
+    return a, b
+  end
+  if Voxel.active() and BuildBadge.showing() then
+    local top = game and game.stack and game.stack:top()
+    if top and top == game.overworld then pcall(BuildBadge.draw) end
+  end
+  return a, b
+end)
+
+-- The first-boot 3D build prompt (lib/BuildVeil.lua) on the title's
+-- CONTINUE / NEW GAME page. The items hook only remembers which list the
+-- title is about to show -- it changes nothing in it -- and the update
+-- below pushes the prompt once that menu is the top screen. Asked once per
+-- install, and again only when maps already built have changed.
+mod.hooks:wrap("ui.title_menu.items", function(next, game, items)
+  local out = next(game, items)
+  BuildVeil.noteTitleItems(out)
+  return out
+end)
+
+mod.hooks:wrap("core.update", function(next, game, dt)
+  local a, b = next(game, dt)
+  local ok, err = pcall(BuildVeil.update, game,
+                        require("src.render.Pipelines").level(PIPE_VOXEL) > 0)
+  if not ok then print("[warn] 3D build prompt: " .. tostring(err)) end
+  return a, b
 end)
 
 -- What the probes log and what a companion mod reads. The loader's own field

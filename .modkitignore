@@ -395,6 +395,10 @@ CLAUDE.md
 PARTICLES-PLAN.md
 PRECACHE-PLAN.md
 Terrarium.code-workspace
+lib/BuildBadge.lua
+lib/BuildCache.lua
+lib/BuildVeil.lua
+lib/MeshBytes.lua
 publish-zip/TERRARIUM-1.16.0-mobile.rain.zip
 publish-zip/TERRARIUM-1.37.0-beta.zip
 publish/BrenoBertucci@TERRARIUM/description.md
@@ -404,6 +408,9 @@ releases/TERRARIUM-1.40.4-beta.test1.zip
 releases/TERRARIUM-1.40.4-beta.test2.zip
 releases/Terrarium.code-workspace
 releases/sha256sums.txt
+tests/build_cache_probe.lua
+tests/build_cache_restore_probe.lua
+tests/build_veil_probe.lua
 tools/_kit_out/CryptKit_POKEMON_TOWER_4F.faces
 tools/_kit_out/CryptKit_POKEMON_TOWER_4F.json
 tools/_kit_out/CryptKit_POKEMON_TOWER_4F.png

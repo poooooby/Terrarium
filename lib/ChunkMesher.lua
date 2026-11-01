@@ -58,6 +58,8 @@ local Perf = V.require("Perf")
 local TileShape = V.require("TileShape")
 local Voxel3D = V.require("Voxel3D")
 local Budget = V.require("BuildBudget")
+local MeshBytes = V.require("MeshBytes")
+local BuildCache = V.require("BuildCache")
 -- the water's rest height and its bed (Water.BASE, Water.BED). Safe: Water
 -- knows about weather and waves and nothing about meshes.
 local Water = V.require("Water")
@@ -316,11 +318,42 @@ local function newFfiSink(cap0)
   return sink
 end
 
+-- The PACKED sink: what every real install runs, since the sandbox denies
+-- ffi. The table sink's output, minus the table per vertex -- the six
+-- floats go straight into one flat array, and finish() packs it into a
+-- float32 string and uploads from that (lib/MeshBytes.lua). The string is
+-- also what the 3D build cache writes to disk, so a cached map comes back
+-- through the very same upload.
+local function newPackedSink()
+  local flat, nf, quads = {}, 0, 0
+  return {
+    push = function(c, uv, shade, sky)
+      local flatShade = type(shade) ~= "table"
+      local s = faceSign(c, sky)
+      for i = 1, 4 do
+        local cc, t = c[i], uv[i]
+        flat[nf + 1], flat[nf + 2], flat[nf + 3] = cc[1], cc[2], cc[3]
+        flat[nf + 4], flat[nf + 5] = t[1], t[2]
+        flat[nf + 6] = s * (flatShade and shade or shade[i])
+        nf = nf + 6
+      end
+      quads = quads + 1
+    end,
+    finish = function()
+      return MeshBytes.fromFlat(flat, quads)
+    end,
+  }
+end
+
 local function newSink(cap0)
+  if MeshBytes.recording and MeshBytes.available() then
+    return newPackedSink()
+  end
   if ffi and love and love.data and love.data.newByteData
      and love.graphics and love.graphics.newMesh then
     return newFfiSink(cap0)
   end
+  if MeshBytes.available() then return newPackedSink() end
   return newTableSink()
 end
 
@@ -1288,6 +1321,9 @@ local function quadsMesh(quads)
     Voxel3D.pushQuad(indices, n)
     n = n + 1
   end
+  -- the packed upload where LOVE is there (and so the cache can keep the
+  -- bytes); the table path headless
+  if MeshBytes.available() then return MeshBytes.fromTables(verts, nil) end
   return Voxel3D.newMesh(verts, indices)
 end
 
@@ -1507,12 +1543,98 @@ local function finishJob(job, ok, err)
   end
 end
 
+-- The bytes a build recorded (MeshBytes) are only held until BuildCache
+-- has written them: a route's are megabytes of Lua string.
+local function forgetGroup(g)
+  if type(g) ~= "table" then return end
+  for _, ch in ipairs(g.chunks or {}) do MeshBytes.forget(ch.mesh) end
+  forgetGroup(g.water)
+end
+
+local function forgetAux(c)
+  if type(c.grass) == "userdata" then MeshBytes.forget(c.grass) end
+  if type(c.flowers) == "userdata" then MeshBytes.forget(c.flowers) end
+  for _, g in ipairs(type(c.sprites) == "table" and c.sprites or {}) do
+    MeshBytes.forget(g.mesh)
+  end
+  for _, f in ipairs(type(c.figures) == "table" and c.figures or {}) do
+    MeshBytes.forget(f.mesh)
+  end
+end
+
+local function auxMissing(c)
+  return c.grass == nil or c.flowers == nil or c.figures == nil
+     or c.sprites == nil or (c.stale and c.stale.aux)
+end
+
+-- A job served from the 3D build cache instead of built (lib/BuildCache.lua):
+-- read the part's file, upload its bytes, and publish exactly as a build
+-- would. True when it handled the job (landed, or was cancelled by a
+-- generation bump), false to fall through to the build -- any miss, any
+-- bad file, any failed upload. A STALE slot (refresh: a block edit) never
+-- comes from here; its blocks hash would miss anyway, and the rebuild is
+-- the point.
+local function tryRestore(job, c)
+  if c.stale or not BuildCache.enabled() then return false end
+  local map = job.map
+  local needAux = auxMissing(c)
+  if not BuildCache.has(map, job.slot, job.masks) then return false end
+  if needAux and not BuildCache.has(map, "aux") then return false end
+  ChunkMesher.stage = { map = job.id, pass = "restore" }
+  local t0 = Perf.now()
+  local layout, blobs = BuildCache.load(map, job.slot, job.masks)
+  if layout == nil then return false end
+  local auxL, auxB
+  if needAux then
+    auxL, auxB = BuildCache.load(map, "aux")
+    if auxL == nil then return false end
+  end
+  local okM, mesh = pcall(BuildCache.restoreGroup, layout, blobs, Group)
+  if not okM then return false end
+  local okA, grass, flowers, sprites, figures, keep = true
+  if needAux then
+    okA, grass, flowers, sprites, figures, keep =
+      pcall(BuildCache.restoreAux, auxL, auxB)
+    if not okA then
+      if mesh then pcall(mesh.release, mesh) end
+      return false
+    end
+  end
+  if (gen[job.id] or 0) ~= job.gen then
+    if mesh then pcall(mesh.release, mesh) end
+    if needAux then
+      if grass and grass.release then pcall(grass.release, grass) end
+      if flowers and flowers.release then pcall(flowers.release, flowers) end
+      releaseSprites(sprites)
+      releaseFigures(figures)
+    end
+    return true
+  end
+  if needAux then
+    swapSlot(c, "grass", grass or false)
+    swapSlot(c, "flowers", flowers or false)
+    releaseSprites(c.sprites)
+    c.sprites = sprites or false
+    releaseFigures(c.figures)
+    c.figures = figures or false
+    -- what the rest of the mod reads after a build (lamps, chimneys, tree
+    -- sites, lifts, kit heights); a map whose analysis is already here
+    -- keeps it
+    if keep and not Structures.peek(map) then Structures.seed(map.id, keep) end
+  end
+  swapSlot(c, job.slot, mesh or false)
+  Perf.add("cold.restore", t0)
+  return true
+end
+
 -- A build only lands if the map's generation still matches the one the
 -- job was queued under -- invalidate/evict bump it to cancel in-flight
 -- work whose inputs went stale.
 local function runJob(job)
   local map = job.map
   local c = entry(job.id)
+  if tryRestore(job, c) then return end
+  local builtAux = false
   if c.grass == nil or c.flowers == nil or c.figures == nil
      or c.sprites == nil or (c.stale and c.stale.aux) then
     ChunkMesher.stage = { map = job.id, pass = "grass" }
@@ -1539,6 +1661,7 @@ local function runJob(job)
     releaseFigures(c.figures)
     c.figures = (okX and figures) or false
     if c.stale then c.stale.aux = nil end
+    builtAux = true
   end
   local sink, water = newChunkedSink(), newChunkedSink()
   runGeometry(map, job.slot == "body", job.masks, sink, water)
@@ -1563,6 +1686,88 @@ local function runJob(job)
       c.stale = nil
     end
   end
+  -- Write-behind: what was just built goes to the 3D build cache, so the
+  -- next visit (this session or the next) restores instead of building.
+  -- Then the recorded bytes are dropped either way.
+  if MeshBytes.recording then
+    ChunkMesher.stage = { map = job.id, pass = "store" }
+    local t0 = Perf.now()
+    if builtAux then pcall(BuildCache.store, map, "aux", nil, c) end
+    pcall(BuildCache.store, map, job.slot, job.masks, c)
+    Perf.add("cold.store", t0)
+  end
+  if builtAux then forgetAux(c) end
+  forgetGroup(mesh)
+end
+
+-- BAKE: build a map straight into the 3D build cache, off-screen, and keep
+-- nothing. The title screen's ALL / NEAREST (lib/BuildVeil.lua) run this,
+-- one map after another, before any save is loaded -- so the maps the
+-- player walks into are restored from disk instead of built.
+--
+-- The same builders and the same bytes as a real visit: aux, then the
+-- body variant, then the full one, each written with BuildCache.store and
+-- released straight away. Nothing lands in this module's cache (a scratch
+-- entry holds the meshes for the length of the write), and the map's
+-- Structures analysis is dropped at the end, so memory stays at one map's
+-- worth however many are baked. Must run inside a coroutine that
+-- Budget.begin has armed; it yields wherever a build would.
+--
+-- `masks` is the full variant's neighbour-body rects, as VoxelScene.prefetch
+-- would hand them (BuildVeil computes them the engine's way). Returns true
+-- when every part was written.
+function ChunkMesher.bake(map, masks)
+  if not BuildCache.enabled() then return false end
+  local wasRecording = MeshBytes.recording
+  MeshBytes.recording = true
+  local c = {}
+  local ok = true
+  local function step(fn, ...)
+    local okS, res = pcall(fn, ...)
+    if not okS then ok = false; return nil end
+    return res
+  end
+  -- the live map's analysis must not be thrown away under it, and neither
+  -- may a retained map's trimmed fields (its lamps, lifts, tree sites --
+  -- forMap rebuilds over a trimmed entry): only what this bake created goes
+  local prior = Structures.peek(map)
+  local hadFull = prior ~= nil and not prior.trimmed
+  ChunkMesher.stage = { map = map.id, pass = "bake" }
+  c.grass = step(buildGrassMesh, map) or false
+  c.flowers = step(buildFlowerMesh, map) or false
+  c.figures = step(buildFigureMeshes, map) or false
+  c.sprites = step(buildSpriteMesh, map) or false
+  if ok then ok = BuildCache.store(map, "aux", nil, c) and ok end
+  forgetAux(c)
+  for _, slot in ipairs({ "body", "full" }) do
+    local sink, water = newChunkedSink(), newChunkedSink()
+    local okG = pcall(runGeometry, map, slot == "body", slot == "full" and masks or nil,
+                      sink, water)
+    local mesh = okG and sink.finish() or nil
+    local wmesh = okG and water.finish() or nil
+    if mesh then mesh.water = wmesh elseif wmesh then pcall(wmesh.release, wmesh) end
+    c[slot] = mesh or false
+    -- an EMPTY variant is stored too (a layout of `false`): otherwise a map
+    -- with nothing to draw would miss, and build, on every visit
+    if okG then
+      ok = BuildCache.store(map, slot, slot == "full" and masks or nil, c) and ok
+    else
+      ok = false
+    end
+    forgetGroup(mesh)
+    if mesh then pcall(mesh.release, mesh) end
+    c[slot] = nil
+    Budget.check()
+  end
+  if type(c.grass) == "userdata" then pcall(c.grass.release, c.grass) end
+  if type(c.flowers) == "userdata" then pcall(c.flowers.release, c.flowers) end
+  releaseSprites(c.sprites)
+  releaseFigures(c.figures)
+  if not hadFull then
+    if prior then Structures.seed(map.id, prior) else Structures.invalidate(map.id) end
+  end
+  MeshBytes.recording = wasRecording
+  return ok
 end
 
 -- How badly a queued build is wanted, highest first.
@@ -1664,6 +1869,14 @@ local URGENT_SLICE = 0.005
 local HOLE_SLICE = 0.005
 local IDLE_SLICE = 0.002
 local COVERED_SLICE = 0.020
+-- The current map with NOTHING built yet: the engine is drawing its flat
+-- 2D path, which costs almost nothing, so most of the frame is free and
+-- the build may take it. This is the stretch players sat through on a
+-- phone (7-10 s with the JIT off) reading flat 2D as "the mod is broken",
+-- and URGENT's 5 ms -- sized to fit beside a 3D frame -- was stretching it
+-- for a frame that was not being drawn. Once anything lands the scene is
+-- 3D again and URGENT applies.
+local COLD_SLICE = 0.012
 
 -- The most-wanted job, first-queued winning a tie -- which is the order
 -- the old two-level pick already had.
@@ -1681,8 +1894,14 @@ local COLD_LABEL = { full = "cold.mesh.full", body = "cold.mesh.body" }
 
 function ChunkMesher.pump(covered)
   if #jobs == 0 then return end
+  -- builds keep their bytes for the cache only while the 3D CACHE row is on
+  MeshBytes.recording = BuildCache.enabled()
   local pick = nextJob()
+  local held = cache[pick.id]
+  local cold = pick.prio == ChunkMesher.CURRENT
+               and not (held and (held.body or held.full))
   local slice = covered and COVERED_SLICE
+                or (cold and COLD_SLICE)
                 or (pick.prio == ChunkMesher.CURRENT and URGENT_SLICE)
                 or (pick.prio == ChunkMesher.HOLE and HOLE_SLICE)
                 or IDLE_SLICE

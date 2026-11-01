@@ -387,7 +387,15 @@ function Grass3D.meshFromInstances(instances)
     -- centre the tuft in its 8x8 tile
     stamp(verts, indices, tplV, tplI, wx + 4, wz + 4, yaw, scale)
   end
-  local mesh = Voxel3D.newMesh(verts, indices)
+  -- packed (lib/MeshBytes.lua) where LOVE is there, so the 3D build cache
+  -- can keep the tufts' bytes and indices; the table path headless
+  local okM, MeshBytes = pcall(V.require, "MeshBytes")
+  local mesh
+  if okM and MeshBytes and MeshBytes.available() then
+    mesh = MeshBytes.fromTables(verts, indices)
+  else
+    mesh = Voxel3D.newMesh(verts, indices)
+  end
   if mesh and loadTexture() then
     pcall(mesh.setTexture, mesh, loadTexture())
   end

@@ -1,24 +1,18 @@
 -- Pre-cache: warm what the player is about to see BEFORE they see it.
 --
--- SKELETON. This is the plumbing a pre-cache system needs -- stages, a
--- queue fed by where the player can go next, a budgeted pump -- with one
--- stage that does no work at all. The design, and the measurements that
--- decide which real stages come first, are in PRECACHE-PLAN.md; read that
--- before registering a stage here.
+-- Stages, a queue fed by where the player can go next, and a budgeted
+-- pump. The one real stage, "bake" (bottom of this file), builds the maps
+-- one step away straight into the 3D build cache (lib/BuildCache.lua), so
+-- walking or warping into them restores from disk instead of building.
 --
--- Why it ships empty rather than with the obvious first stage (ask
--- ChunkMesher for every warp destination's mesh at the idle tier):
--- ChunkMesher.setLive retains recently LIVE maps (an LRU, see there), but
--- it still drops every queued job for a map outside the live sets, and a
--- door the player has not taken yet is outside them. A warmed mesh would
--- be cancelled before it landed. Warming needs setLive to know about
--- PreCache's pins first (PRECACHE-PLAN.md, step 2), and that is a design
--- decision, not plumbing.
+-- It warms the CACHE, not ChunkMesher's in-memory meshes, and that is what
+-- made it possible: ChunkMesher.setLive drops every queued job for a map
+-- outside the live sets, and a door the player has not taken yet is
+-- outside them, so a warmed mesh used to be cancelled before it landed
+-- (PRECACHE-PLAN.md, step 2). A cache file outlives all of that.
 --
--- Dark twice over: the PRECACHE row is only offered while Perf is on (a
--- profiling session -- tools/profiler), and pump() needs BOTH Perf on and
--- the row ON. A player's session never runs a line of it past the first
--- boolean test.
+-- On whenever the 3D CACHE row is. With it OFF, the old dev gate: the
+-- PRECACHE row is only offered while Perf is on (tools/profiler).
 --
 -- Aesthetics only, like everything here: a stage may build GPU/CPU data
 -- the renderer would have built anyway. It must never touch the world,
@@ -43,7 +37,16 @@ function PreCache.offered() return Perf.enabled end
 -- Perf was on at LOAD, and a harness turns Perf on after load.
 PreCache.force = false
 
+-- ON for players whenever the 3D build cache is (lib/BuildCache.lua): the
+-- one real stage below bakes the maps one step away INTO that cache, so it
+-- has nothing to do without it. Otherwise the old dev gate.
+local function cacheOn()
+  local ok, BuildCache = pcall(V.require, "BuildCache")
+  return ok and BuildCache and BuildCache.enabled()
+end
+
 function PreCache.enabled()
+  if cacheOn() then return true end
   if not Perf.enabled then return false end
   if PreCache.force then return true end
   local ok, v = pcall(PreCache.setting.get, PreCache.setting)
@@ -55,7 +58,11 @@ end
 -- ChunkMesher's COVERED_SLICE, and kept well under it so the two together
 -- still fit a covered frame. IDLE is what an ordinary visible frame can
 -- spare after ChunkMesher's own idle slice.
-PreCache.IDLE_SLICE = 0.001
+-- IDLE was 1 ms while the only stage did no work. A real bake of a kit
+-- map is seconds of CPU, which at 1 ms a frame would take minutes; 3 ms
+-- still sits beside a 3D frame, and the pump only runs at all once the
+-- mesher has nothing of its own queued (see pump).
+PreCache.IDLE_SLICE = 0.003
 PreCache.COVERED_SLICE = 0.008
 
 local clock = (love and love.timer and love.timer.getTime) or os.clock
@@ -152,6 +159,10 @@ end
 local warned = {}
 function PreCache.pump(covered)
   if #queue == 0 or not PreCache.enabled() then return end
+  -- the map on screen and its neighbours always come first: nothing is
+  -- pre-built while the mesher still has a job of its own
+  local okC, ChunkMesher = pcall(V.require, "ChunkMesher")
+  if okC and ChunkMesher and ChunkMesher.pending() > 0 then return end
   local deadline = clock() + (covered and PreCache.COVERED_SLICE
                               or PreCache.IDLE_SLICE)
   while #queue > 0 and clock() < deadline do
@@ -199,21 +210,46 @@ function PreCache.reset()
   PreCache.stats = { queued = 0, warmed = 0, skipped = 0, dropped = 0 }
 end
 
--- ------------------------------------------------------- the one stage
+-- ------------------------------------------------------- the bake stage
 --
--- "reach": does no work. It records which maps the queue would have
--- warmed, so the plumbing -- reachability, dedup, the pump, the budget,
--- the Diag line, a probe reading PreCache.reached -- runs end to end
--- before any real stage exists. Replace it, do not grow it.
+-- "bake": build each map one step away (its connections, then the places
+-- its doors lead) straight into the 3D build cache, using what the frame
+-- has left over (ChunkMesher.bake). Walking or warping into it then
+-- restores in about a second instead of building for several -- and the
+-- door fade, when there is one, covers even that.
+--
+-- `done` asks the cache, so a map already built (on the title's ALL, on an
+-- earlier visit, in an earlier session) costs one index lookup. A step is
+-- one resume of the bake's coroutine under the build budget; the pump
+-- checks the clock between steps.
 PreCache.reached = {}
 PreCache.stage{
-  name = "reach",
+  name = "bake",
   key = function(mapId) return mapId end,
-  done = function(key) return PreCache.reached[key] == true end,
-  warm = function(_, key)
+  done = function(key)
+    local okB, BuildVeil = pcall(V.require, "BuildVeil")
+    if not okB then return true end
+    local map = BuildVeil.mapFor(key)
+    return (not map) or BuildVeil.current(map)
+  end,
+  warm = function(mapId)
+    local BuildVeil = V.require("BuildVeil")
+    local ChunkMesher = V.require("ChunkMesher")
+    local Budget = V.require("BuildBudget")
+    local map = BuildVeil.mapFor(mapId)
+    if not map then return nil end
+    local masks = BuildVeil.masksFor(mapId)
+    local co = coroutine.create(function() ChunkMesher.bake(map, masks) end)
     return function()
-      PreCache.reached[key] = true
-      return true
+      Budget.begin(co, 0.002)
+      local ok, err = coroutine.resume(co)
+      Budget.finish()
+      if not ok then error(err) end
+      if coroutine.status(co) == "dead" then
+        PreCache.reached[mapId] = true
+        return true
+      end
+      return false
     end
   end,
 }

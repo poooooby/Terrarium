@@ -146,8 +146,14 @@ end
 -- (liftAt), the lamps (StreetLamps), chimney smoke (HearthFX), the
 -- tower's chill (GhostFX, VoxelScene) and the round-tree sites (Trees3D).
 -- Everything else -- the quad lists above all -- exists only to be meshed.
+-- `tall` is Buildings.tallAt's kit heights (MarioCam, SnowFallFX).
+-- lib/BuildCache.lua writes exactly these fields into a cache file and
+-- seeds them back (Structures.seed), so this list is also the cache's
+-- contract: a field read at runtime that is not in it would come back
+-- missing on a restored map.
 local KEEP = { "lift", "lights", "chimneys", "haunts", "treeSites",
-               "outdoor", "hideBareRing" }
+               "outdoor", "hideBareRing", "tall" }
+Structures.KEEP = KEEP
 
 -- Drop the build-only bulk of a map that is RETAINED but no longer on or
 -- near the screen (ChunkMesher.setLive's history). Its meshes are kept, so
@@ -168,6 +174,26 @@ function Structures.trim(mapId)
   local T = { trimmed = true }
   for _, k in ipairs(KEEP) do T[k] = S[k] end
   cache[mapId] = T
+end
+
+-- The KEEP fields of a map, as a plain table (BuildCache writes it).
+function Structures.kept(mapId)
+  local S = mapId and cache[mapId]
+  if not S then return nil end
+  local T = {}
+  for _, k in ipairs(KEEP) do T[k] = S[k] end
+  return T
+end
+
+-- Install a trimmed entry from a cache file: the map's meshes came off
+-- disk, so nothing will build its analysis, and these are the fields the
+-- rest of the mod reads after a build (see KEEP). A later forMap still
+-- rebuilds in full, exactly as it does for a retained, trimmed map.
+function Structures.seed(mapId, T)
+  if not (mapId and T) then return end
+  local S = { trimmed = true }
+  for _, k in ipairs(KEEP) do S[k] = T[k] end
+  cache[mapId] = S
 end
 
 -- How high a modelled FLOOR stands over the tile (tx, ty) -- a slab a kit

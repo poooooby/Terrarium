@@ -2075,18 +2075,24 @@ end
 -- records the MODEL's real top over every cell of its footprint, and
 -- MarioCam takes the max of the two answers.
 --
--- Keyed weakly by the map object, exactly like the caches around it, so a
--- rebuilt map cannot serve stale heights.
-local tallByMap = setmetatable({}, { __mode = "k" })
-
+-- Kept ON THE MAP'S STRUCTURE CACHE (`S.tall`), not in a table of its own.
+-- It used to be keyed weakly by the Map OBJECT, which was right while the
+-- only Map that ever got built was the live one. The 3D build cache
+-- (lib/BuildCache.lua) builds maps off-screen from a throwaway Map.new and
+-- restores them next session without building at all -- either way the
+-- heights belonged to an object the scene never sees. On S they follow the
+-- map id like everything else Structures holds, survive Structures.trim
+-- (KEEP lists `tall`), and are written into the cache with the rest. A
+-- rebuilt map still cannot serve stale heights: a rebuild is a new S.
 function Buildings.tallAt(map, cx, cy)
-  local t = map and tallByMap[map]
+  local okS, Structures = pcall(V.require, "Structures")
+  local S = okS and Structures and Structures.peek(map)
+  local t = S and S.tall
   return (t and t[cx * 4096 + cy]) or 0
 end
 
-function Buildings.clearTall()
-  for k in pairs(tallByMap) do tallByMap[k] = nil end
-end
+-- Nothing to clear any more: the heights go when their S does.
+function Buildings.clearTall() end
 
 -- One placement: claim its tiles (so the detector leaves them alone and
 -- the mesher paints ground under them) and copy the model into place.
@@ -2153,9 +2159,9 @@ function Buildings.stamp(S, map, quads, tx, ty, bw, bh)
       if q[i][2] - (quads.sink or 0) > top then top = q[i][2] - (quads.sink or 0) end
     end
   end
-  if top > 0 and map then
-    local tall = tallByMap[map]
-    if not tall then tall = {} tallByMap[map] = tall end
+  if top > 0 and S then
+    local tall = S.tall
+    if not tall then tall = {} S.tall = tall end
     -- tiles are 8px, cells 16: two tiles to a cell either axis
     for cy = math.floor(ty / 2), math.floor((ty + bh - 1) / 2) do
       for cx = math.floor(tx / 2), math.floor((tx + bw - 1) / 2) do
