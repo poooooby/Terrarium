@@ -261,6 +261,7 @@ tests/run_void2_probe.cmd
 tests/run_void_probe.cmd
 tests/run_voxeltree.cmd
 tests/seam_stream_probe.lua
+tests/sgb_mobile_probe.lua
 tests/shadow_length_probe.lua
 tests/shop_interior_probe.lua
 tests/showcase_capture.lua

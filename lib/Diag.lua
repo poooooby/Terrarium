@@ -40,6 +40,27 @@ end
 
 function Diag.row() return Diag.setting:row() end
 
+-- The last error the engine's pipeline guard logged (src/render/Pipelines.lua
+-- guard: "render pipeline <id> failed: ... -- disabled for this session").
+-- That message goes to the engine's log and the MODS error list, neither of
+-- which a phone screenshot shows. Wrapped at load, always on: one string
+-- find on an error path, nothing on a healthy frame.
+local lastPipeErr = nil
+do
+  local okL, Logger = pcall(require, "src.core.Logger")
+  if okL and type(Logger) == "table" and type(Logger.error) == "function"
+     and not Logger.terrariumDiagHook then
+    local inner = Logger.error
+    Logger.error = function(fmt, ...)
+      local okF, msg = pcall(string.format, tostring(fmt), ...)
+      msg = okF and msg or tostring(fmt)
+      if msg:find("pipeline", 1, true) then lastPipeErr = msg end
+      return inner(fmt, ...)
+    end
+    Logger.terrariumDiagHook = true
+  end
+end
+
 -- The map the last frame drew, captured in drawWorld because `present` is
 -- handed a canvas and nothing else.
 -- The map OBJECT, not its id: Structures.peek keys its cache on `map.id` but
@@ -191,6 +212,32 @@ function Diag.lines()
       built = "not built"
     end
   end
+  -- Why the 3D view is or is not on screen. Written for the report "on SGB
+  -- the voxels never built and the badge never showed" (Android): the
+  -- pipeline's level and whether the engine still lets it run (a throw
+  -- retires it for the session), the COLORS mode, and whether the mesher
+  -- has anything queued for this map.
+  do
+    local okP, Pipelines = pcall(require, "src.render.Pipelines")
+    local okC, PaletteFX = pcall(require, "src.render.PaletteFX")
+    local Voxel = mod("VoxelState")
+    add(("pipe     VOXEL=%s eligible=%s active=%s ready=%s COLORS=%s")
+          :format(okP and tostring(try(Pipelines.level, "terrarium_voxel")) or "?",
+                  okP and tostring(try(Pipelines.eligible, "terrarium_voxel")) or "?",
+                  Voxel and tostring(try(Voxel.active)) or "?",
+                  Voxel and tostring(Voxel.ready) or "?",
+                  okC and tostring(PaletteFX.mode) or "?"))
+    local ChunkMesher = mod("ChunkMesher")
+    local BuildBadge = mod("BuildBadge")
+    add(("mesher   pending=%s building=%s badge=%s")
+          :format(ChunkMesher and tostring(try(ChunkMesher.pending)) or "?",
+                  (ChunkMesher and lastMap) and tostring(try(ChunkMesher.building, lastMap.id)) or "?",
+                  BuildBadge and tostring(try(BuildBadge.showing)) or "?"))
+    if lastPipeErr then
+      wrapTo(lastPipeErr:gsub("%s+", " "), 96, out, "  err: ")
+    end
+  end
+
   local id = "?"
   if lastMap then
     local okI, v = pcall(function() return lastMap.id end)
@@ -209,16 +256,28 @@ end
 
 -- Drawn on the FINISHED canvas, like the radar and the start menu: this has
 -- to be readable, so it must not go through the RES-downsampled 3D pass.
-function Diag.present(canvas)
-  if not (Diag.on() and canvas) then return canvas end
+--
+-- And on the 2D frames too (Diag.hud, from main.lua's render.hud): present
+-- only runs when the 3D pass drew, so the panel used to vanish in exactly the
+-- case it is most needed for -- a phone stuck on the flat world.
+local drewThisFrame = false
+
+local function panel(canvas)
   local g = love.graphics
   local ok = pcall(function()
-    local w, h = canvas:getDimensions()
+    local w, h
+    if canvas then
+      w, h = canvas:getDimensions()
+    else
+      w, h = g.getDimensions()
+      local cv = g.getCanvas()
+      if cv then w, h = cv:getDimensions() end
+    end
     local prev = g.getCanvas()
     local pr, pg, pb, pa = g.getColor()
     local prevFont = g.getFont()
     local prevBlend, prevAlpha = g.getBlendMode()
-    g.setCanvas(canvas)
+    if canvas then g.setCanvas(canvas) end
     g.setBlendMode("alpha", "alphamultiply")
     g.setShader()
     -- sized to the panel rather than to a constant: 12pt is unreadable on a
@@ -251,10 +310,39 @@ function Diag.present(canvas)
     g.setFont(prevFont or font)
     g.setColor(pr, pg, pb, pa)
     g.setBlendMode(prevBlend or "alpha", prevAlpha)
-    if prev then g.setCanvas(prev) else g.setCanvas() end
+    if canvas then
+      if prev then g.setCanvas(prev) else g.setCanvas() end
+    end
   end)
-  if not ok then pcall(g.setCanvas) end
+  if not ok and canvas then pcall(g.setCanvas) end
+end
+
+function Diag.present(canvas)
+  if not (Diag.on() and canvas) then return canvas end
+  panel(canvas)
+  drewThisFrame = true
   return canvas
+end
+
+-- From render.hud, once per frame after everything else: the panel over the
+-- flat 2D picture when the 3D pass did not draw it this frame.
+function Diag.hud()
+  local drew = drewThisFrame
+  drewThisFrame = false
+  if drew or not Diag.on() then return end
+  -- drawWorld never ran, so Diag.note never saw the map: take it from the
+  -- overworld, or the map and mesher lines read "?" on the very frames
+  -- they are for
+  pcall(function()
+    local Game = package.loaded["src.core.Game"]
+    local ow = type(Game) == "table" and Game.overworld
+    if ow and ow.map then lastMap = ow.map end
+  end)
+  love.graphics.push("all")
+  love.graphics.origin()
+  love.graphics.setShader()
+  panel(nil)
+  love.graphics.pop()
 end
 
 return Diag

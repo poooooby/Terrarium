@@ -26,6 +26,13 @@ Tags and packages:
 - Zip asset: `TERRARIUM-1.50.0.zip`
 - `manifest.json` / catalog `version` field: `1.50.0`
 
+## 1.52.2-beta (pre-release)
+
+A diagnostic build for "on SGB the voxels never build" (Android).
+
+- **DEBUG INFO now shows over the flat 2D picture too.** It used to draw only on frames the 3D view rendered, so it vanished in exactly the case it is for.
+- **New DEBUG INFO lines:** `pipe` (VOXEL level, whether the game still lets the 3D view run, active/ready, COLORS mode), `mesher` (builds queued, whether this map is building, whether the badge is up), and `err:` with the last error if the game switched the 3D view off.
+
 ## 1.52.1
 
 The first stable release with everything from 1.51.0-beta and 1.52.0-beta below (the 3D build cache, the TERRARIUM options page, the ADVANCED colours prompt).

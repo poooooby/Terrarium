@@ -63,7 +63,8 @@ return function(game)
   local n = 0
   while not ColorsPrompt.active() and n < 300 do frame(); n = n + 1 end
   check(ColorsPrompt.active(), ("the panel came up on SGB (after %d frames)"):format(n))
-  check(n >= 50, "and waited out the settle first")
+  -- setColors already ran 30 frames of the settle; 60 frames is 1.0 s
+  check(30 + n >= 55, ("and waited out the settle first (%d frames)"):format(30 + n))
   frames(5)
   Scenes.shot(OUT, "colors_ask")
 

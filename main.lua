@@ -2117,6 +2117,8 @@ end)
 -- is the screen: a menu opened mid-build covers the map anyway.
 mod.hooks:wrap("render.hud", function(next, game, viewport)
   local a, b = next(game, viewport)
+  -- DEBUG INFO on the frames the 3D pass did not draw it (lib/Diag.lua)
+  pcall(Diag.hud)
   if BuildVeil.active() then
     pcall(BuildVeil.draw)
     return a, b
@@ -2161,7 +2163,7 @@ end)
 -- first so this cannot drift again: this literal sat five minors behind the
 -- manifest, and in a feature-encoded form the versioning rules in CHANGELOG.md
 -- forbid outright (`.snow.1` -- features live in the changelog, not here).
-mod.exports.version = mod.version or "1.52.1"
+mod.exports.version = mod.version or "1.52.2-beta"
 -- exposed so a companion mod can pin its own tiles' shapes or read the
 -- camera without reaching into this mod's file layout
 mod.exports.lib = V

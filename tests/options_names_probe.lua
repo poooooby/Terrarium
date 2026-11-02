@@ -68,7 +68,13 @@ return function(game)
   local has = {}
   for _, row in ipairs(menu.rows or {}) do has[tostring(row.id)] = row end
   check(has["pipeline:terrarium_voxel"] ~= nil, "VOXEL is on the page")
-  check(has["pipeline:terrarium_tiltshift"] ~= nil, "T-SHIFT is on the page")
+  -- FULL owns the blur on a desktop (main.lua terrariumRows), so T-SHIFT is
+  -- only expected off FULL or on a phone
+  local Pipelines = require("src.render.Pipelines")
+  local fullHere = H.V.require("VoxelState").isFull(Pipelines.level("terrarium_voxel"))
+                   and not H.V.require("Device").mobile()
+  check((has["pipeline:terrarium_tiltshift"] ~= nil) ~= fullHere,
+        fullHere and "T-SHIFT is off the page under FULL" or "T-SHIFT is on the page")
   check(has[prefix .. "buildcache"] ~= nil, "3D CACHE is on the page")
   local order = {}
   for i, row in ipairs(menu.rows or {}) do order[tostring(row.id)] = i end
