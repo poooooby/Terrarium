@@ -1,12 +1,17 @@
 -- "Terrarium looks best in ADVANCED colours" -- a one-time question in the
 -- overworld when the engine's COLORS option is on anything else.
 --
--- Why it is needed: the voxels only appear under ADVANCED (engine id
--- `redpp`), the one mode that bakes a fully coloured per-tile atlas
--- (TileRenderer getGbcAtlas, see lib/TerrainAtlas.lua's header). On any
--- other COLORS mode the game simply stays 2D, and players report it as
--- "the mod is not working" -- nothing in the game told them the fix is one
--- options row away.
+-- Why it is there: ADVANCED (engine id `redpp`) is the one mode that bakes a
+-- fully coloured per-tile atlas (TileRenderer getGbcAtlas, see
+-- lib/TerrainAtlas.lua's header), and it is the look the diorama is made
+-- for. The other modes do draw in 3D -- tests/sgb_mobile_probe.lua walks all
+-- seven -- but SGB recolours from four-shade zones and OG / CLASSIC are grey
+-- by design, so the world comes out flatter than it should.
+--
+-- It first said the voxels ONLY appear in ADVANCED, after an Android report
+-- that SGB stayed 2D until COLORS was switched. That did not reproduce --
+-- not on desktop with the phone's rungs forced, and not on the phone itself
+-- with 1.52.2-beta's DEBUG INFO -- so the wording went back to "looks best".
 --
 -- What it does: once the player is in free roam with the 3D view on and
 -- COLORS is not ADVANCED, a panel asks SWITCH / KEEP. SWITCH sets COLORS
@@ -96,8 +101,8 @@ function Prompt.new(game, mode)
     game = game, mode = mode, cursor = 1,
     choices = {
       { key = "switch", label = Lang.pick("SWITCH TO ADVANCED", "MUDAR PARA ADVANCED") },
-      { key = "keep", label = Lang.pick(("KEEP %s (2D ONLY)"):format(modeLabel(mode)),
-                                        ("MANTER %s (SO 2D)"):format(modeLabel(mode))) },
+      { key = "keep", label = Lang.pick(("KEEP %s"):format(modeLabel(mode)),
+                                        ("MANTER %s"):format(modeLabel(mode))) },
     },
   }, Prompt)
 end
@@ -196,16 +201,16 @@ function ColorsPrompt.draw()
   local r = px * 0.4
   local rowGap = math.floor(px * 0.35)
 
-  local title = Lang.pick("Terrarium needs ADVANCED colours",
-                          "O Terrarium precisa das cores ADVANCED")
+  local title = Lang.pick("Terrarium looks best in ADVANCED",
+                          "O Terrarium fica melhor no ADVANCED")
   local body = Lang.pick(
-    ("COLORS is set to %s. The 3D world only appears in ADVANCED, so "
-     .. "until it is switched the game stays 2D. You can change it any "
-     .. "time under OPTIONS > GRAPHICS > COLORS.")
+    ("COLORS is set to %s. The 3D world is coloured for ADVANCED, and "
+     .. "in other modes it can look grey or washed out. You can change it "
+     .. "any time under OPTIONS > GRAPHICS > COLORS.")
       :format(modeLabel(prompt.mode)),
-    ("COLORS esta em %s. O mundo 3D so aparece no ADVANCED, entao ate "
-     .. "mudar o jogo fica em 2D. Da para mudar a qualquer hora em "
-     .. "OPTIONS > GRAPHICS > COLORS.")
+    ("COLORS esta em %s. O mundo 3D e colorido para o ADVANCED, e nos "
+     .. "outros modos pode ficar cinza ou desbotado. Da para mudar a "
+     .. "qualquer hora em OPTIONS > GRAPHICS > COLORS.")
       :format(modeLabel(prompt.mode)))
 
   local ph = pad + wrapH(big, title, tw) + px * 0.5 + wrapH(small, body, tw) + px * 0.8
