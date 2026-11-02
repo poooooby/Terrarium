@@ -26,7 +26,9 @@ Tags and packages:
 - Zip asset: `TERRARIUM-1.50.0.zip`
 - `manifest.json` / catalog `version` field: `1.50.0`
 
-## Unreleased
+## 1.52.2
+
+Includes 1.52.2-beta below (DEBUG INFO over 2D frames, with pipeline, mesher and error lines).
 
 - **The COLORS prompt now says "Terrarium looks best in ADVANCED".** It used to say the 3D world only appears in ADVANCED, after an Android report that SGB stayed 2D. That did not reproduce (on desktop with the phone's settings, or on the phone with 1.52.2-beta's DEBUG INFO): every COLORS mode draws in 3D, ADVANCED is just the one it is coloured for. The KEEP choice no longer says "(2D ONLY)".
 
