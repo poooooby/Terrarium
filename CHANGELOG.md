@@ -39,6 +39,13 @@ Tags and packages:
 - **For mod authors:** `exports.overlay.add(fn)` draws a picture in the 3D view through the diorama's own camera, as `fn(project, scale, state)`.
 - Everything else draws exactly as before.
 
+### Battle text
+
+- **Messages no longer end early.** "No running from a trainer battle!" stopped at "batt". The box counted the message in bytes, but the game counts it in letters, and every line break and every contraction like 's put it one letter further behind.
+- **No more empty boxes in the middle of a message.** A break that waits for A before scrolling was drawn as a missing letter ("from a▯trainer").
+- **Two lines at a time, as on the cart.** The box now shows the game's own two-line window and scrolls when you press A. Before, it printed the whole message at once.
+- The typing marker on the battle panel now goes away when a message is finished.
+
 ## 1.60.0-beta (pre-release)
 
 ### All of Kanto in 3D (by [FadeyMods](https://github.com/FadeyMods), from their 1.53.0-test1 build)

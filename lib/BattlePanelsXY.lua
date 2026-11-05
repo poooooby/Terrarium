@@ -447,8 +447,10 @@ local function msgPanel(shot, R, B, msgLines, battle)
   end
   local uFrac = math.min(1, (now - (S.underlineAt or now))
                          / BattlePanelsXY.UNDERLINE)
-  local ci = battle and battle.charIndex
-  local typing = type(full) == "string" and type(ci) == "number" and ci < #full
+  -- glyphs typed against the engine's own total (BattleBoxXY.typing): the
+  -- old bytes-against-text test held the caret up for good, since a
+  -- message is always longer in bytes than in glyphs
+  local typing = B.typing and B.typing(battle) or false
   local caretOn = typing and ((now * 3.2) % 1 > 0.38)
   if #msgLines > 0 or not S.msg.canvas then
     local key = table.concat(msgLines, "\n")

@@ -109,6 +109,7 @@ tests/battle_nav_probe.lua
 tests/battle_theme_probe.lua
 tests/battle_vanish_probe.lua
 tests/battlebox_probe.lua
+tests/battlebox_text_offline.lua
 tests/battlecapsule_probe.lua
 tests/battledynamic_probe.lua
 tests/battlefan_probe.lua
