@@ -1039,11 +1039,20 @@ local function emit(m, sp, atlasW, atlasH)
     Buildings.progress.step = "emit:cells"
     Buildings.progress.box = ("%dx%dx%d"):format(xn, ytop + 1, zn)
   end
+  -- The grid stands in a one-voxel margin that is never written, so a
+  -- lookup one past any side of the box finds nil without asking whether
+  -- it is inside: ci() was six comparisons and an index, called ~25 times
+  -- a voxel by the passes below, and the comparisons were a third of it
+  -- (57% of a painted-ground cell's build with the JIT off, as on a phone).
+  -- Every caller asks at most ONE past the box -- the run's ends, the AO's
+  -- corners, the crisp-top ring -- which is all the margin has to cover:
+  -- two past would wrap into the next row.
+  --   index(x, y, z) = ((y + 1) * zn2 + (z - zmin + 1)) * xn2 + (x - xmin + 1)
+  --                  = (y * zn2 + z) * xn2 + x + off
+  local zn2, xn2 = zn + 2, xn + 2
+  local off = (zn2 + 1 - zmin) * xn2 + 1 - xmin
   local function ci(x, y, z)
-    if x < xmin or x > xmax or y < 0 or y > ytop or z < zmin or z > zmax then
-      return nil
-    end
-    return cell[(y * zn + (z - zmin)) * xn + (x - xmin)]
+    return cell[(y * zn2 + z) * xn2 + x + off]
   end
   -- `colTop(x, z)`: the highest y the model can answer in that column (-1:
   -- none), for a model whose box is mostly air -- a whole room's plan, where
@@ -1070,8 +1079,9 @@ local function emit(m, sp, atlasW, atlasH)
     end
     yfill = math.min(ytop, hi)
   end
-  local slots = (yfill + 1) * zn * xn
-  cell = tableNew(slots > 0 and slots <= GRID_PREALLOC_MAX and slots or 0, 0)
+  -- (the last slot a voxel can be written to, margin and all)
+  local slots = (yfill * zn2 + zmax) * xn2 + xmax + off + 1
+  cell = tableNew(yfill >= 0 and slots <= GRID_PREALLOC_MAX and slots or 0, 0)
   -- Which rows hold a voxel that is DRAWN (v >= 0): rowZ by (y, z), the
   -- rows the shell, +-z and +-y passes walk along x; rowX by (y, x), the
   -- rows the +-x pass walks along z. Every one of those passes emits only
@@ -1085,7 +1095,7 @@ local function emit(m, sp, atlasW, atlasH)
     Budget.tick()
     for z = zmin, zmax do
       Budget.tick()
-      local base = (y * zn + (z - zmin)) * xn - xmin
+      local base = (y * zn2 + z) * xn2 + off
       local rz = y * zn + (z - zmin)
       local rx = y * xn - xmin
       if ct then
@@ -1259,9 +1269,11 @@ local function emit(m, sp, atlasW, atlasH)
       for z = zmin, zmax do
         Budget.tick()
         local x = rowZ[y * zn + (z - zmin)] and xmin or (xmax + 1)
+        local rb = (y * zn2 + z) * xn2 + off     -- ci(x, y, z) = cell[rb + x]
+        local rf = rb + d * xn2                  -- ...and the row it looks at
         while x <= xmax do
-          local v = ci(x, y, z)
-          if v and v >= 0 and not ci(x, y, z + d) then
+          local v = cell[rb + x]
+          if v and v >= 0 and not cell[rf + x] then
             local i, strip, n = runX(y, z, 0, 0, d, x)
             local u0, u1, v0, v1 = uvOf(i, strip, n)
             local zf = d == 1 and (z + 1) or z
@@ -1304,21 +1316,18 @@ local function emit(m, sp, atlasW, atlasH)
   -- standing round the lid changes, so occlusion stays one voxel wide and a
   -- straight verge -- every voxel of it the same ring -- still merges.
   local crisp = m.crispTops
-  local function lit_(x, y, z)            -- there for the light (not CULL)
-    local v = ci(x, y, z)
-    return v and v ~= CULL
-  end
-  local function ring(x, yo, z)
-    local s = 0
-    if lit_(x - 1, yo, z - 1) then s = s + 1 end
-    if lit_(x, yo, z - 1) then s = s + 2 end
-    if lit_(x + 1, yo, z - 1) then s = s + 4 end
-    if lit_(x - 1, yo, z) then s = s + 8 end
-    if lit_(x + 1, yo, z) then s = s + 16 end
-    if lit_(x - 1, yo, z + 1) then s = s + 32 end
-    if lit_(x, yo, z + 1) then s = s + 64 end
-    if lit_(x + 1, yo, z + 1) then s = s + 128 end
-    return s
+  -- The ring is the eight voxels round (x, z) one layer up, as bits:
+  --     1   2   4        z - 1
+  --     8   .  16        z
+  --    32  64 128        z + 1
+  --   x-1   x x+1
+  -- 1 where a voxel is there for the light (not CULL). A run asks it at
+  -- every voxel along it, and the next voxel's ring is this one's moved
+  -- one column on -- so it is kept as three columns sliding along x: each
+  -- step reads the three voxels of the new column, not all eight.
+  local function lit1(i)                  -- a voxel there for the light: 1
+    local v = cell[i]
+    return (v and v ~= CULL) and 1 or 0
   end
   if Buildings.progress then Buildings.progress.step = "emit:y" end
   for _, d in ipairs({ 1, -1 }) do
@@ -1338,15 +1347,33 @@ local function emit(m, sp, atlasW, atlasH)
         for z = zmin, zmax do
           Budget.tick()
           local x = rowZ[y * zn + (z - zmin)] and xmin or (xmax + 1)
+          local rb = (y * zn2 + z) * xn2 + off       -- ci(x, y, z) = cell[rb + x]
+          local rf = rb + d * zn2 * xn2              -- ...and the layer it looks at
           while x <= xmax do
-            local v = ci(x, y, z)
-            if v and v >= 0 and not ci(x, y + d, z) then
+            local v = cell[rb + x]
+            if v and v >= 0 and not cell[rf + x] then
               local i, strip, n = runX(y, z, 0, d, 0, x)
               local first = nil
               if crisp and d == 1 then
-                first = ring(x, y + 1, z)
+                -- (rf: the layer over the lid; rn, rs: its rows z - 1, z + 1)
+                local rn, rs = rf - xn2, rf + xn2
+                local a0, b0, c0 = lit1(rn + x - 1), lit1(rf + x - 1), lit1(rs + x - 1)
+                local a1, c1 = lit1(rn + x), lit1(rs + x)
+                local b1 = lit1(rf + x)
+                local a2, b2, c2 = lit1(rn + x + 1), lit1(rf + x + 1), lit1(rs + x + 1)
+                first = a0 + 2 * a1 + 4 * a2 + 8 * b0 + 16 * b2
+                        + 32 * c0 + 64 * c1 + 128 * c2
                 local k = 1
-                while k < n and ring(x + k, y + 1, z) == first do k = k + 1 end
+                while k < n do
+                  a0, b0, c0, a1, b1, c1 = a1, b1, c1, a2, b2, c2
+                  local xc = x + k + 1
+                  a2, b2, c2 = lit1(rn + xc), lit1(rf + xc), lit1(rs + xc)
+                  if a0 + 2 * a1 + 4 * a2 + 8 * b0 + 16 * b2
+                     + 32 * c0 + 64 * c1 + 128 * c2 ~= first then
+                    break
+                  end
+                  k = k + 1
+                end
                 n = k
               end
               local u0, u1, v0, v1 = uvOf(i, strip, n)
@@ -1417,8 +1444,9 @@ local function emit(m, sp, atlasW, atlasH)
       for x = xmin, xmax do
         local z = rowX[y * xn - xmin + x] and zmin or (zmax + 1)
         while z <= zmax do
-          local i = ci(x, y, z)
-          if i and i >= 0 and not ci(x + d, y, z) then
+          local c = (y * zn2 + z) * xn2 + x + off   -- ci(x, y, z) = cell[c]
+          local i = cell[c]
+          if i and i >= 0 and not cell[c + d] then
             local n = 1
             while z + n <= zmax do
               local j = ci(x, y, z + n)

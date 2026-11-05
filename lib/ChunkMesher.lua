@@ -1622,35 +1622,69 @@ local function buildSpriteMesh(map)
   local counts = {}
   for _, p in ipairs(stream) do counts[p.tex] = (counts[p.tex] or 0) + #p.quads end
   local CH = ChunkMesher.SPRITE_CHUNK
-  local order, byTex = {}, {}
+  local floor = math.floor
+  -- A cut sheet's groups are filed by their chunk as a NUMBER under the
+  -- sheet (`cutBy[path][n]`), not by a "path:bx:bz" string: that string
+  -- was built for every quad -- a Kanto neighbourhood's painted ground is
+  -- ~370k of them, each a concatenation and an intern -- to find one of a
+  -- few dozen groups. A sheet is cut or not as a whole (`counts`), so the
+  -- two tables never hold the same group, and `order` is the order the
+  -- groups were first met either way.
+  local order, byTex, cutBy = {}, {}, {}
   for _, p in ipairs(stream) do
     local path = p.tex
     local mx, my, mz = p.mx, p.my, p.mz
+    local legacy = p.legacy
     local cut = (counts[path] or 0) > ChunkMesher.SPRITE_CHUNK_OVER
+    local sub = nil
+    if cut then
+      sub = cutBy[path]
+      if not sub then sub = {} cutBy[path] = sub end
+    end
     for qi, q in ipairs(p.quads) do
       Budget.tick()
-      local key = path
+      local g
       if cut then
         local x1, _, z1 = spCorner(p, q, 1)
-        key = path .. ":" .. math.floor(x1 / CH) .. ":" .. math.floor(z1 / CH)
-      end
-      local g = byTex[key]
-      if not g then
-        g = { path = path, ps = {}, qs = {}, boxed = key ~= path,
-              x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9, ymax = 0 }
-        byTex[key] = g
-        order[#order + 1] = g
+        -- (a chunk index is a few hundred either way at most: the offset
+        -- keeps a negative one apart from a positive one)
+        local nk = (floor(x1 / CH) + 32768) * 65536 + (floor(z1 / CH) + 32768)
+        g = sub[nk]
+        if not g then
+          g = { path = path, ps = {}, qs = {}, boxed = true,
+                x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9, ymax = 0 }
+          sub[nk] = g
+          order[#order + 1] = g
+        end
+      else
+        g = byTex[path]
+        if not g then
+          g = { path = path, ps = {}, qs = {}, boxed = false,
+                x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9, ymax = 0 }
+          byTex[path] = g
+          order[#order + 1] = g
+        end
       end
       local n = #g.qs + 1
       g.ps[n], g.qs[n] = p, q
+      -- the box: a flat quad's corners read in place (spCorner's own
+      -- arithmetic), four calls a quad fewer
+      local gx0, gx1, gz0, gz1, gy = g.x0, g.x1, g.z0, g.z1, g.ymax
       for i = 1, 4 do
-        local x, y, z = spCorner(p, q, i)
-        if x < g.x0 then g.x0 = x end
-        if x > g.x1 then g.x1 = x end
-        if z < g.z0 then g.z0 = z end
-        if z > g.z1 then g.z1 = z end
-        if y > g.ymax then g.ymax = y end
+        local x, y, z
+        if legacy then
+          x, y, z = spCorner(p, q, i)
+        else
+          local b = (i - 1) * 3
+          x, y, z = q[b + 1] + mx, q[b + 2] + my, q[b + 3] + mz
+        end
+        if x < gx0 then gx0 = x end
+        if x > gx1 then gx1 = x end
+        if z < gz0 then gz0 = z end
+        if z > gz1 then gz1 = z end
+        if y > gy then gy = y end
       end
+      g.x0, g.x1, g.z0, g.z1, g.ymax = gx0, gx1, gz0, gz1, gy
     end
   end
   local okB, Buildings = pcall(V.require, "Buildings")
@@ -1660,9 +1694,17 @@ local function buildSpriteMesh(map)
     for n = 1, #g.qs do
       Budget.tick()
       local p, q = g.ps[n], g.qs[n]
-      for i = 1, 4 do
-        local s = SP_C[i]
-        s[1], s[2], s[3] = spCorner(p, q, i)
+      if p.legacy then
+        for i = 1, 4 do
+          local s = SP_C[i]
+          s[1], s[2], s[3] = spCorner(p, q, i)
+        end
+      else
+        local mx, my, mz = p.mx, p.my, p.mz
+        for i = 1, 4 do
+          local s, b = SP_C[i], (i - 1) * 3
+          s[1], s[2], s[3] = q[b + 1] + mx, q[b + 2] + my, q[b + 3] + mz
+        end
       end
       local uv = q.uv
       if not p.legacy then
