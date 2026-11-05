@@ -63,6 +63,8 @@ return function(game)
   local Voxel3D = lib.require("Voxel3D")
   local Structures = lib.require("Structures")
   local Buildings = lib.require("Buildings")
+  -- the shell statistic is opt-in (lib/Buildings.lua emit): this probe reads it
+  Buildings.countShell = true
   local StreetLamps = lib.require("StreetLamps")
   local MarioCam = lib.require("MarioCam")
   local MiniMap = lib.require("MiniMap")

@@ -990,6 +990,17 @@ end
 -- Any negative index is a phantom.
 Buildings.PHANTOM = -1
 
+-- CULL is a phantom with half the meaning: there for the hidden-face test
+-- (a face against it is not drawn) and NOT there for the corner AO or the
+-- crisp-top ring. It is what a kit answers for a NEIGHBOUR cell's voxel
+-- when it wants the faces between the two cells gone without the seam's
+-- light changing: the AO of a cell built alone never saw the next cell,
+-- and a full PHANTOM would make it see it -- darkening every seam, which
+-- is a different picture. A face buried against a solid neighbour is
+-- inside the rock either way, so dropping it shows nothing new (CaveKit).
+Buildings.CULL = -2
+local CULL = Buildings.CULL
+
 local function emit(m, sp, atlasW, atlasH)
   -- Budget.tick() once per z-ROW as well as once per y-slice: one slice of
   -- a 4x4-block house is ~16k m.at() evaluations, and with the tick only
@@ -1032,25 +1043,41 @@ local function emit(m, sp, atlasW, atlasH)
       for x = xmin, xmax do ct[row + x] = m.colTop(x, z) end
     end
   end
+  -- Which rows hold a voxel that is DRAWN (v >= 0): rowZ by (y, z), the
+  -- rows the shell, +-z and +-y passes walk along x; rowX by (y, x), the
+  -- rows the +-x pass walks along z. Every one of those passes emits only
+  -- from a drawn voxel at the position it is scanning, so a row with none
+  -- is skipped whole and nothing it could have emitted is lost. It is most
+  -- of a box: the air over a cave's floor, over a room's (ci() was 41% of
+  -- a cave cell's build, almost all of it answering nil).
+  local rowZ, rowX = {}, {}
   for y = 0, ytop do
     Budget.tick()
     for z = zmin, zmax do
       Budget.tick()
       local base = (y * zn + (z - zmin)) * xn - xmin
+      local rz = y * zn + (z - zmin)
+      local rx = y * xn - xmin
       if ct then
         local row = (z - zmin) * xn - xmin
         for x = xmin, xmax do
           if y <= ct[row + x] then
             local v = m.at(x, y, z)
             cell[base + x] = v
-            if v and v >= 0 then quads.voxels = quads.voxels + 1 end
+            if v and v >= 0 then
+              quads.voxels = quads.voxels + 1
+              rowZ[rz], rowX[rx + x] = true, true
+            end
           end
         end
       else
         for x = xmin, xmax do
           local v = m.at(x, y, z)
           cell[base + x] = v
-          if v and v >= 0 then quads.voxels = quads.voxels + 1 end
+          if v and v >= 0 then
+            quads.voxels = quads.voxels + 1
+            rowZ[rz], rowX[rx + x] = true, true
+          end
         end
       end
     end
@@ -1058,17 +1085,24 @@ local function emit(m, sp, atlasW, atlasH)
   -- the shell: what survives hidden-face culling. Counted here rather than
   -- derived from the quads because it is the number
   -- tools/building_voxels.py checks this build against.
-  if Buildings.progress then Buildings.progress.step = "emit:shell" end
-  for y = 0, ytop do
-    Budget.tick()
-    for z = zmin, zmax do
+  -- (a statistic, and only that: Buildings.stats() hands it to the
+  -- methodology checks -- buildings_baseline_probe, lavender_tower_probe --
+  -- which set Buildings.countShell. Seven lookups a solid voxel, and a cave
+  -- cell is mostly solid rock, so a game build no longer pays for a number
+  -- nothing draws.)
+  if Buildings.countShell then
+    if Buildings.progress then Buildings.progress.step = "emit:shell" end
+    for y = 0, ytop do
       Budget.tick()
-      for x = xmin, xmax do
-        local v = ci(x, y, z)
-        if v and v >= 0 and not (ci(x + 1, y, z) and ci(x - 1, y, z)
-            and ci(x, y + 1, z) and ci(x, y - 1, z)
-            and ci(x, y, z + 1) and ci(x, y, z - 1)) then
-          quads.shell = quads.shell + 1
+      for z = zmin, zmax do
+        Budget.tick()
+        for x = xmin, rowZ[y * zn + (z - zmin)] and xmax or (xmin - 1) do
+          local v = ci(x, y, z)
+          if v and v >= 0 and not (ci(x + 1, y, z) and ci(x - 1, y, z)
+              and ci(x, y + 1, z) and ci(x, y - 1, z)
+              and ci(x, y, z + 1) and ci(x, y, z - 1)) then
+            quads.shell = quads.shell + 1
+          end
         end
       end
     end
@@ -1082,6 +1116,10 @@ local function emit(m, sp, atlasW, atlasH)
   -- so a building sits in the same light as the ground it stands on.
   local AO_STEP, AO_FLOOR = 0.09, 0.25
   local function aoCorner(s1, s2, dg)
+    -- (a CULL voxel is not there for the light: see Buildings.CULL)
+    if s1 == CULL then s1 = nil end
+    if s2 == CULL then s2 = nil end
+    if dg == CULL then dg = nil end
     local k = 0
     if s1 then k = k + 1 end
     if s2 then k = k + 1 end
@@ -1190,7 +1228,7 @@ local function emit(m, sp, atlasW, atlasH)
       Budget.tick()
       for z = zmin, zmax do
         Budget.tick()
-        local x = xmin
+        local x = rowZ[y * zn + (z - zmin)] and xmin or (xmax + 1)
         while x <= xmax do
           local v = ci(x, y, z)
           if v and v >= 0 and not ci(x, y, z + d) then
@@ -1236,16 +1274,20 @@ local function emit(m, sp, atlasW, atlasH)
   -- standing round the lid changes, so occlusion stays one voxel wide and a
   -- straight verge -- every voxel of it the same ring -- still merges.
   local crisp = m.crispTops
+  local function lit_(x, y, z)            -- there for the light (not CULL)
+    local v = ci(x, y, z)
+    return v and v ~= CULL
+  end
   local function ring(x, yo, z)
     local s = 0
-    if ci(x - 1, yo, z - 1) then s = s + 1 end
-    if ci(x, yo, z - 1) then s = s + 2 end
-    if ci(x + 1, yo, z - 1) then s = s + 4 end
-    if ci(x - 1, yo, z) then s = s + 8 end
-    if ci(x + 1, yo, z) then s = s + 16 end
-    if ci(x - 1, yo, z + 1) then s = s + 32 end
-    if ci(x, yo, z + 1) then s = s + 64 end
-    if ci(x + 1, yo, z + 1) then s = s + 128 end
+    if lit_(x - 1, yo, z - 1) then s = s + 1 end
+    if lit_(x, yo, z - 1) then s = s + 2 end
+    if lit_(x + 1, yo, z - 1) then s = s + 4 end
+    if lit_(x - 1, yo, z) then s = s + 8 end
+    if lit_(x + 1, yo, z) then s = s + 16 end
+    if lit_(x - 1, yo, z + 1) then s = s + 32 end
+    if lit_(x, yo, z + 1) then s = s + 64 end
+    if lit_(x + 1, yo, z + 1) then s = s + 128 end
     return s
   end
   if Buildings.progress then Buildings.progress.step = "emit:y" end
@@ -1265,7 +1307,7 @@ local function emit(m, sp, atlasW, atlasH)
       if not (d == -1 and (y == 0 or m.noDown)) then
         for z = zmin, zmax do
           Budget.tick()
-          local x = xmin
+          local x = rowZ[y * zn + (z - zmin)] and xmin or (xmax + 1)
           while x <= xmax do
             local v = ci(x, y, z)
             if v and v >= 0 and not ci(x, y + d, z) then
@@ -1343,7 +1385,7 @@ local function emit(m, sp, atlasW, atlasH)
   for _, d in ipairs({ 1, -1 }) do
     for y = 0, ytop do
       for x = xmin, xmax do
-        local z = zmin
+        local z = rowX[y * xn - xmin + x] and zmin or (zmax + 1)
         while z <= zmax do
           local i = ci(x, y, z)
           if i and i >= 0 and not ci(x + d, y, z) then

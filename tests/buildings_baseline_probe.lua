@@ -58,6 +58,8 @@ return function(game)
   local Voxel3D = lib.require("Voxel3D")
   local Structures = lib.require("Structures")
   local Buildings = lib.require("Buildings")
+  -- the shell statistic is opt-in (lib/Buildings.lua emit): this probe reads it
+  Buildings.countShell = true
   local StreetLamps = lib.require("StreetLamps")
 
   -- Pin everything that would make two runs of this probe disagree.

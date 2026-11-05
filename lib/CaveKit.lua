@@ -32,6 +32,10 @@
 -- Nothing here is extracted from the ROM.
 local V = ...
 
+-- Buildings.CULL, the half-phantom (see lib/Buildings.lua); a literal so this
+-- kit loads without Buildings (the offline checks run it alone)
+local Buildings_CULL = -2
+
 local Kit = { SHEET = "assets/buildings/cave_kit.png", SHEET_W = 8, SHEET_H = 12,
               SINK = 10,
               -- the key carries the cell (tx, ty): no other cell, and no
@@ -110,28 +114,30 @@ function Kit.spec(tileAt, tx, ty, mapId)
     if c == nil or c == "O" then return nil end
     own = own .. c
   end
+  -- the window the model reads, tiles -4..5 round the cell: its own 6x6
+  -- (-2..3) and each edge neighbour's (whose cell starts 2 tiles over), so
+  -- the faces between two cells can be culled against the neighbour's real
+  -- rock (see Kit.model). Raw here -- X off the map or a tile this kit does
+  -- not know, O the profile's -- and mapped to the old window's letters
+  -- (V, L) only where a window is cut from it.
   local win = {}
-  for y = -2, 3 do
-    for x = -2, 3 do
+  for y = -4, 5 do
+    for x = -4, 5 do
       local t = tileAt(tx + x, ty + y)
-      local c = t and CLASS[t] or "V"
-      if c == "O" then c = "L" end
-      win[#win + 1] = c
+      win[#win + 1] = (t and CLASS[t]) or "X"
     end
   end
   local lit = Kit.LIT[mapId] or LIT_DEFAULT
   return ("%d|%d|%d|%s"):format(lit, tx, ty, table.concat(win))
 end
 
-function Kit.model(sp, key)
-  if not sp or sp.W ~= Kit.SHEET_W or sp.H ~= Kit.SHEET_H then
-    return nil, "sheet is not " .. Kit.SHEET_W .. "x" .. Kit.SHEET_H
-  end
-  local lit, tx, ty, win = key:match("^(%d+)|(%-?%d+)|(%-?%d+)|(%u+)$")
-  lit, tx, ty = tonumber(lit), tonumber(tx), tonumber(ty)
-  local SINK = Kit.SINK
-  local OX, OZ = tx * 8, ty * 8              -- the cell's world voxel origin
-
+-- ------- the ground of one cell, from its 6x6 window of tile classes
+--
+-- Kit.model's height machinery, lifted out whole so a model can run it for
+-- its NEIGHBOURS too: the class lookups, the levels, the distance field and
+-- the memoised ground(x, z). `win` is the old 36-letter window (-2..3), OX,
+-- OZ the cell's world voxel origin (the noise is in world coordinates).
+local function cellGround(lit, win, OX, OZ)
   -- the class of the tile at window position (i, j), -2..3
   local function cls(i, j) return win:sub((j + 2) * 6 + (i + 2) + 1, (j + 2) * 6 + (i + 2) + 1) end
   -- the class under a local voxel (x, z may run -16..31)
@@ -228,6 +234,65 @@ function Kit.model(sp, key)
     return h, kind
   end
 
+  return ground, cls, level, floorOf
+end
+
+-- the 10x10 raw window (tiles -4..5) of Kit.spec: one letter at tile (i, j)
+local function at10(w, i, j)
+  return w:sub((j + 4) * 10 + (i + 4) + 1, (j + 4) * 10 + (i + 4) + 1)
+end
+-- the 6x6 window (-2..3) round the cell whose top-left tile is (ox, oz),
+-- in the letters the old spec wrote: V off the map, L for a profile tile
+local function cut6(w, ox, oz)
+  local out = {}
+  for j = -2, 3 do
+    for i = -2, 3 do
+      local c = at10(w, ox + i, oz + j)
+      if c == "X" then c = "V" elseif c == "O" then c = "L" end
+      out[#out + 1] = c
+    end
+  end
+  return table.concat(out)
+end
+-- would Kit.spec build the cell whose top-left tile is (ox, oz)?
+local function built2x2(w, ox, oz)
+  for j = 0, 1 do
+    for i = 0, 1 do
+      local c = at10(w, ox + i, oz + j)
+      if c == "X" or c == "O" then return false end
+    end
+  end
+  return true
+end
+
+function Kit.model(sp, key)
+  if not sp or sp.W ~= Kit.SHEET_W or sp.H ~= Kit.SHEET_H then
+    return nil, "sheet is not " .. Kit.SHEET_W .. "x" .. Kit.SHEET_H
+  end
+  local lit, tx, ty, win10 = key:match("^(%d+)|(%-?%d+)|(%-?%d+)|(%u+)$")
+  lit, tx, ty = tonumber(lit), tonumber(tx), tonumber(ty)
+  local SINK = Kit.SINK
+  local OX, OZ = tx * 8, ty * 8              -- the cell's world voxel origin
+
+  local ground, cls, level, floorOf = cellGround(lit, cut6(win10, 0, 0), OX, OZ)
+
+  -- the four edge neighbours, rebuilt from the same rules their own models
+  -- use (cellGround over their own 6x6 window, their own world origin), so
+  -- this cell can tell exactly where theirs is rock: nil where there is no
+  -- neighbour model (off the map, a tile not this kit's, a profile tile --
+  -- Kit.spec refuses those) or where it is a ladder, whose rails this does
+  -- not reproduce (its faces are kept: a seam drawn twice, as before)
+  local nb = {}
+  for dir, o in pairs({ e = { 2, 0 }, w = { -2, 0 }, s = { 0, 2 }, n = { 0, -2 } }) do
+    if built2x2(win10, o[1], o[2]) then
+      local c0 = at10(win10, o[1], o[2])
+      if c0 ~= "D" and c0 ~= "U" then
+        nb[dir] = cellGround(lit, cut6(win10, o[1], o[2]), OX + o[1] * 8, OZ + o[2] * 8)
+      end
+    end
+  end
+  local CULL = Buildings_CULL
+
   -- a ladder's frame in its cell: the cell's own local box
   local cellC = cls(0, 0)
   local ladder = (cellC == "D" or cellC == "U") and cellC or nil
@@ -236,7 +301,23 @@ function Kit.model(sp, key)
     -- y above the floor plane, which is a voxel over the drawing's own (so
     -- the two never lie in one plane and fight)
     local y = y0 - SINK - 1
-    if x < 0 or x > 15 or z < 0 or z > 15 then return nil end
+    if x < 0 or x > 15 or z < 0 or z > 15 then
+      -- the ring one voxel round the cell: the edge neighbour's voxel, as
+      -- CULL (Buildings.CULL) where its model is solid -- a face of this
+      -- cell against it is inside the rock -- and nothing at the corners.
+      -- Its model is solid exactly where a non-ladder cell's at() is: from
+      -- the floor plane's voxel (y -1) up to its ground, and below that too
+      -- for the void.
+      local g, lx, lz = nil, x, z
+      if x == 16 and z >= 0 and z <= 15 then g, lx = nb.e, 0
+      elseif x == -1 and z >= 0 and z <= 15 then g, lx = nb.w, 15
+      elseif z == 16 and x >= 0 and x <= 15 then g, lz = nb.s, 0
+      elseif z == -1 and x >= 0 and x <= 15 then g, lz = nb.n, 15 end
+      if not g then return nil end
+      local h, kind = g(lx, lz)
+      if y < h and (y >= -1 or kind == "void") then return CULL end
+      return nil
+    end
     local h, kind = ground(x, z)
     local wx, wz = OX + x, OZ + z
 
@@ -360,8 +441,29 @@ function Kit.model(sp, key)
   local reach = hmax - 1
   if ladder == "U" then reach = hmax + 22 elseif ladder == "D" then reach = hmax + 4 end
   local ytop = SINK + 1 + reach
-  return { at = at, W = 16, xmin = 0, xmax = 15, zmin = 0, zmax = 15,
-           ytop = ytop, sink = SINK, claimMask = mask, standH = stand }
+  -- emit's colTop: the highest y0 at() can answer in a column. A plain
+  -- column is solid to its ground and no higher (y < h, y0 = y + SINK + 1,
+  -- so y0 <= SINK + h); a ladder cell's rails stand over its ground, so it
+  -- keeps the whole box. The ring follows the neighbour's ground the same
+  -- way, and a corner -- or a side with no neighbour model -- holds nothing.
+  local function colTop(x, z)
+    if x >= 0 and x <= 15 and z >= 0 and z <= 15 then
+      if ladder then return ytop end
+      local h = ground(x, z)
+      return SINK + h
+    end
+    local g, lx, lz = nil, x, z
+    if x == 16 and z >= 0 and z <= 15 then g, lx = nb.e, 0
+    elseif x == -1 and z >= 0 and z <= 15 then g, lx = nb.w, 15
+    elseif z == 16 and x >= 0 and x <= 15 then g, lz = nb.s, 0
+    elseif z == -1 and x >= 0 and x <= 15 then g, lz = nb.n, 15 end
+    if not g then return -1 end
+    local h = g(lx, lz)
+    return SINK + h
+  end
+  return { at = at, W = 16, xmin = -1, xmax = 16, zmin = -1, zmax = 16,
+           ytop = ytop, sink = SINK, claimMask = mask, standH = stand,
+           colTop = colTop }
 end
 
 return Kit
