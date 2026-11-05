@@ -80,11 +80,21 @@ return function(game)
           s1 = s1 + v
           s2 = s2 + v * (k % 9973 + 1)
         end
+        -- either quad shape: corner tables and a uv of pairs, or emit's
+        -- flat one (corners 1-12, u, v 13-20) -- the same numbers in the
+        -- same order either way
         local function quad(q, mx, my, mz)
           n = n + 1
+          local flat = type(q[1]) ~= "table"
           for i = 1, 4 do
-            add(q[i][1] + mx); add(q[i][2] + my); add(q[i][3] + mz)
-            add(q.uv[i][1]); add(q.uv[i][2])
+            if flat then
+              local b = (i - 1) * 3
+              add(q[b + 1] + mx); add(q[b + 2] + my); add(q[b + 3] + mz)
+              add(q[11 + 2 * i]); add(q[12 + 2 * i])
+            else
+              add(q[i][1] + mx); add(q[i][2] + my); add(q[i][3] + mz)
+              add(q.uv[i][1]); add(q.uv[i][2])
+            end
             local sh = q.shade
             add(type(sh) == "table" and sh[i] or (sh or -1))
           end
@@ -94,6 +104,20 @@ return function(game)
           for _, q in ipairs(p.quads) do quad(q, p.mx, p.my, p.mz) end
         end
         log(("SUM %-20s quads %8d  s1 %.17g  s2 %.17g"):format(mapId, n, s1, s2))
+        -- and the terrain pass's objectQuads (the atlas-textured models
+        -- stamp copies there, beside the terrain's own)
+        n, s1, s2, k = 0, 0, 0, 0
+        for _, q in ipairs(S.objectQuads or {}) do
+          n = n + 1
+          for i = 1, 4 do
+            add(q[i][1]); add(q[i][2]); add(q[i][3])
+            local uv = q.uv and q.uv[i]
+            add(uv and uv[1] or (q.u or -1)); add(uv and uv[2] or (q.v or -1))
+            local sh = q.shade
+            add(type(sh) == "table" and sh[i] or (sh or -1))
+          end
+        end
+        log(("OBJ %-20s quads %8d  s1 %.17g  s2 %.17g"):format(mapId, n, s1, s2))
       end
       return trim(mapId, ...)
     end

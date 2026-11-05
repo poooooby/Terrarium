@@ -1593,6 +1593,18 @@ end
 -- a quad held until this ran. `S.spriteQuads` (world-space quads, nothing
 -- in the mod fills it now) is still read first, for anything that does.
 local SP_C = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } }
+local SP_UV = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } }
+-- A placement's quads are Buildings.emit's flat ones (corners at 1-12,
+-- u, v at 13-20); a legacy world-space quad is four corner tables and a
+-- uv of pairs. Both are read through these two, into the scratch tables.
+local function spCorner(p, q, i)
+  if p.legacy then
+    local c = q[i]
+    return c[1], c[2], c[3]
+  end
+  local b = (i - 1) * 3
+  return q[b + 1] + p.mx, q[b + 2] + p.my, q[b + 3] + p.mz
+end
 
 local function buildSpriteMesh(map)
   local S = Structures.forMap(map)
@@ -1619,7 +1631,8 @@ local function buildSpriteMesh(map)
       Budget.tick()
       local key = path
       if cut then
-        key = path .. ":" .. math.floor((q[1][1] + mx) / CH) .. ":" .. math.floor((q[1][3] + mz) / CH)
+        local x1, _, z1 = spCorner(p, q, 1)
+        key = path .. ":" .. math.floor(x1 / CH) .. ":" .. math.floor(z1 / CH)
       end
       local g = byTex[key]
       if not g then
@@ -1631,8 +1644,7 @@ local function buildSpriteMesh(map)
       local n = #g.qs + 1
       g.ps[n], g.qs[n] = p, q
       for i = 1, 4 do
-        local c = q[i]
-        local x, y, z = c[1] + mx, c[2] + my, c[3] + mz
+        local x, y, z = spCorner(p, q, i)
         if x < g.x0 then g.x0 = x end
         if x > g.x1 then g.x1 = x end
         if z < g.z0 then g.z0 = z end
@@ -1648,13 +1660,20 @@ local function buildSpriteMesh(map)
     for n = 1, #g.qs do
       Budget.tick()
       local p, q = g.ps[n], g.qs[n]
-      local mx, my, mz = p.mx, p.my, p.mz
       for i = 1, 4 do
-        local c, s = q[i], SP_C[i]
-        s[1], s[2], s[3] = c[1] + mx, c[2] + my, c[3] + mz
+        local s = SP_C[i]
+        s[1], s[2], s[3] = spCorner(p, q, i)
+      end
+      local uv = q.uv
+      if not p.legacy then
+        for i = 1, 4 do
+          local t, b = SP_UV[i], 11 + 2 * i
+          t[1], t[2] = q[b], q[b + 1]
+        end
+        uv = SP_UV
       end
       -- (a legacy world-space quad may carry `sky`; a stamped one never did)
-      sink.push(SP_C, q.uv, q.shade, p.legacy and q.sky or nil)
+      sink.push(SP_C, uv, q.shade, p.legacy and q.sky or nil)
     end
     local tex = nil
     if g.path and okB and Buildings and Buildings.spriteImage then

@@ -1143,8 +1143,16 @@ local function emit(m, sp, atlasW, atlasH)
            (y0 + 0.05) / atlasH, (y0 + 1 - 0.05) / atlasH
   end
 
-  local function put(c1, c2, c3, c4, uv, shade)
-    quads[#quads + 1] = { c1, c2, c3, c4, uv = uv, shade = shade }
+  -- One quad is ONE table: its four corners' x, y, z (1-12) and their u, v
+  -- (13-20) in the array part, its shade beside them. It was eleven -- the
+  -- quad, four corner tables, a uv table and its four pairs -- and a Kanto
+  -- neighbourhood holds one to two million of them until its meshes are
+  -- built. Buildings.quadCorner / quadUV read it; the mesher and the
+  -- objectQuads copy in stamp read it directly.
+  local function put(x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4,
+                     u1, v1, u2, v2, u3, v3, u4, v4, shade)
+    quads[#quads + 1] = { x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4,
+                          u1, v1, u2, v2, u3, v3, u4, v4, shade = shade }
   end
 
   -- How far a run of exposed faces reaches from `x`, and whether it is a
@@ -1199,14 +1207,14 @@ local function emit(m, sp, atlasW, atlasH)
             local sTR = aoCorner(ci(xr, y, zo), ci(xe1, yu, zo), ci(xr, yu, zo))
             local sTL = aoCorner(ci(xl, y, zo), ci(xe0, yu, zo), ci(xl, yu, zo))
             if d == 1 then
-              put({ x, y, zf }, { x + n, y, zf },
-                  { x + n, y + 1, zf }, { x, y + 1, zf },
-                  { { u0, v1 }, { u1, v1 }, { u1, v0 }, { u0, v0 } },
+              put(x, y, zf, x + n, y, zf,
+                  x + n, y + 1, zf, x, y + 1, zf,
+                  u0, v1, u1, v1, u1, v0, u0, v0,
                   shades(lit(shade, y, i, "s"), sBL, sBR, sTR, sTL))
             else
-              put({ x + n, y, zf }, { x, y, zf },
-                  { x, y + 1, zf }, { x + n, y + 1, zf },
-                  { { u1, v1 }, { u0, v1 }, { u0, v0 }, { u1, v0 } },
+              put(x + n, y, zf, x, y, zf,
+                  x, y + 1, zf, x + n, y + 1, zf,
+                  u1, v1, u0, v1, u0, v0, u1, v0,
                   shades(lit(shade, y, i, "n"), sBR, sBL, sTL, sTR))
             end
             x = x + n
@@ -1276,8 +1284,8 @@ local function emit(m, sp, atlasW, atlasH)
                 if first == 0 and o and o.n == n and o.z1 == z and o.strip == strip
                    and o.ax == sp.ax[i] and o.ay + 1 == sp.ay[i] then
                   local q = o.q
-                  q[3][3], q[4][3] = z + 1, z + 1
-                  q.uv[3][2], q.uv[4][2] = v1, v1
+                  q[9], q[12] = z + 1, z + 1      -- corners 3 and 4: z
+                  q[18], q[20] = v1, v1          -- and their v
                   o.z1, o.ay = z + 1, sp.ay[i]
                   grown = true
                 elseif first ~= 0 then
@@ -1297,9 +1305,9 @@ local function emit(m, sp, atlasW, atlasH)
               if grown then
                 -- the run above took this row in
               elseif d == 1 then
-                put({ x, yf, z }, { x + n, yf, z },
-                    { x + n, yf, z + 1 }, { x, yf, z + 1 },
-                    { { u0, v0 }, { u1, v0 }, { u1, v1 }, { u0, v1 } },
+                put(x, yf, z, x + n, yf, z,
+                    x + n, yf, z + 1, x, yf, z + 1,
+                    u0, v0, u1, v0, u1, v1, u0, v1,
                     shades(lit(shade, y, i, "up"),
                            f1 * cf(x, yf, z), f2 * cf(x + n, yf, z),
                            f3 * cf(x + n, yf, z + 1), f4 * cf(x, yf, z + 1)))
@@ -1308,9 +1316,9 @@ local function emit(m, sp, atlasW, atlasH)
                               ax = sp.ax[i], ay = sp.ay[i] }
                 end
               else
-                put({ x, yf, z + 1 }, { x + n, yf, z + 1 },
-                    { x + n, yf, z }, { x, yf, z },
-                    { { u0, v1 }, { u1, v1 }, { u1, v0 }, { u0, v0 } },
+                put(x, yf, z + 1, x + n, yf, z + 1,
+                    x + n, yf, z, x, yf, z,
+                    u0, v1, u1, v1, u1, v0, u0, v0,
                     shades(lit(shade, y, i, "down"), f4, f3, f2, f1))
               end
               x = x + n
@@ -1360,14 +1368,14 @@ local function emit(m, sp, atlasW, atlasH)
             local fT0 = aoCorner(ci(xo, y, zl), ci(xo, yu, ze0), ci(xo, yu, zl))
             local fTn = aoCorner(ci(xo, y, zr), ci(xo, yu, ze1), ci(xo, yu, zr))
             if d == 1 then
-              put({ xf, y, z + n }, { xf, y, z },
-                  { xf, y + 1, z }, { xf, y + 1, z + n },
-                  { { u0, v1 }, { u1, v1 }, { u1, v0 }, { u0, v0 } },
+              put(xf, y, z + n, xf, y, z,
+                  xf, y + 1, z, xf, y + 1, z + n,
+                  u0, v1, u1, v1, u1, v0, u0, v0,
                   shades(lit(SHADE.side, y, i, "e"), fBn, fB0, fT0, fTn))
             else
-              put({ xf, y, z }, { xf, y, z + n },
-                  { xf, y + 1, z + n }, { xf, y + 1, z },
-                  { { u0, v1 }, { u1, v1 }, { u1, v0 }, { u0, v0 } },
+              put(xf, y, z, xf, y, z + n,
+                  xf, y + 1, z + n, xf, y + 1, z,
+                  u0, v1, u1, v1, u1, v0, u0, v0,
                   shades(lit(SHADE.side, y, i, "w"), fB0, fBn, fTn, fT0))
             end
             z = z + n
@@ -1937,12 +1945,19 @@ function Buildings.build(S, map, data, perRow)
                     -- behind it is part of, and how far up that plant the
                     -- corner stands. The shader's reef branch moves each
                     -- kind its own way.
+                    -- (plantAt reads a quad as four corner tables; emit's
+                    -- quads are flat now, so each is lent as a scratch view)
+                    local view = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } }
                     for _, quad in ipairs(q) do
+                      for i = 1, 4 do
+                        local c, b = view[i], (i - 1) * 3
+                        c[1], c[2], c[3] = quad[b + 1], quad[b + 2], quad[b + 3]
+                      end
                       local packed = {}
                       for i = 1, 4 do
                         local s = type(quad.shade) == "table" and quad.shade[i] or quad.shade
-                        packed[i] = Kit.pack(s, Kit.plantAt(m, quad, i),
-                                             quad[i][1], quad[i][2], quad[i][3])
+                        local c = view[i]
+                        packed[i] = Kit.pack(s, Kit.plantAt(m, view, i), c[1], c[2], c[3])
                       end
                       quad.shade = packed
                     end
@@ -2432,8 +2447,8 @@ function Buildings.stamp(S, map, quads, tx, ty, bw, bh)
   -- the model's real top, remembered per CELL for line-of-sight (above)
   local top = 0
   for _, q in ipairs(quads) do
-    for i = 1, 4 do
-      if q[i][2] - (quads.sink or 0) > top then top = q[i][2] - (quads.sink or 0) end
+    for i = 2, 11, 3 do                -- each corner's y (emit's layout)
+      if q[i] - (quads.sink or 0) > top then top = q[i] - (quads.sink or 0) end
     end
   end
   if top > 0 and S then
@@ -2520,12 +2535,15 @@ function Buildings.stamp(S, map, quads, tx, ty, bw, bh)
   -- clock one call in 32, so it costs nothing per quad.
   for _, q in ipairs(quads) do
     Budget.tick()
+    -- objectQuads keep the world-space shape the terrain pass reads
+    -- (corner tables, a uv of pairs); the pairs are expanded once per
+    -- model quad and shared by every placement of it, as `q.uv` was
     out[#out + 1] = {
-      { q[1][1] + mx, q[1][2] + my, q[1][3] + mz },
-      { q[2][1] + mx, q[2][2] + my, q[2][3] + mz },
-      { q[3][1] + mx, q[3][2] + my, q[3][3] + mz },
-      { q[4][1] + mx, q[4][2] + my, q[4][3] + mz },
-      uv = q.uv, shade = q.shade, tex = quads.tex,
+      { q[1] + mx, q[2] + my, q[3] + mz },
+      { q[4] + mx, q[5] + my, q[6] + mz },
+      { q[7] + mx, q[8] + my, q[9] + mz },
+      { q[10] + mx, q[11] + my, q[12] + mz },
+      uv = Buildings.quadUVPairs(q), shade = q.shade, tex = quads.tex,
       -- placements only ever scan the BODY, so a building is always this
       -- map's own structure: the mesher's edge keep-rules must not eat
       -- the parts that poke past the boundary (an edge-row house's eave
@@ -2535,6 +2553,18 @@ function Buildings.stamp(S, map, quads, tx, ty, bw, bh)
       own = true,
     }
   end
+end
+
+-- A compact quad's uv as the four { u, v } pairs the world-space quad
+-- shape carries, built once and kept on the quad (`uvPairs`): a model
+-- stamped at a hundred places shares one, as it always shared `q.uv`.
+function Buildings.quadUVPairs(q)
+  local t = q.uvPairs
+  if not t then
+    t = { { q[13], q[14] }, { q[15], q[16] }, { q[17], q[18] }, { q[19], q[20] } }
+    q.uvPairs = t
+  end
+  return t
 end
 
 -- A map's sprite quads in WORLD pixels, as stamp used to store them (see
@@ -2548,11 +2578,11 @@ function Buildings.spriteQuadsOf(S)
     local mx, my, mz = p.mx, p.my, p.mz
     for _, q in ipairs(p.quads) do
       out[#out + 1] = {
-        { q[1][1] + mx, q[1][2] + my, q[1][3] + mz },
-        { q[2][1] + mx, q[2][2] + my, q[2][3] + mz },
-        { q[3][1] + mx, q[3][2] + my, q[3][3] + mz },
-        { q[4][1] + mx, q[4][2] + my, q[4][3] + mz },
-        uv = q.uv, shade = q.shade, tex = p.tex, own = true,
+        { q[1] + mx, q[2] + my, q[3] + mz },
+        { q[4] + mx, q[5] + my, q[6] + mz },
+        { q[7] + mx, q[8] + my, q[9] + mz },
+        { q[10] + mx, q[11] + my, q[12] + mz },
+        uv = Buildings.quadUVPairs(q), shade = q.shade, tex = p.tex, own = true,
       }
     end
   end
