@@ -148,9 +148,9 @@ return function(game)
   -- one number that cannot be out of step with what got drawn. Cells are
   -- 16 world px (two 8px tiles either axis, lib/Buildings.lua's stamp).
   local function texBox(S, tex)
-    if not (S and S.spriteQuads) then return nil end
+    if not S then return nil end
     local x0, x1, z0, z1, n = 1e9, -1e9, 1e9, -1e9, 0
-    for _, q in ipairs(S.spriteQuads) do
+    for _, q in ipairs(Buildings.spriteQuadsOf(S)) do
       if q.tex == tex then
         n = n + 1
         for i = 1, 4 do
@@ -274,7 +274,7 @@ return function(game)
         local okS, S = pcall(Structures.forMap, map)
         if okS and S then
           log(("  objectQuads=%d spriteQuads=%d")
-              :format(#S.objectQuads, S.spriteQuads and #S.spriteQuads or 0))
+              :format(#S.objectQuads, S.spriteCount or 0))
         end
 
         for _, h in ipairs(HOURS) do

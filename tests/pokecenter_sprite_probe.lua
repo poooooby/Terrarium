@@ -176,7 +176,7 @@ return function(game)
       local S = Structures.forMap(map)
       local own = 0
       for _, q in ipairs(S.objectQuads) do if q.own then own = own + 1 end end
-      local sq = S.spriteQuads
+      local sq = lib.require("Buildings").spriteQuadsOf(S)
       log(("  5 objectQuads=%d (building own=%d) spriteQuads=%s tex=%s")
           :format(#S.objectQuads, own, sq and #sq or "nil",
                   sq and sq[1] and tostring(sq[1].tex) or "nil"))

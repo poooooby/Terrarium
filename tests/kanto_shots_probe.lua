@@ -34,8 +34,14 @@ return function(game)
 
   local BuildCache = V.require("BuildCache")
   pcall(BuildCache.clear)
-  BuildCache.setting:sync("off")
-  log("3D CACHE cleared and OFF: every visit below is a real build")
+  -- DS_SHOT_CACHE=1 leaves the cache ON (still cleared first), so every
+  -- build below WRITES its meshes: mod_cache/TERRARIUM then holds the exact
+  -- vertex bytes this code uploads, for a byte-for-byte compare of two
+  -- builds that are meant to produce the same geometry
+  local keepCache = os.getenv("DS_SHOT_CACHE") == "1"
+  if not keepCache then BuildCache.setting:sync("off") end
+  log(keepCache and "3D CACHE cleared and ON: every build below is written"
+      or "3D CACHE cleared and OFF: every visit below is a real build")
 
   local MAPS = {
     -- control: content that was already there before the import
@@ -51,6 +57,46 @@ return function(game)
   if only and only ~= "" then
     MAPS = {}
     for id in only:gmatch("[^,%s]+") do MAPS[#MAPS + 1] = id end
+  end
+
+  -- DS_SHOT_SUM=1: an order-sensitive checksum of the sprite pass's whole
+  -- input per map -- every quad's world corners, uvs and shades, in the
+  -- order buildSpriteMesh pushes them -- taken just before the map's
+  -- analysis is trimmed. It reads the old shape (S.spriteQuads, world
+  -- space) and the new (S.spritePlacements, model + offset) the same way,
+  -- so two builds meant to upload the same sprite vertices must print the
+  -- same numbers.
+  if os.getenv("DS_SHOT_SUM") == "1" then
+    local Structures = V.require("Structures")
+    local trim = Structures.trim
+    local seen = {}
+    Structures.trim = function(mapId, ...)
+      local S = Structures.peek and Structures.peek({ id = mapId })
+      if S and not S.trimmed and not seen[mapId] then
+        seen[mapId] = true
+        local n, s1, s2, k = 0, 0, 0, 0
+        local function add(v)
+          k = k + 1
+          s1 = s1 + v
+          s2 = s2 + v * (k % 9973 + 1)
+        end
+        local function quad(q, mx, my, mz)
+          n = n + 1
+          for i = 1, 4 do
+            add(q[i][1] + mx); add(q[i][2] + my); add(q[i][3] + mz)
+            add(q.uv[i][1]); add(q.uv[i][2])
+            local sh = q.shade
+            add(type(sh) == "table" and sh[i] or (sh or -1))
+          end
+        end
+        for _, q in ipairs(S.spriteQuads or {}) do quad(q, 0, 0, 0) end
+        for _, p in ipairs(S.spritePlacements or {}) do
+          for _, q in ipairs(p.quads) do quad(q, p.mx, p.my, p.mz) end
+        end
+        log(("SUM %-20s quads %8d  s1 %.17g  s2 %.17g"):format(mapId, n, s1, s2))
+      end
+      return trim(mapId, ...)
+    end
   end
 
   local function snapCounters()
@@ -95,6 +141,8 @@ return function(game)
     Scenes.wait(30)
   end
   Perf.setSegment(nil)
+  -- let the last map's slots finish writing before the run ends
+  if keepCache then Scenes.wait(240) end
   BuildCache.setting:sync("on")
   log(fails == 0 and "PASS" or ("FAIL x" .. fails))
   H:finish({ probe = "kanto_shots" })

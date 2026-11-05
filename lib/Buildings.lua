@@ -1535,7 +1535,7 @@ function Buildings.build(S, map, data, perRow)
       -- quads it leaves behind -- the numbers the Kanto import's kits were
       -- first judged on (cold_cost_probe, kanto_shots_probe)
       local perfT0 = Perf.now()
-      local perfQ0 = perfT0 and (#quads + (S.spriteQuads and #S.spriteQuads or 0))
+      local perfQ0 = perfT0 and (#quads + (S.spriteCount or 0))
       local bh, bw = #t.tiles, #t.tiles[1]
       Buildings.progress = { map = tostring(map.id), index = index,
                              id = tostring(t.id), phase = "scan" }
@@ -2330,7 +2330,7 @@ function Buildings.build(S, map, data, perRow)
           PERF_LABEL[id] = lab
         end
         Perf.add(lab[1], perfT0)
-        Perf.count(lab[2], #quads + (S.spriteQuads and #S.spriteQuads or 0) - perfQ0)
+        Perf.count(lab[2], #quads + (S.spriteCount or 0) - perfQ0)
       end
     end
   end
@@ -2493,10 +2493,25 @@ function Buildings.stamp(S, map, quads, tx, ty, bw, bh)
                         slow = h.slow,
                         tx = tx, ty = ty }
   end
+  -- A model on its own sheet goes to the sprite pass as ONE placement --
+  -- the model and where it stands -- not as a copy of every quad moved
+  -- there. The copy was five tables a quad (the quad and its four
+  -- corners), kept until the map's meshes were built: a Kanto
+  -- neighbourhood stamped 0.9-1.9 million quads (kanto_shots_probe), which
+  -- is most of the heap a first visit grew. The one reader,
+  -- ChunkMesher's buildSpriteMesh, walks each placement's quads in their
+  -- own order and adds the offset as it pushes, so the vertex stream is
+  -- the one the copies made: same quads, same order, same values. (A
+  -- stamped sprite quad never carried `sky`, and `own` is an objectQuads
+  -- rule the sprite pass does not read.)
   if quads.tex then
-    S.spriteQuads = S.spriteQuads or {}
+    S.spritePlacements = S.spritePlacements or {}
+    local list = S.spritePlacements
+    list[#list + 1] = { quads = quads, mx = mx, my = my, mz = mz, tex = quads.tex }
+    S.spriteCount = (S.spriteCount or 0) + #quads
+    return
   end
-  local out = quads.tex and S.spriteQuads or S.objectQuads
+  local out = S.objectQuads
   -- Budget.tick per quad: one model can be tens of thousands of quads and
   -- each copy is five tables, and this loop was the one step of a kit
   -- build with no yield in it -- tools/profiler's overrun.structures.
@@ -2520,6 +2535,28 @@ function Buildings.stamp(S, map, quads, tx, ty, bw, bh)
       own = true,
     }
   end
+end
+
+-- A map's sprite quads in WORLD pixels, as stamp used to store them (see
+-- stamp: it keeps placements now). For probes that look at what was
+-- stamped; it allocates the copies stamp no longer makes, so nothing at
+-- runtime calls it.
+function Buildings.spriteQuadsOf(S)
+  local out = {}
+  for _, q in ipairs((S and S.spriteQuads) or {}) do out[#out + 1] = q end
+  for _, p in ipairs((S and S.spritePlacements) or {}) do
+    local mx, my, mz = p.mx, p.my, p.mz
+    for _, q in ipairs(p.quads) do
+      out[#out + 1] = {
+        { q[1][1] + mx, q[1][2] + my, q[1][3] + mz },
+        { q[2][1] + mx, q[2][2] + my, q[2][3] + mz },
+        { q[3][1] + mx, q[3][2] + my, q[3][3] + mz },
+        { q[4][1] + mx, q[4][2] + my, q[4][3] + mz },
+        uv = q.uv, shade = q.shade, tex = p.tex, own = true,
+      }
+    end
+  end
+  return out
 end
 
 -- What the models built so far cost, keyed "<tileset>:<index>": the voxel

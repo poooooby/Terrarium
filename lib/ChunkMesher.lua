@@ -1584,50 +1584,77 @@ function ChunkMesher.spriteInBox(g, b)
      and s[4] + math.max(s[5], 0) >= b[2] and s[2] <= b[4]
 end
 
+-- The sprite pass's input is Buildings.stamp's PLACEMENTS -- a model and
+-- the offset it stands at -- rather than a world-space copy of every quad
+-- (see stamp). Every quad below is visited as (placement, quad in its
+-- model), in the order the copies used to be appended, and its corners are
+-- offset into scratch tables the sinks copy out of at once; so the groups,
+-- their boxes and the vertex stream are what they were, without five tables
+-- a quad held until this ran. `S.spriteQuads` (world-space quads, nothing
+-- in the mod fills it now) is still read first, for anything that does.
+local SP_C = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } }
+
 local function buildSpriteMesh(map)
-  local qs = Structures.forMap(map).spriteQuads
-  if not qs or #qs == 0 then return nil end
-  -- ...and a sheet that covers a whole ROUTE -- a pier's timber, a lake's
-  -- garden, a town's ground: hundreds of thousands of quads -- is cut into
-  -- SPRITE_CHUNK-pixel squares, each its own mesh with its own box, so the
-  -- scene can leave out what is not in frame (VoxelScene's sprite loop). As
-  -- one mesh the water garden alone cost Route 12 three milliseconds a
-  -- frame, all of it for plants a hundred cells off screen.
+  local S = Structures.forMap(map)
+  local legacy = S.spriteQuads
+  local places = S.spritePlacements
+  local nLegacy = legacy and #legacy or 0
+  if nLegacy == 0 and not (places and #places > 0) then return nil end
+  -- one stream over both: a legacy quad is a placement of itself at 0,0,0
+  local stream = {}
+  for i = 1, nLegacy do
+    stream[#stream + 1] = { quads = { legacy[i] }, mx = 0, my = 0, mz = 0, tex = legacy[i].tex,
+                            legacy = true }
+  end
+  for _, p in ipairs(places or {}) do stream[#stream + 1] = p end
   local counts = {}
-  for _, q in ipairs(qs) do counts[q.tex] = (counts[q.tex] or 0) + 1 end
+  for _, p in ipairs(stream) do counts[p.tex] = (counts[p.tex] or 0) + #p.quads end
   local CH = ChunkMesher.SPRITE_CHUNK
   local order, byTex = {}, {}
-  for _, q in ipairs(qs) do
-    Budget.tick()
-    local path = q.tex
-    local key = path
-    if (counts[path] or 0) > ChunkMesher.SPRITE_CHUNK_OVER then
-      key = path .. ":" .. math.floor(q[1][1] / CH) .. ":" .. math.floor(q[1][3] / CH)
-    end
-    local g = byTex[key]
-    if not g then
-      g = { path = path, quads = {}, boxed = key ~= path,
-            x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9, ymax = 0 }
-      byTex[key] = g
-      order[#order + 1] = g
-    end
-    g.quads[#g.quads + 1] = q
-    for i = 1, 4 do
-      local c = q[i]
-      if c[1] < g.x0 then g.x0 = c[1] end
-      if c[1] > g.x1 then g.x1 = c[1] end
-      if c[3] < g.z0 then g.z0 = c[3] end
-      if c[3] > g.z1 then g.z1 = c[3] end
-      if c[2] > g.ymax then g.ymax = c[2] end
+  for _, p in ipairs(stream) do
+    local path = p.tex
+    local mx, my, mz = p.mx, p.my, p.mz
+    local cut = (counts[path] or 0) > ChunkMesher.SPRITE_CHUNK_OVER
+    for qi, q in ipairs(p.quads) do
+      Budget.tick()
+      local key = path
+      if cut then
+        key = path .. ":" .. math.floor((q[1][1] + mx) / CH) .. ":" .. math.floor((q[1][3] + mz) / CH)
+      end
+      local g = byTex[key]
+      if not g then
+        g = { path = path, ps = {}, qs = {}, boxed = key ~= path,
+              x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9, ymax = 0 }
+        byTex[key] = g
+        order[#order + 1] = g
+      end
+      local n = #g.qs + 1
+      g.ps[n], g.qs[n] = p, q
+      for i = 1, 4 do
+        local c = q[i]
+        local x, y, z = c[1] + mx, c[2] + my, c[3] + mz
+        if x < g.x0 then g.x0 = x end
+        if x > g.x1 then g.x1 = x end
+        if z < g.z0 then g.z0 = z end
+        if z > g.z1 then g.z1 = z end
+        if y > g.ymax then g.ymax = y end
+      end
     end
   end
   local okB, Buildings = pcall(V.require, "Buildings")
   local groups = {}
   for _, g in ipairs(order) do
-    local sink = newSink(math.max(64, #g.quads))
-    for _, q in ipairs(g.quads) do
+    local sink = newSink(math.max(64, #g.qs))
+    for n = 1, #g.qs do
       Budget.tick()
-      sink.push({ q[1], q[2], q[3], q[4] }, q.uv, q.shade, q.sky)
+      local p, q = g.ps[n], g.qs[n]
+      local mx, my, mz = p.mx, p.my, p.mz
+      for i = 1, 4 do
+        local c, s = q[i], SP_C[i]
+        s[1], s[2], s[3] = c[1] + mx, c[2] + my, c[3] + mz
+      end
+      -- (a legacy world-space quad may carry `sky`; a stamped one never did)
+      sink.push(SP_C, q.uv, q.shade, p.legacy and q.sky or nil)
     end
     local tex = nil
     if g.path and okB and Buildings and Buildings.spriteImage then
