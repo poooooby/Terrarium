@@ -1,199 +1,199 @@
--- Probe: do attacks actually hit the costume?
+-- Probe: do hits land on the mon that was struck, and does HIT FRAMES
+-- actually switch them?
 --
--- Four measurable claims:
---   1. DYNAMIC (the default): BattleHitFX.ENABLED is open.
---   2. THROWING A MOVE: while animPlaying, debug reports playing (or a
---      tagged battle Vfx is live / lastKey is set). lastKey is a bt_*
---      authored sheet, not an OGA impact/smallhit.
---   3. THE HIT: on flash / shake / HP drain, a battle Vfx or lastKey is
---      set, and GlassFX is carrying a wave (telegraph or hit).
---   4. CLASSIC: flipping the COMBAT row closes the gate.
+-- Written against a user report (1.52.2): "hit frames only show the
+-- player's mon getting hit, not the other, and the option does not turn it
+-- off or on". Both were real. The defender was the attacker latched at the
+-- move's start, flipped -- and anything that skipped that edge left it at
+-- clear()'s false, so the blow went on the player. And every battle path
+-- forced its way past the row. The claims:
 --
--- Screenshots are taken at the anim and the hit, but a screenshot that
--- races must never fail the boot -- the numbers are the test.
+--   1. ON (the default): a thrown move puts a tagged battle Vfx in the shot.
+--   2. BOTH SIDES: over several rounds, hits land on the player AND on the
+--      foe, and every landed hit is on the side whose bar was draining
+--      when it landed (BattleHitFX.debug().lastHitSide against the bars).
+--   3. Same with the engine's ANIMATIONS option OFF -- the flash/shake path,
+--      which has no anim and so no start edge for a latch to read.
+--   4. OFF: a round with the row OFF plays no battle Vfx and leaves no
+--      marks or damage figures behind.
 --
---   POKEPORT_VERSION=yellow DS_PROBE_DIR=<dir> \
---   POKEPORT_DRIVER=mods/TERRARIUM/tests/battlehitfx_probe.lua \
---   ./gen1recomp.exe
+-- Both mons are healed at every command menu so the fight runs as many
+-- rounds as asked; that writes nothing but the in-memory battle of a save
+-- that is never written (Scenes.boot).
+--
+--   python tools/profiler/run.py battlehitfx_probe
 return function(game)
+  local src = debug.getinfo(1, "S").source:gsub("^@", ""):gsub("\\", "/")
+  local TOOLS = (src:match("^(.*)/tests/[^/]*$") or ".") .. "/tools/profiler/"
+  local Harness = dofile(TOOLS .. "Harness.lua")
+  local Scenes = dofile(TOOLS .. "Scenes.lua")
   local OUT = os.getenv("DS_PROBE_DIR") or "."
-  local logf = assert(io.open(OUT .. "/battlehitfx.log", "w"))
-  local function log(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[i] = tostring(select(i, ...)) end
-    logf:write(table.concat(parts, " "), "\n"); logf:flush()
+  local H = assert(Harness.attach(game, { out = OUT, name = "battlehitfx" }))
+  local log, V = H.log, H.V
+  local fails = 0
+  local function check(ok, what)
+    log((ok and "PASS: " or "FAIL: ") .. what)
+    if not ok then fails = fails + 1 end
   end
-  local function wait(n) for _ = 1, n do coroutine.yield() end end
-  local function tap(b)
-    game.input.pressQueue[#game.input.pressQueue + 1] = b; coroutine.yield()
+  local function quit()
+    log(fails == 0 and "PASS" or ("FAIL x" .. fails))
+    H:finish({ probe = "battlehitfx" }); love.event.quit()
   end
-  local function shot(name)
-    local done = false
-    love.graphics.captureScreenshot(function(data)
-      local f = io.open(OUT .. "/" .. name, "wb")
-      if f then f:write(data:encode("png"):getString()) f:close() end
-      done = true
-    end)
-    for _ = 1, 90 do
-      if done then return end
-      coroutine.yield()
-    end
-    log("WARN: screenshot " .. name .. " never called back")
-  end
+  if not Scenes.boot(game, log) then return quit() end
+  Scenes.pin(V, log)
 
-  local n = 0
-  while not (game.overworld and game.stack and game.stack:top()) do
-    wait(1); n = n + 1
-    if n > 900 then log("FAIL: no overworld") logf:close() love.event.quit()
-      return end
-  end
-  n = 0
-  while game.stack:top() ~= game.overworld do
-    tap("a"); wait(10); n = n + 11
-    if n > 1500 then log("FAIL: never reached free roam") break end
-  end
+  local HitFX = V.require("BattleHitFX")
+  local Vfx = V.require("Vfx")
+  local OverworldBattle = V.require("OverworldBattle")
+  log("3D battles:", tostring(OverworldBattle.enabled()))
+  log("HIT FRAMES at boot:", Vfx.level())
+  check(Vfx.level() == "on" or Vfx.level() == "off",
+        "HIT FRAMES reads a value")
 
-  local exports = game.mods and game.mods.exports
-  local lib = exports and exports.TERRARIUM and exports.TERRARIUM.lib
-  if not lib then
-    log("FAIL: TERRARIUM not loaded"); logf:close(); love.event.quit(); return
-  end
-  local HitFX = lib.require("BattleHitFX")
-  local GlassFX = lib.require("BattleGlassFX")
-  local Dyn = lib.require("BattleDynamic")
-  local Vfx = lib.require("Vfx")
-  local DayNight = lib.require("DayNight")
-  DayNight.setting:sync("day")
-
+  local Pokemon = require("src.pokemon.Pokemon")
   local BattleState = require("src.battle.BattleState")
-  local ok, battle = pcall(BattleState.newWild, game, "SNORLAX", 45)
-  if not (ok and battle) or battle.dead then
-    log("FAIL: no battle"); logf:close(); love.event.quit(); return
-  end
-  game.overworld:pushBattle(battle)
 
-  local function waitPhase(want, cap)
-    for _ = 1, (cap or 400) do
-      if battle.phase == want then return true end
-      coroutine.yield()
-    end
-    return false
+  local function draining(b)
+    return b and b.mon and b.shownHP and b.shownHP > b.mon.hp or false
   end
-  local function press(b, want, cap)
+  local function heal(b)
+    if b and b.mon then
+      local mx = (b.mon.stats and b.mon.stats.hp) or b.mon.maxHP or b.mon.hp
+      b.mon.hp = mx
+      if b.shownHP then b.shownHP = mx end
+    end
+  end
+
+  -- one fight of `rounds` rounds; returns what it saw
+  local function fight(label, rounds)
+    -- bulky on both sides and TACKLE only, so a round is two blows: the
+    -- first run of this probe drew a status move in slot 1 and the foe
+    -- was never touched for a reason that had nothing to do with the FX
+    local function tackleOnly() return { { id = "TACKLE", pp = 35 } } end
+    local mine = Pokemon.new(game.data, "SNORLAX", 50)
+    mine.moves = tackleOnly()
+    game.save.party = { mine }
+    local ok, battle = pcall(BattleState.newWild, game, "SNORLAX", 50)
+    if not (ok and battle) or battle.dead then
+      check(false, label .. ": wild battle starts"); return nil
+    end
+    if battle.enemy and battle.enemy.mon then
+      battle.enemy.mon.moves = tackleOnly()
+      battle.enemy.curMoves = battle.enemy.mon.moves
+    end
+    game.overworld:pushBattle(battle)
+    local function reach(want)
+      for _ = 1, 40 do
+        if battle.phase == want then return true end
+        Scenes.tap(game, "a"); Scenes.wait(12)
+      end
+      return battle.phase == want
+    end
+    local seen = { player = 0, enemy = 0, wrong = 0, live = 0,
+                   marks = 0, tags = 0, landed = 0 }
+    local lastCount = { player = 0, enemy = 0 }
+    local shotDone = false
+    for r = 1, rounds do
+      if not reach("menu") then
+        log(label .. ": no command menu at round " .. r
+            .. " (phase=" .. tostring(battle.phase) .. ")")
+        break
+      end
+      heal(battle.player); heal(battle.enemy)
+      battle.menuIndex = 1
+      Scenes.wait(10)
+      if not reach("moveSelect") then
+        log(label .. ": no move select at round " .. r
+            .. " (phase=" .. tostring(battle.phase) .. ")")
+        break
+      end
+      Scenes.wait(8)
+      for _, b in ipairs({ battle.player, battle.enemy }) do
+        for _, m in ipairs((b and b.curMoves) or {}) do m.pp = 35 end
+      end
+      local okc, why = pcall(battle.chooseMove, battle, 1)
+      if not okc then log(label .. ": chooseMove failed: " .. tostring(why)) end
+      local menuRun = 0
+      for _ = 1, 2400 do
+        local d = HitFX.debug()
+        seen.live = math.max(seen.live, (Vfx.battleCount and Vfx.battleCount()) or 0)
+        seen.marks = math.max(seen.marks, d.marks or 0)
+        seen.tags = math.max(seen.tags, d.tags or 0)
+        local hp, he = d.hitsOn.player or 0, d.hitsOn.enemy or 0
+        for side, now in pairs({ player = hp, enemy = he }) do
+          if now > lastCount[side] then
+            -- a hit was just put on `side`: was that the bar draining?
+            local pDr, eDr = draining(battle.player), draining(battle.enemy)
+            local bar = (pDr and not eDr and "player")
+                        or (eDr and not pDr and "enemy") or "?"
+            log(("%s r%d: hit on %-6s  bar=%-6s anim=%s attackerIsPlayer=%s key=%s")
+                :format(label, r, side, bar, tostring(battle.animName),
+                        tostring(battle.animAttackerIsPlayer),
+                        tostring(d.hitKey)))
+            if bar ~= "?" and bar ~= side then seen.wrong = seen.wrong + 1 end
+            seen[side] = seen[side] + (now - lastCount[side])
+            seen.landed = seen.landed + (now - lastCount[side])
+            lastCount[side] = now
+            if not shotDone then
+              Scenes.shot(OUT, label .. "_hit"); shotDone = true
+            end
+          end
+        end
+        if battle.dead then break end
+        menuRun = (battle.phase == "menu") and (menuRun + 1) or 0
+        if menuRun >= 12 then break end
+        coroutine.yield()
+      end
+      if battle.dead then log(label .. ": battle ended in round " .. r) break end
+    end
+    pcall(function() battle.dead = true end)
     for _ = 1, 30 do
-      if battle.phase == want then return true end
-      tap(b); wait(12)
-      if waitPhase(want, cap or 60) then return true end
+      if game.stack:top() == game.overworld then break end
+      pcall(function() game.stack:pop() end)
+      Scenes.wait(4)
     end
-    return battle.phase == want
+    Scenes.wait(20)
+    log(("%s: hits player=%d enemy=%d wrong-side=%d  max live=%d marks=%d tags=%d")
+        :format(label, seen.player, seen.enemy, seen.wrong, seen.live,
+                seen.marks, seen.tags))
+    return seen
   end
 
-  local function verdict(okv, name, detail)
-    log((okv and "PASS: " or "FAIL: ") .. name .. "  " .. detail)
+  local opts = game.save.options or {}
+  game.save.options = opts
+  local hadAnims = opts.animations
+
+  -- ------- 1 + 2: ON, animations ON
+  Vfx.setting:sync("on")
+  opts.animations = true
+  local a = fight("anims_on", 6)
+  if a then
+    check(a.live > 0, "ON: a thrown move puts a battle Vfx in the shot")
+    check(a.player > 0, "anims ON: a hit landed on the player's mon")
+    check(a.enemy > 0, "anims ON: a hit landed on the foe")
+    check(a.wrong == 0, "anims ON: every hit is on the side whose bar drained")
   end
 
-  if not press("a", "menu") then
-    log("FAIL: never reached the command menu (phase="
-        .. tostring(battle.phase) .. ")")
-    logf:close(); love.event.quit(); return
+  -- ------- 3: ON, animations OFF (the flash/shake path, no start edge)
+  opts.animations = false
+  local b = fight("anims_off", 6)
+  if b then
+    check(b.player > 0, "anims OFF: a hit landed on the player's mon")
+    check(b.enemy > 0, "anims OFF: a hit landed on the foe")
+    check(b.wrong == 0, "anims OFF: every hit is on the side whose bar drained")
   end
-  battle.menuIndex = 1
-  wait(40)
 
-  -- ------- claim 1: DYNAMIC leaves the gate open
-  local row = Dyn.setting:row()
-  if row and row.value and row.value() ~= "DYNAMIC" then
-    Dyn.setting:sync("dynamic")
-    Dyn.apply()
-    wait(8)
+  -- ------- 4: OFF
+  opts.animations = true
+  Vfx.setting:sync("off")
+  local c = fight("row_off", 3)
+  if c then
+    check(c.live == 0, "OFF: no battle Vfx plays")
+    check(c.landed == 0, "OFF: no hit is put on anyone")
+    check(c.marks == 0 and c.tags == 0, "OFF: no marks or damage figures")
   end
-  verdict(HitFX.ENABLED == true, "DYNAMIC: BattleHitFX.ENABLED is open",
-          ("ENABLED=%s COMBAT=%s"):format(tostring(HitFX.ENABLED),
-            tostring(row and row.value and row.value())))
 
-  -- ------- throw a move and sample every frame
-  battle.menuIndex = 1
-  if press("a", "moveSelect") then wait(8); tap("a") end
-
-  local sawPlaying, sawLive, sawKey = false, false, false
-  local sawHit, sawWave = false, false
-  local sawDrain = false          -- did ANY damage land this round?
-  local shotAnim, shotHit = false, false
-  local menuRun = 0
-  local lastDbg = nil
-  for i = 1, 2400 do
-    local d = HitFX.debug()
-    lastDbg = d
-    local live = (d and d.live) or 0
-    if Vfx.battleCount then live = math.max(live, Vfx.battleCount()) end
-    if battle.animPlaying then
-      if d and d.playing then sawPlaying = true end
-      if live > 0 then sawLive = true end
-      if d and d.lastKey then sawKey = true end
-      if not shotAnim and (d and (d.playing or d.lastKey) or live > 0) then
-        shot("hitfx_anim.png"); shotAnim = true
-      end
-    end
-    local fx = battle.fx
-    local flash = (fx and (fx.flash or 0) > 0) and true or false
-    local quake = (fx and (fx.shake or 0) > 0) and true or false
-    local function draining(b)
-      if not (b and b.mon and b.shownHP) then return false end
-      return b.shownHP > b.mon.hp
-    end
-    local drain = draining(battle.player) or draining(battle.enemy)
-    if flash or quake or drain then
-      sawDrain = true
-      if live > 0 or (d and d.lastKey) then sawHit = true end
-      local gd = GlassFX.debug()
-      if gd and gd.wave then sawWave = true end
-      if not shotHit then
-        shot("hitfx_hit.png"); shotHit = true
-      end
-    end
-    local gd = GlassFX.debug()
-    if gd and gd.wave then sawWave = true end
-    if battle.dead then log("battle ended at frame " .. i); break end
-    menuRun = (battle.phase == "menu") and (menuRun + 1) or 0
-    if menuRun >= 12 then
-      log(("round resolved at frame %d"):format(i))
-      break
-    end
-    coroutine.yield()
-  end
-  log(("debug playing=%s live=%s lastKey=%s lastSide=%s chargeKey=%s hitKey=%s projectile=%s")
-      :format(tostring(lastDbg and lastDbg.playing),
-              tostring(lastDbg and lastDbg.live),
-              tostring(lastDbg and lastDbg.lastKey),
-              tostring(lastDbg and lastDbg.lastSide),
-              tostring(lastDbg and lastDbg.chargeKey),
-              tostring(lastDbg and lastDbg.hitKey),
-              tostring(lastDbg and lastDbg.projectile)))
-
-  local lastKey = lastDbg and lastDbg.lastKey
-  local isBt = type(lastKey) == "string" and lastKey:sub(1, 3) == "bt_"
-  verdict(sawPlaying or sawLive or sawKey,
-          "during animPlaying the hit FX is live",
-          ("playing=%s live=%s lastKey=%s")
-          :format(tostring(sawPlaying), tostring(sawLive), tostring(sawKey)))
-  -- a round where nothing landed (a miss, a status move both ways) has
-  -- no hit to answer: the claim is about a hit that happened
-  verdict(sawHit or not sawDrain, "on hit a battle Vfx or lastKey is set",
-          sawDrain and "" or "(no damage landed this round -- vacuous)")
-  verdict(isBt, "lastKey is a bt_* authored sheet after throwing a move",
-          ("lastKey=%s chargeKey=%s hitKey=%s")
-          :format(tostring(lastKey),
-                  tostring(lastDbg and lastDbg.chargeKey),
-                  tostring(lastDbg and lastDbg.hitKey)))
-  verdict(sawWave, "GlassFX is carrying a wave (telegraph or hit)", "")
-
-  -- ------- claim 4: CLASSIC closes the gate
-  Dyn.setting:sync("classic")
-  Dyn.apply()
-  wait(12)
-  verdict(HitFX.ENABLED == false, "CLASSIC: BattleHitFX.ENABLED is closed",
-          ("ENABLED=%s"):format(tostring(HitFX.ENABLED)))
-
-  logf:close()
-  love.event.quit()
+  Vfx.setting:sync("on")
+  opts.animations = hadAnims
+  return quit()
 end

@@ -289,12 +289,13 @@ function BattleGlassFX.observe(battle, dt, arena, groundY)
     S.episode = (S.episode or 0) + 1
     S.hitFor = nil
   end
-  local moving = false
+  local moving, movedSide = false, nil
   S.shownWas = S.shownWas or {}
   for _, sd in ipairs({ "player", "enemy" }) do
     local b = battle[sd]
     if b and b.shownHP and S.shownWas[sd] and b.shownHP < S.shownWas[sd] then
       moving = true
+      movedSide = movedSide or sd
     end
     S.shownWas[sd] = b and b.shownHP or nil
   end
@@ -302,10 +303,25 @@ function BattleGlassFX.observe(battle, dt, arena, groundY)
   local landed = (flash and not S.prev.flash) or (quake and not S.prev.quake)
                  or animEnd or (drain and moving)
   if landed and drain and S.hitFor == S.episode then landed = false end
+  local dp, de = draining(battle.player), draining(battle.enemy)
+  local struck = (dp and not de and "player")
+                 or (de and not dp and "enemy") or movedSide
+  -- no side from the bars and no move on screen: the latch is stale (see
+  -- BattleHitFX), so there is no defender to drop a wave on
+  if landed and not struck and not (playing or S.prev.playing) then
+    landed = false
+  end
   if landed then
     if drain then S.hitFor = S.episode end
-    local cell = arena and (S.defenderIsPlayer and arena.player
-                                               or arena.enemy)
+    -- who took it, off the bars: one side pending names it, else the side
+    -- whose bar moved. The latch from the move's start is the fallback only
+    -- -- on its own it missed every hit whose start edge it never saw (the
+    -- animations-OFF path among them) and dropped the wave on the player.
+    -- Same reading as BattleHitFX's struckSide.
+    local defenderIsPlayer = S.defenderIsPlayer
+    if struck then defenderIsPlayer = (struck == "player") end
+    local cell = arena and (defenderIsPlayer and arena.player
+                                             or arena.enemy)
     if cell then
       BattleGlassFX.pulse(cell[1], (groundY or 0) + 8, cell[2],
                           (quake and not S.prev.quake)

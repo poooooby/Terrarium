@@ -26,6 +26,11 @@ Tags and packages:
 - Zip asset: `TERRARIUM-1.50.0.zip`
 - `manifest.json` / catalog `version` field: `1.50.0`
 
+## Unreleased
+
+- **Battle hit effects now land on the foe too.** The hit sheet, flash, debris, ground mark and damage number went on your own mon on every blow whenever the game's ANIMATIONS option was off, and on any hit that arrived without a move animation starting first. The mon struck is now read off whichever HP bar is draining. The glass's hit wave had the same bug and the same fix.
+- **HIT FRAMES now controls battles.** Before, the row only covered the J-key demo in free roam, and battle effects played whatever it said. OFF now removes the whole battle hit: typed sheets, projectile, flash, attacker spotlight, debris, ground marks and damage numbers. The aim arc stays. To keep battles looking as they did, **the row now defaults to ON**. If you had saved a setting, it is kept.
+
 ## 1.52.2
 
 Includes 1.52.2-beta below (DEBUG INFO over 2D frames, with pipeline, mesher and error lines).

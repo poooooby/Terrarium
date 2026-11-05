@@ -18,10 +18,15 @@
 -- flattens a disc around the defender, sized for the blow.
 --
 -- Drawn onto shot.canvas after the 3D pass and before the frost, so the
--- glass includes the flash and the HUD / fan still sit on top. The
--- IMPACT options row is left alone: battle plays force their way past
--- it, tagged so a finish can sweep them without wiping an overworld
--- demo that happens to be live.
+-- glass includes the flash and the HUD / fan still sit on top.
+--
+-- The HIT FRAMES row (Vfx.setting) governs all of it: see on() below.
+-- Until 1.52.2 battle plays forced their way past that row and the rest
+-- of this file looked only at ENABLED, so the row did nothing in a fight.
+-- The plays still pass force to Vfx and are still tagged, but only so
+-- Vfx does not re-check the row and so a finish can sweep them without
+-- wiping an overworld demo that happens to be live. The aim arc is the
+-- one exception: it is a targeting cue, not part of the hit, and stays.
 --
 -- Purely presentational, like everything else here. Nothing reaches
 -- damage, timing or scripts; a confused effect is a battle with the
@@ -35,6 +40,15 @@ local Vfx = V.require("Vfx")
 local BattleHitFX = {}
 
 BattleHitFX.ENABLED = true
+
+-- Everything about the hit asks this. ENABLED is the code-level kill
+-- switch; Vfx.enabled() is the player's HIT FRAMES row.
+local function on()
+  if not BattleHitFX.ENABLED then return false end
+  local ok, v = pcall(Vfx.enabled)
+  return ok and v and true or false
+end
+BattleHitFX.on = on
 
 -- Authored bt_* sheets (tools/make_battle_sprites.py), not the eight OGA
 -- explosions. Charge and hit are different events -- never the same play
@@ -211,6 +225,11 @@ function BattleHitFX.debug()
     live = (Vfx.battleCount and Vfx.battleCount()) or 0,
     lastKey = S.lastKey,
     lastSide = S.lastSide,
+    -- the side the last LANDED hit was put on (lastSide is also written by
+    -- the charge, which is the attacker), and how many hits each side took
+    lastHitSide = S.lastHitSide,
+    hitsOn = { player = (S.hitsOn and S.hitsOn.player) or 0,
+               enemy = (S.hitsOn and S.hitsOn.enemy) or 0 },
     chargeKey = S.chargeKey,
     hitKey = S.hitKey,
     projectile = (S.playing and S.fromCell and S.toCell) and true or false,
@@ -253,6 +272,8 @@ function BattleHitFX.clear()
   S.born = 0
   S.midPulsed = false
   S.sparkAt = nil
+  S.lastHitSide = nil
+  S.hitsOn = nil
   if Vfx.clearBattle then Vfx.clearBattle() end
 end
 
@@ -260,6 +281,25 @@ local function draining(b)
   if not (b and b.mon and b.shownHP) then return false end
   return b.shownHP > b.mon.hp
 end
+
+-- Which mon a landed hit landed ON, read off the bars rather than off the
+-- attacker latched at the move's start. The latch was the only thing that
+-- named the defender, and anything that skipped its edge -- the
+-- animations-OFF path (no anim, so no start edge), an edge lost inside one
+-- update while the engine stepped several frames, or the false that clear()
+-- leaves -- answered "the player" every time: user report, "hit frames only
+-- show the player's mon getting hit". The bar is the hit's own record. One
+-- side pending (shownHP > hp) names it; failing that, the side whose bar
+-- moved down this frame. nil when neither says (a status move's flash), and
+-- the caller falls back to the latch.
+local function struckSide(battle, movedSide)
+  local p = draining(battle.player)
+  local e = draining(battle.enemy)
+  if p and not e then return "player" end
+  if e and not p then return "enemy" end
+  return movedSide
+end
+BattleHitFX._struckSide = struckSide
 
 local function moveType(battle)
   local B = box()
@@ -298,21 +338,73 @@ local function splatDefender(tname, quake, cell)
 end
 
 -- ------- watching the fight (called from OverworldBattle.update)
+-- what the bars show, for next frame's damage read. A side whose mon
+-- CHANGED (a switch, a faint) starts over: the bar filling up for the
+-- newcomer is not a blow on it.
+local function readBars(battle)
+  S.monRef = S.monRef or {}
+  for _, side in ipairs({ "player", "enemy" }) do
+    local b = battle[side]
+    if b and b.mon then
+      if S.monRef[side] ~= b.mon then
+        S.monRef[side] = b.mon
+        S.shown[side] = b.mon.hp
+      else
+        S.shown[side] = b.shownHP or b.mon.hp
+      end
+      S.maxHP[side] = b.mon.maxHP or b.mon.maxHp
+                      or (b.mon.stats and b.mon.stats.hp) or S.maxHP[side]
+    end
+  end
+end
+
 function BattleHitFX.observe(battle, dt, arena, groundY)
-  if not BattleHitFX.ENABLED then return end
+  -- HIT FRAMES OFF: sweep what is live once, so a flip mid-fight takes the
+  -- sheets, marks and figures away instead of freezing them where they are
+  if not on() then
+    if not S.off then
+      BattleHitFX.clear()
+      S.off = true
+    end
+    return
+  end
   if not battle then
     S.prev = {}
     S.playing = false
+    S.off = false
     return
   end
 
   local playing = battle.animPlaying and true or false
-  S.playing = playing
   local fx = battle.fx
   local flash = (fx and (fx.flash or 0) > 0) and true or false
   local quake = (fx and (fx.shake or 0) > 0) and true or false
   local drain = draining(battle.player) or draining(battle.enemy)
   local t = now()
+
+  -- ...and back ON: take this frame as the baseline and fire nothing. With
+  -- S.prev empty every edge below would read as new -- a charge in the
+  -- middle of a move, a hit in the middle of a drain that already landed.
+  if S.off then
+    S.off = false
+    S.playing = playing
+    S.attackerIsPlayer = battle.animAttackerIsPlayer and true or false
+    if drain then
+      S.episode = (S.episode or 0) + 1
+      S.hitFor = S.episode
+    end
+    readBars(battle)
+    S.prev.playing, S.prev.flash, S.prev.quake, S.prev.drain =
+      playing, flash, quake, drain
+    return
+  end
+  S.playing = playing
+  -- the attacker, every frame a move plays and not only on its first: an
+  -- edge lost between two updates must not leave the charge, the streak
+  -- and the spotlight on the wrong mon for the whole move
+  if playing and battle.animAttackerIsPlayer ~= nil then
+    S.attackerIsPlayer = battle.animAttackerIsPlayer and true or false
+  end
 
   -- the ageing: debris settles, marks fade, tags float off, the
   -- spotlight goes out after the move
@@ -389,17 +481,29 @@ function BattleHitFX.observe(battle, dt, arena, groundY)
     S.episode = (S.episode or 0) + 1
     S.hitFor = nil
   end
-  local moving = false
+  local moving, movedSide = false, nil
   for _, sd in ipairs({ "player", "enemy" }) do
     local b = battle[sd]
-    if b and b.shownHP and S.shown[sd] and b.shownHP < S.shown[sd] then
+    if b and b.shownHP and S.shown[sd] and b.shownHP < S.shown[sd]
+       and S.monRef and S.monRef[sd] == b.mon then
       moving = true
+      movedSide = movedSide or sd
     end
   end
   local animEnd = pending and (not playing) and S.prev.playing
   local landed = (flash and not S.prev.flash) or (quake and not S.prev.quake)
                  or animEnd or (pending and moving)
   if landed and pending and S.hitFor == S.episode then landed = false end
+  -- a blow the bars cannot name a side for (a flash or shake with nothing
+  -- draining) may only fall back on the latch while a move is on screen:
+  -- that is the one time the latch is this move's. Off the anim -- the
+  -- animations-OFF path, where animAttackerIsPlayer is still whatever the
+  -- send-out POOF_ANIM left (false) -- it is a guess, and the probe caught
+  -- it putting a stray hit on the player
+  local struck = landed and struckSide(battle, movedSide) or nil
+  if landed and not struck and not (playing or S.prev.playing) then
+    landed = false
+  end
   if landed then
     if pending then S.hitFor = S.episode end
     local tname = S.tname
@@ -412,9 +516,20 @@ function BattleHitFX.observe(battle, dt, arena, groundY)
       S.chargeKey, S.hitKey = S.chargeKey or c, h
       S.tint = S.tint or typeTint(tname)
     end
-    local defenderIsPlayer = not S.attackerIsPlayer
+    -- the bars say who took it; the latch only when they say nothing
+    local defenderIsPlayer
+    if struck then
+      defenderIsPlayer = (struck == "player")
+    else
+      defenderIsPlayer = not S.attackerIsPlayer
+    end
     local cell = arena and (defenderIsPlayer and arena.player or arena.enemy)
-    if not S.toCell then S.toCell = copyCell(cell) end
+    -- the streak, the star and the aim follow the mon actually struck
+    if cell then S.toCell = copyCell(cell) end
+    local struckName = defenderIsPlayer and "player" or "enemy"
+    S.lastHitSide = struckName
+    S.hitsOn = S.hitsOn or { player = 0, enemy = 0 }
+    S.hitsOn[struckName] = (S.hitsOn[struckName] or 0) + 1
     playAt(S.hitKey, cell, groundY or S.groundY,
            defenderIsPlayer and "player" or "enemy",
            { scale = 1.35, size = 40, tint = S.tint })
@@ -472,23 +587,7 @@ function BattleHitFX.observe(battle, dt, arena, groundY)
     end
   end
 
-  -- what the bars show, for next frame's damage read. A side whose mon
-  -- CHANGED (a switch, a faint) starts over: the bar filling up for the
-  -- newcomer is not a blow on it.
-  S.monRef = S.monRef or {}
-  for _, side in ipairs({ "player", "enemy" }) do
-    local b = battle[side]
-    if b and b.mon then
-      if S.monRef[side] ~= b.mon then
-        S.monRef[side] = b.mon
-        S.shown[side] = b.mon.hp
-      else
-        S.shown[side] = b.shownHP or b.mon.hp
-      end
-      S.maxHP[side] = b.mon.maxHP or b.mon.maxHp
-                      or (b.mon.stats and b.mon.stats.hp) or S.maxHP[side]
-    end
-  end
+  readBars(battle)
 
   S.prev.playing, S.prev.flash, S.prev.quake, S.prev.drain =
     playing, flash, quake, drain
@@ -971,7 +1070,7 @@ function BattleHitFX.aim(battle, shot)
 end
 
 function BattleHitFX.draw(shot)
-  if not BattleHitFX.ENABLED then return false end
+  if not on() then return false end
   if not (shot and shot.canvas and shot.vp) then return false end
   if not (love and love.graphics) then return false end
   local g = love.graphics
@@ -1109,6 +1208,9 @@ end
 
 BattleHitFX.MARK_EPS = 1.0
 
+-- shared and never written: an OFF frame must not allocate (gc_budget)
+local NO_MARKS = {}
+
 local TEX = {}
 local WHITE = nil
 local function whiteTex()
@@ -1217,8 +1319,11 @@ function BattleHitFX.drawGround(host, arena, groundY)
   local drew = 0
   local ok = pcall(function()
     V3.beginDecals(false)
-    -- the marks
-    for _, m in ipairs(S.marks) do
+    -- the marks: part of the hit, so under HIT FRAMES (observe already
+    -- swept them on OFF; this keeps a stray one from drawing regardless).
+    -- The pane shadows below belong to the glass and are not.
+    local marks = on() and S.marks or NO_MARKS
+    for _, m in ipairs(marks) do
       local age = t - m.born
       local fadeStart = BattleHitFX.MARK_LIFE - BattleHitFX.MARK_FADE
       local a = 1
@@ -1298,7 +1403,7 @@ local function capsule()
 end
 
 function BattleHitFX.drawTop(battle, shot)
-  if not BattleHitFX.ENABLED then return false end
+  if not on() then return false end
   if #S.tags == 0 then return false end
   if not (shot and shot.vp and love and love.graphics) then return false end
   local g = love.graphics

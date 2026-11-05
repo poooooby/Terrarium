@@ -954,9 +954,12 @@ local SETTINGS = {
     .. "electric burst, the cartoon puff of stars) composited into the world "
     .. "through the same camera the butterflies and the rain use, added as "
     .. "LIGHT so the black around each flash disappears and the core blows "
-    .. "out. Sheets load on first use, so OFF costs nothing and a session "
-    .. "that never fires one loads nothing. Press J in free roam to fire the "
-    .. "next sheet at your feet.",
+    .. "out. In battle it is the whole blow: the typed charge and hit "
+    .. "sheets, the projectile, the flash on the mon struck, the spotlight "
+    .. "on the attacker, the debris, the marks left on the ground and the "
+    .. "damage numbers. Sheets load on first use, so OFF costs nothing and a "
+    .. "session that never fires one loads nothing. Press J in free roam to "
+    .. "fire the next sheet at your feet.",
     full = true },
   -- `full = true` for the same reason WIND has it: this is a row that
   -- decides whether the world looks alive, and FULL is the preset most

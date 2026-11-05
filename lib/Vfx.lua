@@ -51,9 +51,15 @@ local Quality = V.require("Quality")
 
 local Vfx = {}
 
+-- ON first, so ON is the default. Until 1.52.2 the row defaulted OFF while
+-- every battle effect forced its way past it, so a player who never touched
+-- it saw the battle hits anyway and flipping it changed nothing in a fight.
+-- Now the row governs the battle too (BattleHitFX gates on Vfx.enabled), and
+-- defaulting ON keeps the fight looking the way it already did. A stored
+-- "off" or "on" keeps meaning what it meant: ModSetting maps by value.
 Vfx.setting = ModSetting.new("vfx", "HIT FRAMES",
-                             { "off", "on" },
-                             { "OFF", "ON" })
+                             { "on", "off" },
+                             { "ON", "OFF" })
 
 -- How many effects may be alive at once. Past this the oldest is dropped
 -- rather than the newest refused: the newest is the one the player just
@@ -98,7 +104,7 @@ end
 function Vfx.level()
   local ok, v = pcall(Vfx.setting.get, Vfx.setting)
   if ok and (v == "off" or v == "on") then return v end
-  return "off"
+  return "on"
 end
 
 function Vfx.enabled()
@@ -161,8 +167,10 @@ end
 -- Silent and harmless on every failure -- row off, unknown key, no sheet.
 -- An effect that cannot draw must never be the reason a frame is lost.
 --
--- opts.force skips the IMPACT row, so a battle can put a flash on the
--- arena without dragging the overworld demo on with it. opts.battle tags
+-- opts.force skips the row check HERE. BattleHitFX uses it, but it checks
+-- the same row itself first (its own on()), so HIT FRAMES OFF still means no
+-- battle plays; force only keeps this check from being asked twice and
+-- keeps the battle's draw separate from the overworld one. opts.battle tags
 -- the play so a fight's finish can sweep it without wiping a live
 -- overworld effect (see Vfx.clearBattle).
 function Vfx.play(key, wx, wy, wz, opts)
@@ -235,9 +243,8 @@ end
 -- camera every other overlay drawing is anchored through, which is what
 -- keeps an effect on its cell while the camera orbits.
 --
--- opts.force skips the IMPACT row, matching Vfx.play: a battle drawer
--- can paint tagged plays onto the arena canvas with the overworld row
--- still OFF.
+-- opts.force skips the row check, matching Vfx.play: the battle drawer
+-- (BattleHitFX.draw) has already checked HIT FRAMES before it gets here.
 function Vfx.draw(project, scale, opts)
   opts = opts or {}
   if not (opts.force or Vfx.enabled()) or #live == 0 then return end
