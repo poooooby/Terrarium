@@ -2087,7 +2087,37 @@ mod.events:on("save.writing", function()
   GrassWear.store()
 end)
 
-mod.events:on("save.loaded", function()
+-- ------- the 3D view starts ON
+--
+-- The engine starts every pipeline at OFF unless options.pipelines holds a
+-- level for it, and nothing here ever set one -- so a fresh install came up
+-- flat 2D until the player found the VOXEL row. On a phone there is no V
+-- key to stumble on, and a player read it as the mod not working (1.52.2,
+-- an Adreno 750: DEBUG INFO showed `VOXEL=0`, the shader built, nothing
+-- wrong but the switch).
+--
+-- So a VOXEL level that was never stored is FULL, and FULL's preset is let
+-- run once, as if the row had been moved there (applyFull only acts on the
+-- move). Never stored only: a stored 0 is a player's OFF and stays OFF.
+-- (The engine writes every pipeline's level whenever any pipeline row
+-- changes, so a player who touched TILT before this existed has VOXEL's 0
+-- on record and keeps it too.) save.created comes before the engine's
+-- applyOptions, so writing the bucket is enough there; save.loaded comes
+-- after it, so the live level is set as well.
+local function defaultVoxelOn(save)
+  local opts = save and save.options
+  if type(opts) ~= "table" then return end
+  opts.pipelines = type(opts.pipelines) == "table" and opts.pipelines or {}
+  if opts.pipelines[PIPE_VOXEL] ~= nil then return end
+  opts.pipelines[PIPE_VOXEL] = Voxel.FULL_LEVEL
+  local Pipelines = require("src.render.Pipelines")
+  Pipelines.setLevel(PIPE_VOXEL, Voxel.FULL_LEVEL)
+  Pipelines.syncOptions(opts)
+  fullWas = false        -- the next tick sees FULL arrive and applies it
+end
+
+mod.events:on("save.loaded", function(payload)
+  defaultVoxelOn(payload and payload.save)
   DayNight.restore()
   GrassWear.restore()
   -- a save written before this mod was installed can carry TILT or GBC FX
@@ -2097,7 +2127,8 @@ mod.events:on("save.loaded", function()
   pinEngineFx()
 end)
 
-mod.events:on("save.created", function()
+mod.events:on("save.created", function(payload)
+  defaultVoxelOn(payload and payload.save)
   DayNight.restore()
   GrassWear.restore()
   pinEngineFx()

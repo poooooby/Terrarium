@@ -28,6 +28,8 @@ Tags and packages:
 
 ## Unreleased
 
+- **The 3D view now starts ON, at FULL.** Before, a new install stayed in flat 2D until you found the VOXEL row in OPTIONS. Phones have no V key to switch it on by accident, so players took the mod for broken. If you already chose a VOXEL setting, OFF included, it is kept.
+- **Phones get the full-precision picture again.** Since 1.34.5-beta the 3D shader's fp32 mode failed LÖVE's shader check on every phone. The game fell back to a lower-precision mode that could show static in the shadows. The fp32 mode now compiles.
 - **Battle hit effects now land on the foe too.** The hit sheet, flash, debris, ground mark and damage number went on your own mon on every blow whenever the game's ANIMATIONS option was off, and on any hit that arrived without a move animation starting first. The mon struck is now read off whichever HP bar is draining. The glass's hit wave had the same bug and the same fix.
 - **HIT FRAMES now controls battles.** Before, the row only covered the J-key demo in free roam, and battle effects played whatever it said. OFF now removes the whole battle hit: typed sheets, projectile, flash, attacker spotlight, debris, ground marks and damage numbers. The aim arc stays. To keep battles looking as they did, **the row now defaults to ON**. If you had saved a setting, it is kept.
 
