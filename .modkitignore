@@ -293,6 +293,7 @@ tests/treevox_probe.lua
 tests/underpass_rail_probe.lua
 tests/underpass_rail_report.py
 tests/underpass_rt_cost_probe.lua
+tests/untamed_probe.lua
 tests/veg_probe.lua
 tests/visual_ab_probe.lua
 tests/void_cost_probe.lua

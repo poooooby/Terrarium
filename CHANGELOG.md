@@ -26,6 +26,19 @@ Tags and packages:
 - Zip asset: `TERRARIUM-1.50.0.zip`
 - `manifest.json` / catalog `version` field: `1.50.0`
 
+## Unreleased
+
+### Untamed Tohjo in 3D
+
+[Untamed Tohjo](https://github.com/goldenroddeptstore/untamed-tohjo) puts wild Pokémon and a follower on the map. Its Pokémon already stood in the diorama. Three of its effects were missing in 3D and now show there as they do in 2D:
+
+- **Shiny sparkles** twinkle over their Pokémon. The 3D pass ignored the frame a figure is told to show, so the sparkle stayed on its blank first frame. It also cut every sheet into 16×16 frames, and the sparkle's are 16×24.
+- **The follower's emote bubble** sits on its head in 3D. On Red, Blue and Yellow, Untamed Tohjo paints the bubble over the flat map after the map is drawn, and the diorama never showed that layer. Anything a mod paints there is now carried into the 3D view at the same spot over the same figure.
+- **The Poké Ball** that the follower goes into at the Pokémon Center plays its frames.
+- **Also fixed: the nurse's bow** when she heals your Pokémon now shows in 3D.
+- **For mod authors:** `exports.overlay.add(fn)` draws a picture in the 3D view through the diorama's own camera, as `fn(project, scale, state)`.
+- Everything else draws exactly as before.
+
 ## 1.60.0-beta (pre-release)
 
 ### All of Kanto in 3D (by [FadeyMods](https://github.com/FadeyMods), from their 1.53.0-test1 build)

@@ -344,7 +344,19 @@ end
 -- (The follow camera used to turn, and this picked the drawing for the side
 -- it stood on. It no longer turns -- 2026-10-29 -- so the compass facing is
 -- always the right drawing again.)
-local function frameFor(def, facing, phase, flip)
+--
+-- `override` is the entity's frameOverride: a frame the engine is told to
+-- show whatever the pose says (the Pokemon Center nurse's bow,
+-- OverworldController's heal; a mod's own animation -- Untamed Tohjo plays
+-- its 21-frame shiny sparkle and its Poke Ball this way). SpriteRenderer:draw
+-- takes it as-is, unflipped, when the sheet has that frame; so does this.
+-- Before it was read here the 3D pass drew the standing frame instead: no
+-- bow, and the sparkle's frame 0, which is blank.
+local function frameFor(def, facing, phase, flip, override)
+  if type(override) == "number" and override >= 0
+     and override < (def.frames or 1) then
+    return override, false
+  end
   local SR = require("src.render.SpriteRenderer")
   local frame, mirror = 0, false
   if (def.frames or 1) > 1 then
@@ -362,9 +374,9 @@ end
 -- beginShadows, which supplies the translucent black; the texture is only
 -- consulted for its alpha, so no palette work is needed.
 local function drawShadow(sprite, px, py, facing, phase, flip, gh, lift,
-                          waterline)
+                          waterline, override)
   local def = sprite.def
-  local frame, mirror = frameFor(def, facing, phase, flip)
+  local frame, mirror = frameFor(def, facing, phase, flip, override)
   local mesh = SpriteBillboards.shadowQuad(def, frame, waterline or 0)
   if not mesh then return end
   Voxel3D.draw(mesh, sprite:resolveImage(),
@@ -570,7 +582,7 @@ local drawModel, drawCaster, drawSnug = {}, {}, {}
 -- `lift` raises the figure off the ground plane (ledge hops arc UP in 3D,
 -- where the 2D path could only slide the sprite north).
 local function drawEntity(sprite, px, py, facing, phase, flip, gh, colors,
-                          lift, waterline, swim)
+                          lift, waterline, swim, override)
   local def = sprite.def
   local tex = sprite:resolveImage()
   if colors and not def.trueColor then
@@ -599,7 +611,7 @@ local function drawEntity(sprite, px, py, facing, phase, flip, gh, colors,
   -- waterline > 0: only the top of the card is built, origin at the
   -- waterline (SpriteBillboards), so a swimming mon is cut by the pond
   -- rather than standing on it.
-  local frame, mirror = frameFor(def, facing, phase, flip)
+  local frame, mirror = frameFor(def, facing, phase, flip, override)
   local mesh = SpriteBillboards.mesh(def, frame, waterline or 0)
   if not mesh then return false end
   -- Camera-ward pull (applied per vertex in the shader, along each
@@ -650,7 +662,7 @@ VoxelScene.drawEntity = drawEntity
 -- mesh for it.
 local function drawGhost(p)
   local def = p.sprite.def
-  local frame, mirror = frameFor(def, p.facing, p.phase, p.flip)
+  local frame, mirror = frameFor(def, p.facing, p.phase, p.flip, p.frameOverride)
   local mesh = SpriteBillboards.shadowQuad(def, frame)
   if not mesh then return end
   local tex = p.sprite:resolveImage()
@@ -859,6 +871,7 @@ local function posesOf(state, spriteColors)
       onWater = onWater,
       sink = sink,
       ent = g.npc,
+      frameOverride = g.npc.frameOverride,
       colors = spriteColors(g.map or state.map),
       -- A ghost stands on a NEIGHBOUR map, and the persistent wear field
       -- bound this frame belongs to the map underfoot. Its world position
@@ -923,6 +936,7 @@ local function posesOf(state, spriteColors)
         onWater = onWater,
         sink = sink,
         ent = e,
+        frameOverride = e.frameOverride,
         colors = colors,
         -- Who is doing the walking, for the persistent wear field. Taken
         -- from the entity here rather than guessed at the write site: the
@@ -1184,7 +1198,7 @@ local function shadowSignature(terrain, nbMesh, posed, cx, cy, vw, vh)
     put(p.sprite.def.image)
     put(p.px); put(p.py); put(p.gh); put(p.lift or 0)
     put(p.facing); put(p.phase); put(p.flip and 1 or 0)
-    put(p.waterline or 0)
+    put(p.waterline or 0); put(p.frameOverride or -1)
   end
   for i = n + 1, #sigBuf do sigBuf[i] = nil end
   return table.concat(sigBuf, ",")
@@ -1282,7 +1296,7 @@ local function castShadows(state, terrain, nbMesh, posed, cx, cy, vw, vh,
   end
   for _, p in ipairs(posed) do
     local def = p.sprite.def
-    local frame, mirror = frameFor(def, p.facing, p.phase, p.flip)
+    local frame, mirror = frameFor(def, p.facing, p.phase, p.flip, p.frameOverride)
     local mesh = SpriteBillboards.shadowQuad(def, frame, p.waterline or 0)
     if mesh then
       ShadowMap.draw(mesh, p.sprite:resolveImage(),
@@ -1872,7 +1886,7 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor)
     Voxel3D.beginShadows()
     for _, p in ipairs(posed) do
       drawShadow(p.sprite, p.px, p.py, p.facing, p.phase, p.flip, p.gh,
-                 p.lift, p.waterline)
+                 p.lift, p.waterline, p.frameOverride)
     end
     Voxel3D.endShadows()
   end
@@ -1974,7 +1988,7 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor)
     end
     Voxel3D.wet = w
     drawEntity(p.sprite, p.px, p.py, p.facing, p.phase, p.flip, p.gh,
-               p.colors, p.lift, p.waterline, p.onWater)
+               p.colors, p.lift, p.waterline, p.onWater, p.frameOverride)
   end
   Voxel3D.coat = 0
   Voxel3D.wet = 0
@@ -2093,7 +2107,7 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor)
         end
         if k > 0 then
           local def = p.sprite and p.sprite.def
-          local frame, mirror = frameFor(def, p.facing, p.phase, p.flip)
+          local frame, mirror = frameFor(def, p.facing, p.phase, p.flip, p.frameOverride)
           local mesh, img = snowField.cap(def, frame, k, p.waterline or 0)
           if mesh then
             if not drewOne then

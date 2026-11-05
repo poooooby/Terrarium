@@ -171,6 +171,9 @@ local FishFX = V.require("FishFX")
 local CloudShade = V.require("CloudShade")
 local AmbientSound = V.require("AmbientSound")
 local Interiors = V.require("Interiors")
+-- other mods' pictures in the 3D overlay (Untamed Tohjo's Gen 1 emote)
+local OverlayHooks = V.require("OverlayHooks")
+local WorldPostDraw = V.require("WorldPostDraw")
 local StreetLamps = V.require("StreetLamps")
 local MiniMap = V.require("MiniMap")
 local StartMenuXY = V.require("StartMenuXY")
@@ -555,6 +558,18 @@ mod.content.render_pipelines:register(PIPE_VOXEL, {
       -- the float and the line, through the projection the engine's own rod
       -- sprite just went through, so the three stay attached
       FishFX.draw(Voxel3D.project, ctx.scale)
+      -- what other mods draw over the map, anchored through this camera:
+      -- their love.graphics after drawWorld lands on the world canvas this
+      -- pipeline replaces. What they painted there last frame is caught and
+      -- drawn again here (lib/WorldPostDraw.lua -- Untamed Tohjo's Gen 1
+      -- follower emote is the case it was written for); a mod that knows
+      -- about the diorama registers through mod.exports.overlay instead
+      -- (lib/OverlayHooks.lua). Both cost a test or two while nothing is
+      -- there.
+      WorldPostDraw.draw(Voxel3D.project, ctx.scale)
+      if OverlayHooks.count() > 0 then
+        OverlayHooks.draw(Voxel3D.project, ctx.scale, ctx.state)
+      end
       -- and the weather LAST of the three, because rain is in front of
       -- everything by definition: its splashes are world-space and land
       -- among the rest of this, but its streaks fall between the camera and
@@ -609,6 +624,13 @@ mod.content.render_pipelines:register(PIPE_VOXEL, {
     -- whether or not the tilt-shift is going to repaint the frame -- and it
     -- must never be the thing that is blurred.
     Diag.present(canvas)
+    -- the frame is finished: from here until the engine's drawWorld
+    -- returns, a draw into its canvas is a mod painting over the map, and
+    -- is caught for the next frame's overlay (lib/WorldPostDraw.lua). The
+    -- wrapper that listens goes on the outside of drawWorld here, lazily,
+    -- so it lands over whatever the other mods installed while loading.
+    WorldPostDraw.ensure()
+    WorldPostDraw.arm()
     return canvas
   end,
 
@@ -2203,3 +2225,5 @@ mod.exports.version = mod.version or "1.60.0-beta"
 mod.exports.lib = V
 mod.exports.pipelines = { voxel = PIPE_VOXEL, tiltshift = PIPE_TILT }
 mod.exports.keys = V.KEYS
+-- a mod's own pictures in the diorama's overlay pass (lib/OverlayHooks.lua)
+mod.exports.overlay = { add = OverlayHooks.add, remove = OverlayHooks.remove }
