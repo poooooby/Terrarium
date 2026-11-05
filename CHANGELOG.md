@@ -45,6 +45,7 @@ Tags and packages:
 - **No more empty boxes in the middle of a message.** A break that waits for A before scrolling was drawn as a missing letter ("from a▯trainer").
 - **Two lines at a time, as on the cart.** The box now shows the game's own two-line window and scrolls when you press A. Before, it printed the whole message at once.
 - The typing marker on the battle panel now goes away when a message is finished.
+- **The camera holds when you choose a Pokémon mid-battle.** With g9-battle-sprites' HD party screen on, opening the party (after a knockout, or to switch) pulled the battle camera far back and shrank the party cards to a sixth of their size. That party screen asks the game for a larger screen surface, and the battle's 3D view took its scale from whatever surface was open. The battle now keeps its own.
 
 ## 1.60.0-beta (pre-release)
 
