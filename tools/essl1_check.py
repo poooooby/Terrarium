@@ -141,10 +141,19 @@ check(not missing, "all %d fp32-critical declarations carry VXFP" % len(WANT),
 sig = re.search(r"vec4\s+effect\s*\(([^)]*)\)\s*\{", shader)
 params = [p.strip() for p in sig.group(1).split(",")] if sig else []
 SAMPLER_PARAM = re.compile(r"(Image|ArrayImage|CubeImage|VolumeImage)\b")
-floaty = [p for p in params if not SAMPLER_PARAM.match(p)]
+floaty = [p for p in params if not SAMPLER_PARAM.search(p)]
 check(bool(floaty) and all(p.startswith("mediump ") for p in floaty),
       "effect() pins its float parameters to mediump, matching LOVE's prototype",
       "got: " + " | ".join(floaty))
+# ...and its image to lowp: the fp32 rung raises the sampler default as well
+# (`precision highp sampler2D;`), and LOVE's prototype took `Image tex` at
+# the GLSL ES fragment default before that, which is lowp.  Left unqualified
+# the pair disagreed on every GLES device and the rung never compiled
+# (1.34.5-beta to 1.52.2; an Adreno 750's DEBUG INFO showed it).
+imagey = [p for p in params if SAMPLER_PARAM.search(p)]
+check(bool(imagey) and all(p.startswith("lowp ") for p in imagey),
+      "effect() pins its image parameter to lowp, matching LOVE's prototype",
+      "got: " + " | ".join(imagey))
 
 print()
 print("== 2. every uniform both stages compile carries an explicit precision ==")

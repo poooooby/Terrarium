@@ -1,7 +1,7 @@
 {
   "id": "TERRARIUM",
   "name": "Terrarium2",
-  "version": "1.52.2",
+  "version": "1.52.3",
   "api": 2,
   "entry": "main.lua",
   "profile": "content",

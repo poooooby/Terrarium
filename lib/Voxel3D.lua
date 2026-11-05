@@ -2178,7 +2178,20 @@ precision highp sampler2D;
   // so the trap is closed rather than merely avoided.  (On a desktop
   // `#version 120` `mediump` is #defined to nothing and this reads exactly as
   // it always did.)
-  vec4 effect(mediump vec4 color, Image tex, mediump vec2 tc, mediump vec2 sc) {
+  //
+  // ...and `lowp` on the image, for the same reason, which 1.34.5-beta
+  // missed.  The fp32 rung raises the SAMPLER default too (`precision highp
+  // sampler2D;`, for the shadow map's low byte), and LOVE's prototype took
+  // its `Image tex` at the default GLSL ES gives a fragment sampler before
+  // any of that: lowp.  Unqualified here, the definition's image became
+  // highp under that rung and LOVE's glslang check refused the pair --
+  // "overloaded functions must have the same parameter precision qualifiers
+  // for argument 2" -- on every GLES device (an Adreno 750's DEBUG INFO, on
+  // 1.52.2: refusals=8, every one this, and the session settled on
+  // fp32-lite).  The texture this reads is the colour atlas, which lowp
+  // always sampled; the shadow map is a uniform declared after the raise and
+  // keeps its highp.
+  vec4 effect(mediump vec4 color, lowp Image tex, mediump vec2 tc, mediump vec2 sc) {
     vec4 p = Texel(tex, tc);
     // sprite sheets key GB OBJ color 0 to alpha 0; discarding rather than
     // blending keeps those texels out of the depth buffer, so a model never
