@@ -343,8 +343,25 @@ function Kit.model(sp, key)
   if cc == "D" or cc == "U" then stand = floorOf(0, 1) end
   stand = stand + 1
   local mask = { true, true, true, true }
+  -- The box's top is the highest voxel this cell can answer, not a bound
+  -- for every cave: emit walks the whole box about eight times, and the old
+  -- `max(lit, VOID_H) + 26` (52 voxels) left 40-60% of it air above Mt.
+  -- Moon's rock (kanto_shots_probe: cave_ground 11.5 s for MT_MOON_1F).
+  -- at() is solid only below the column's ground (y < h) -- a ladder adds
+  -- its rails, h + 22 up and h + 4 down -- and emit reads past ytop as air,
+  -- so cutting the box exactly there changes no voxel and no face.
+  local hmax = 0
+  for z = 0, 15 do
+    for x = 0, 15 do
+      local h = ground(x, z)
+      if h > hmax then hmax = h end
+    end
+  end
+  local reach = hmax - 1
+  if ladder == "U" then reach = hmax + 22 elseif ladder == "D" then reach = hmax + 4 end
+  local ytop = SINK + 1 + reach
   return { at = at, W = 16, xmin = 0, xmax = 15, zmin = 0, zmax = 15,
-           ytop = SINK + 1 + max(lit, VOID_H) + 26, sink = SINK, claimMask = mask, standH = stand }
+           ytop = ytop, sink = SINK, claimMask = mask, standH = stand }
 end
 
 return Kit
