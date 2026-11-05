@@ -192,9 +192,48 @@ return function(game)
   Scenes.wait(20)
   burst("2d")
   Pipelines.setLevel("terrarium_voxel", 4)
-  Scenes.wait(5)
+  Scenes.wait(30)
 
-  log(#figs > 0 and "PASS" or "FAIL: no UT figures spawned")
+  -- THE RESKIN. UT repaints its follower with npc:setSpriteDef(def) on the
+  -- UNBAKED def, whose image is an ImageData rather than a path (the engine
+  -- takes either). The 3D pass keyed caches on def.image .. "#", threw on
+  -- the userdata, and the engine retired the pipeline for the session --
+  -- "render pipeline failed: VoxelScene.lua:1221: invalid value (userdata
+  -- at index 382 in table for 'concat')". Counted here by the frames the
+  -- pipeline still hands back a canvas.
+  local delivered, asked = 0, 0
+  local realDrawWorld = Pipelines.drawWorld
+  Pipelines.drawWorld = function(...)
+    asked = asked + 1
+    local out = realDrawWorld(...)
+    if out then delivered = delivered + 1 end
+    return out
+  end
+  local reskinned = false
+  if follower and follower.setSpriteDef then
+    local okR, err = pcall(function()
+      local def = follower.sprite.def
+      local copy = {}
+      for k, v in pairs(def) do copy[k] = v end
+      local path = type(def.image) == "string" and def.image or nil
+      copy.image = love.image.newImageData(path)
+      copy.id = tostring(def.id) .. "_MEM"
+      follower:setSpriteDef(copy)
+    end)
+    reskinned = okR
+    log("reskin with an ImageData sheet:", okR and "done" or tostring(err))
+  else
+    log("reskin: no follower with setSpriteDef")
+  end
+  Scenes.wait(90)
+  Scenes.shot(OUT, "ut_reskin")
+  Pipelines.drawWorld = realDrawWorld
+  local survived = asked > 0 and delivered == asked
+  log(("after the reskin: pipeline delivered %d of %d frames"):format(delivered, asked))
+
+  log((#figs > 0 and reskinned and survived) and "PASS"
+      or ("FAIL: figures " .. #figs .. ", reskinned " .. tostring(reskinned)
+          .. ", pipeline survived " .. tostring(survived)))
   H:finish({ probe = "untamed" })
   love.event.quit()
 end

@@ -32,6 +32,36 @@ local SpriteBillboards = {}
 
 local meshes = {}
 
+-- A sprite def's `image` is usually a path, but the engine also takes the
+-- picture itself -- "a mod may hand over an ImageData instead of a path"
+-- (src/render/SpriteRenderer.lua's constructor) -- and Untamed Tohjo does,
+-- for its follower's reskin (npc:setSpriteDef with the unbaked def). Every
+-- cache here and in VoxelScene keyed on def.image .. "#" .. something,
+-- which throws on userdata, and the engine retires a pipeline that throws:
+-- one reskin and the diorama was off for the session. The key for such a
+-- picture is its own tostring (unique per object), worked out once.
+local userKeys = setmetatable({}, { __mode = "k" })
+function SpriteBillboards.imageKey(image)
+  if type(image) == "string" then return image end
+  if image == nil then return "" end
+  local k = userKeys[image]
+  if not k then
+    k = tostring(image)
+    userKeys[image] = k
+  end
+  return k
+end
+local imageKey = SpriteBillboards.imageKey
+
+-- The sheet's dimensions: a path through Assets like the engine; a picture
+-- handed over as one (ImageData or Image) answers for itself.
+local function sheetOf(def)
+  local src = def.image
+  if type(src) == "string" then return Assets.image(src) end
+  if type(src) == "userdata" and src.getDimensions then return src end
+  return nil
+end
+
 -- One flat 16x16 quad UV-mapped to a whole frame. A hair of inset keeps
 -- the sampler inside this frame rather than picking up the neighbouring
 -- one along the shared edge.
@@ -91,7 +121,7 @@ local function buildGridCard(def, img, frame, cut)
 end
 
 local function buildCard(def, frame, cut)
-  local ok, img = pcall(Assets.image, def.image)
+  local ok, img = pcall(sheetOf, def)
   if not (ok and img) then return nil end
   if not isVanilla(def) then return buildGridCard(def, img, frame, cut) end
   local iw, ih = img:getDimensions()
@@ -125,7 +155,7 @@ end
 function SpriteBillboards.mesh(def, frame, cut)
   cut = math.floor(tonumber(cut) or 0)
   if cut < 0 then cut = 0 end
-  local key = def.image .. "#" .. frame .. (cut > 0 and ("#w" .. cut) or "")
+  local key = imageKey(def.image) .. "#" .. frame .. (cut > 0 and ("#w" .. cut) or "")
   -- a grid sheet's cards are keyed on its layout too: two defs may share
   -- one image and cut it differently (a vanilla def keeps the key it had)
   if not isVanilla(def) then

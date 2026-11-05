@@ -1021,7 +1021,10 @@ end
 function SnowField.cap(def, frame, k, cut)
   k = tonumber(k) or 0
   if k < SnowField.CAP_MIN then return nil, nil end
-  if not (def and def.image) then return nil, nil end
+  -- a sheet by path only: the profile reads it through ImageCache, and a
+  -- picture a mod handed over as itself (Untamed Tohjo's reskins) has no
+  -- path to read -- no cap on it, rather than a throw in the 3D frame
+  if not (def and type(def.image) == "string") then return nil, nil end
   cut = math.floor(tonumber(cut) or 0)
   if cut < 0 then cut = 0 end
   local step = math.ceil(k * SnowField.CAP_STEPS)
@@ -1106,7 +1109,7 @@ end
 -- highest column. What SnowOnFX lets a shed flake go from, so the flake
 -- leaves the hat rather than the middle of the air above it.
 function SnowField.capTop(def, frame)
-  if not (def and def.image) then return nil end
+  if not (def and type(def.image) == "string") then return nil end
   local tops = capProfile(def.image, frame)
   if not tops then return nil end
   local best = nil

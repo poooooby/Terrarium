@@ -1195,7 +1195,7 @@ local function shadowSignature(terrain, nbMesh, posed, cx, cy, vw, vh)
   put(tostring(terrain))
   for i = 1, #nbMesh do put(tostring(nbMesh[i])) end
   for _, p in ipairs(posed) do
-    put(p.sprite.def.image)
+    put(SpriteBillboards.imageKey(p.sprite.def.image))
     put(p.px); put(p.py); put(p.gh); put(p.lift or 0)
     put(p.facing); put(p.phase); put(p.flip and 1 or 0)
     put(p.waterline or 0); put(p.frameOverride or -1)
