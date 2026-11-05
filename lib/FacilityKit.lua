@@ -291,7 +291,22 @@ local function build(t, style)
       return sw(alt == 0 and FLOOR_A or FLOOR_B, 4 + hash(gx, 0, gz) % 2 + (hash(x, 1, z) % 7 == 0 and -2 or 0))
     end
     return nil
-  end, W, D
+  end, W, D, function(x, z)
+    -- the highest y at() above can answer in this column (emit's colTop),
+    -- read off the same branches: a wall to WALL_H, a band to BAND_H, a
+    -- cabinet to 22 (a desk's monitor only to 15), a terminal to 14, the
+    -- rubble's boulders to 5 (b[3] * 1.2 for the taller, 4.6), and every
+    -- flat kind -- floor, mat, island -- its one voxel at 0
+    if x < 0 or x >= W or z < 0 or z >= D then return -1 end
+    local k = C[tile(floor(x / 8), floor(z / 8))]
+    if not k then return -1 end
+    if k == "wall" or k == "face" then return WALL_H end
+    if k == "band" then return BAND_H end
+    if k == "furn" then return 22 end
+    if k == "term" then return 14 end
+    if k == "gen" then return 5 end
+    return 0
+  end
 end
 
 function Kit.model(sp, t, mapId)
@@ -309,7 +324,7 @@ function Kit.model(sp, t, mapId)
     end
     t = { tiles = rows }
   end
-  local at, W, D = build(t, Kit.STYLE[mapId])
+  local at, W, D, colTop = build(t, Kit.STYLE[mapId])
   local open = {}
   for r = 1, #t.tiles do
     for c = 1, #t.tiles[1] do
@@ -320,6 +335,7 @@ function Kit.model(sp, t, mapId)
   local m, why = Lib.model(Kit, sp, t, at, open)
   if not m then return nil, why end
   m.W, m.xmin, m.xmax, m.zmax, m.ytop = W, 0, W - 1, D - 1, BAND_H + 1
+  m.colTop = colTop
   return m
 end
 

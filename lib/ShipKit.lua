@@ -398,7 +398,29 @@ local function build(t, mapId)
       return sw(alt == 0 and LINO_A or LINO_B, 4 + hash(floor(x / 8), 0, floor(z / 8)) % 2)
     end
     return nil
-  end, W, D
+  end, W, D, function(x, z)
+    -- the highest y at() above answers in this column (emit's colTop), the
+    -- kind resolved exactly as at() resolves it: the bulkheads to WALL_H, a
+    -- side to SIDE_H at most, a cabinet to 20, a bin's lid and a berth's
+    -- headboard to 12, the bulwark's rail to 11, a low wall to LOW_H, a
+    -- table to 15 (its cloth at 9, a platter's cover at 10 + 5), and the
+    -- floors -- the open deck's hull top too -- their one voxel at 0
+    if x < 0 or x >= W or z < 0 or z >= D then return -1 end
+    local c, r = floor(x / 8), floor(z / 8)
+    local v = tile(c, r)
+    local k = C[v]
+    if k == "void" and openDeck then return 0 end
+    if (v == 9 or v == 12) and C[tile(c, r + 1)] == "cabinet" then k = "cabinet" end
+    if not k or k == "void" then return -1 end
+    if k == "bulwark" then return 11 end
+    if k == "cap" or k == "wall" or k == "dado" or k == "door" then return WALL_H end
+    if k == "side" then return SIDE_H end
+    if k == "low" then return LOW_H end
+    if k == "table" or (v == 44 and owner[c + r * cols]) then return 15 end
+    if k == "bin" or k == "berth" then return 12 end
+    if k == "cabinet" then return 20 end
+    return 0
+  end
 end
 
 -- a seat alone, its own template (its cell is walkable, the sitter
@@ -437,7 +459,7 @@ function Kit.model(sp, t, mapId)
     m.standH = Lib.SEAT_H
     return m
   end
-  local at, W, D = build(t, mapId)
+  local at, W, D, colTop = build(t, mapId)
   -- open: every tile this kit does not build
   local open = {}
   for r = 1, #t.tiles do
@@ -449,6 +471,7 @@ function Kit.model(sp, t, mapId)
   local m, why = Lib.model(Kit, sp, t, at, open)
   if not m then return nil, why end
   m.W, m.xmin, m.xmax, m.zmax, m.ytop = W, 0, W - 1, D - 1, WALL_H + 1
+  m.colTop = colTop
   return m
 end
 

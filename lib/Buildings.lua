@@ -1017,15 +1017,41 @@ local function emit(m, sp, atlasW, atlasH)
     end
     return cell[(y * zn + (z - zmin)) * xn + (x - xmin)]
   end
+  -- `colTop(x, z)`: the highest y the model can answer in that column (-1:
+  -- none), for a model whose box is mostly air -- a whole room's plan, where
+  -- the walls stand 28 voxels and the floor is one (lib/FacilityKit.lua).
+  -- at() is not asked above it: the kit vouches that the answer there is
+  -- air, so the voxels, the faces and the AO are the same, and the fill
+  -- pass stops paying for millions of empty lookups (the Power Plant's box
+  -- is 10.7 M voxels).
+  local ct = nil
+  if m.colTop then
+    ct = {}
+    for z = zmin, zmax do
+      local row = (z - zmin) * xn - xmin
+      for x = xmin, xmax do ct[row + x] = m.colTop(x, z) end
+    end
+  end
   for y = 0, ytop do
     Budget.tick()
     for z = zmin, zmax do
       Budget.tick()
       local base = (y * zn + (z - zmin)) * xn - xmin
-      for x = xmin, xmax do
-        local v = m.at(x, y, z)
-        cell[base + x] = v
-        if v and v >= 0 then quads.voxels = quads.voxels + 1 end
+      if ct then
+        local row = (z - zmin) * xn - xmin
+        for x = xmin, xmax do
+          if y <= ct[row + x] then
+            local v = m.at(x, y, z)
+            cell[base + x] = v
+            if v and v >= 0 then quads.voxels = quads.voxels + 1 end
+          end
+        end
+      else
+        for x = xmin, xmax do
+          local v = m.at(x, y, z)
+          cell[base + x] = v
+          if v and v >= 0 then quads.voxels = quads.voxels + 1 end
+        end
       end
     end
   end
