@@ -116,6 +116,13 @@ local function cell(mapId, cx, cy)
   return o
 end
 
+-- Forget every opened cell (Buildings.build calls this when a map's build
+-- is done). The data files stay loaded -- they are the strings, interned,
+-- 13 MB for all of Kanto -- only their per-texel tables go.
+function Kit.release()
+  opened = {}
+end
+
 -- The cell at (cx, cy) of `mapId`, which may lie off that map: then it is
 -- some neighbour's, found through the index's world placement.
 local function cellNear(mapId, cx, cy)

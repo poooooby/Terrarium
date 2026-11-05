@@ -33,7 +33,11 @@
 local V = ...
 
 local Kit = { SHEET = "assets/buildings/cave_kit.png", SHEET_W = 8, SHEET_H = 12,
-              SINK = 10 }
+              SINK = 10,
+              -- the key carries the cell (tx, ty): no other cell, and no
+              -- other map, ever asks for the same model -- Buildings keeps it
+              -- only as long as this map is recent (Buildings.SCOPED_MAPS)
+              PER_CELL = true }
 
 local ROCK, ROCK_DK, ROCK_LT, EARTH, EARTH_DK, DUST, PEBBLE, VOID, WOOD, WOOD_DK, IRON, LIGHT =
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11

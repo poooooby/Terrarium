@@ -159,6 +159,7 @@ tests/grass_wear_shot.lua
 tests/ground_grid_dump.lua
 tests/hearth_probe.lua
 tests/hudxy_probe.lua
+tests/kanto_shots_probe.lua
 tests/lamp_card_probe.lua
 tests/lamppost_probe.lua
 tests/lavender_shots_probe.lua

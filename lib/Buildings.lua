@@ -50,6 +50,10 @@
 local V = ...
 
 local Budget = V.require("BuildBudget")
+local Perf = V.require("Perf")
+-- template id -> { span label, quad-counter label }, built once per id so a
+-- measured build never concatenates a label per call (tools/profiler)
+local PERF_LABEL = {}
 
 local Buildings = {}
 
@@ -94,6 +98,55 @@ end
 
 local models = {}          -- "<tileset>:<index>" -> prebuilt local quads
 local sheets = {}          -- authored sheet path -> readSprite's answer
+
+-- ------- models that belong to ONE map
+--
+-- `models` was a session-long memo, and for what it was written for -- one
+-- drawing, one model, every map that stands it -- that is right: a fence or
+-- a Centre is built once and stamped across Kanto. The Kanto import (3adf5ed)
+-- added keys no other map can ever ask for: a room per map (`@home:<map>`),
+-- a house per PLACEMENT (`<map>:<tx>:<ty>`), and cell kits whose key is the
+-- cell itself (CaveKit, FlowerKit, RockShoreKit: `Kit.PER_CELL`). Kept for
+-- the session, those were the Lua heap's growth: kanto_shots_probe measured
+-- 1.4 GB after one town and 5.3 GB by Fuchsia, after a full collect.
+--
+-- So those keys are SCOPED to the map that built them and dropped once that
+-- map has fallen out of the last SCOPED_MAPS maps built. Not dropped at once:
+-- a visit builds a map's body, its neighbours, and then its full variant,
+-- and a rebuild of a recent map should still find its models. A dropped one
+-- is only a rebuild away, and the rebuild is the same model (nothing a kit
+-- reads is time, quality or chance -- BuildCache relies on the same fact).
+Buildings.SCOPED_MAPS = 4
+local scoped = {}          -- key -> id of the map whose build made it
+local scopedOrder = {}     -- map ids, least recently built first
+
+-- A kit that REFUSED a placement (no model, an error) used to be asked
+-- again on every rebuild and for every template it claims, because only a
+-- success was remembered. Remembered now too, scoped like the model would
+-- have been; the classic branch still stands the placement, as before.
+local failed = {}
+
+local function scope(key, mapId)
+  scoped[key] = mapId
+end
+
+-- `mapId` is being built: make it the most recent, and let the oldest go
+local function touchScope(mapId)
+  for i = #scopedOrder, 1, -1 do
+    if scopedOrder[i] == mapId then table.remove(scopedOrder, i) end
+  end
+  scopedOrder[#scopedOrder + 1] = mapId
+  while #scopedOrder > Buildings.SCOPED_MAPS do
+    local old = table.remove(scopedOrder, 1)
+    for k, m in pairs(scoped) do
+      if m == old then
+        models[k] = nil
+        failed[k] = nil
+        scoped[k] = nil
+      end
+    end
+  end
+end
 
 -- Instruments for the probes: what the ledge branch did in this session.
 Buildings.ledgeLog = { placements = 0, builds = 0, seconds = 0, lastKey = nil,
@@ -1433,9 +1486,30 @@ function Buildings.build(S, map, data, perRow)
   local quads = S.objectQuads
   Buildings.ledgeLog.maps = Buildings.ledgeLog.maps + 1
   Buildings.ledgeLog.lastMap = tostring(map.id)
+  local buildMap = tostring(map.def.id or map.def.name)
+  touchScope(buildMap)
+  local okHK, HouseKits = pcall(V.require, "HouseKits")
+  if not okHK then HouseKits = nil end
+  -- the tile lookup every cell kit's spec is handed, made once per build
+  -- instead of a closure per grid cell
+  local tileAtFn = function(x, y) return S.tileAt[keyOf(x, y)] end
 
   for index, t in ipairs(list) do
     if type(t.tiles) == "table" and #t.tiles > 0 and placedOn(t, map) then
+      -- the town kit that takes this template over (lib/HouseKits.lua), if
+      -- any. Asked once per template rather than once per placement: it
+      -- depends on the map and the template only, and every grid cell of
+      -- a `wild` template used to walk all seven kits to hear "none".
+      local hkName, HKit = nil, nil
+      if HouseKits and not t.wild then
+        hkName, HKit = HouseKits.kitFor(map.def.id or map.def.name, t.id)
+      end
+      -- per-template cost while Perf is on (one nil test while it is off):
+      -- which template a slow map's build actually goes to, and how many
+      -- quads it leaves behind -- the numbers the Kanto import's kits were
+      -- first judged on (cold_cost_probe, kanto_shots_probe)
+      local perfT0 = Perf.now()
+      local perfQ0 = perfT0 and (#quads + (S.spriteQuads and #S.spriteQuads or 0))
       local bh, bw = #t.tiles, #t.tiles[1]
       Buildings.progress = { map = tostring(map.id), index = index,
                              id = tostring(t.id), phase = "scan" }
@@ -1512,7 +1586,7 @@ function Buildings.build(S, map, data, perRow)
             end
             if civicSheet then
               local key = tileset.id .. ":" .. index .. "@lavender-civic:" .. mapId
-              if not models[key] then
+              if not models[key] and not failed[key] then
                 local okK, Kit = pcall(V.require, lavKit)
                 local sheet = (type(civicSheet) == "string") and civicSheet or (okK and Kit and Kit.SHEET)
                 local sp = okK and Kit and readSprite(sheet)
@@ -1526,7 +1600,9 @@ function Buildings.build(S, map, data, perRow)
                 else
                   Buildings.lastError = "lavender civic " .. tostring(t.id)
                                         .. ": " .. tostring(why or m or Kit)
+                  failed[key] = true
                 end
+                scope(key, buildMap)
               end
               if models[key] then built = models[key] end
             end
@@ -1538,7 +1614,7 @@ function Buildings.build(S, map, data, perRow)
             if (t.id == "flat_commercial" or t.id == "flat_block_4x4")
                and (map.def.id or map.def.name) == "VERMILION_CITY" then
               local key = tileset.id .. ":" .. index .. "@vermilion:" .. tx .. ":" .. ty
-              if not models[key] then
+              if not models[key] and not failed[key] then
                 local okK, Kit = pcall(V.require, "VermilionHouseKit")
                 local sp = okK and Kit and readSprite(Kit.SHEET)
                 local tex = sp and loadSpriteImage(Kit.SHEET)
@@ -1551,24 +1627,21 @@ function Buildings.build(S, map, data, perRow)
                 else
                   Buildings.lastError = "vermilion house " .. tx .. ":" .. ty
                                         .. ": " .. tostring(why or m or Kit)
+                  failed[key] = true
                 end
+                scope(key, buildMap)
               end
               if models[key] then built = models[key] end
             end
             -- ...and every town's buildings since (lib/HouseKits.lua): the
             -- kit names its map and the templates it takes over, and builds
             -- per placement, on the same terms.
-            local okHK, HouseKits = pcall(V.require, "HouseKits")
-            local hkName, HKit = nil, nil
-            if okHK and HouseKits then
-              hkName, HKit = HouseKits.kitFor(map.def.id or map.def.name, t.id)
-            end
             if HKit then
               local key = tileset.id .. ":" .. index .. "@" .. hkName .. ":"
-                          .. tostring(map.def.id or map.def.name) .. ":" .. tx .. ":" .. ty
+                          .. buildMap .. ":" .. tx .. ":" .. ty
               -- (a kit for several towns paints each from its own sheet)
               local hkSheet = (HKit.sheetFor and HKit.sheetFor(map.def.id or map.def.name)) or HKit.SHEET
-              if not models[key] then
+              if not models[key] and not failed[key] then
                 local sp = readSprite(hkSheet)
                 local tex = sp and loadSpriteImage(hkSheet)
                 local okM, m, why = false, nil, nil
@@ -1582,7 +1655,9 @@ function Buildings.build(S, map, data, perRow)
                 else
                   Buildings.lastError = hkName .. " " .. tx .. ":" .. ty
                                         .. ": " .. tostring(why or m)
+                  failed[key] = true
                 end
+                scope(key, buildMap)
               end
               if models[key] then built = models[key] end
             end
@@ -1882,12 +1957,13 @@ function Buildings.build(S, map, data, perRow)
               -- what stands beside them keeps its drawing.
               built = {}
               local okK, Kit = pcall(V.require, t.cellKit)
-              local mapId = tostring(map.def.id or map.def.name)
-              local key = okK and Kit and Kit.spec and Kit.spec(
-                function(x, y) return S.tileAt[keyOf(x, y)] end, tx, ty, mapId)
+              local key = okK and Kit and Kit.spec and Kit.spec(tileAtFn, tx, ty, buildMap)
               if key then
                 local mk = t.cellKit .. "@" .. key
                 if not models[mk] then
+                  -- a kit whose key IS the cell (`PER_CELL`) makes a model
+                  -- nothing else will ask for: it lives with this map
+                  if Kit.PER_CELL then scope(mk, buildMap) end
                   local sp = readSprite(Kit.SHEET)
                   local tex = sp and loadSpriteImage(Kit.SHEET)
                   local okM, m, why = false, nil, nil
@@ -1955,8 +2031,7 @@ function Buildings.build(S, map, data, perRow)
               built = {}
               local okK, Kit = pcall(V.require, "LavenderGroundKit")
               local lay = okK and Kit and Kit.spec and Kit.spec(
-                function(x, y) return S.tileAt[keyOf(x, y)] end, tx, ty,
-                map.def.id or map.def.name)
+                tileAtFn, tx, ty, map.def.id or map.def.name)
               if lay then
                 local sp = sheets[lay.sheet]
                 if sp == nil then
@@ -1992,6 +2067,7 @@ function Buildings.build(S, map, data, perRow)
               local mapId = tostring(map.def.id or map.def.name)
               local key = tileset.id .. ":" .. index .. "@home:" .. mapId
               if not models[key] then
+                scope(key, buildMap)
                 -- ...and every home since (lib/HomeKits.lua): the first kit
                 -- whose MAPS names this map builds it, from the sheet it
                 -- names for this map; Lavender's is the default, as it
@@ -2021,6 +2097,7 @@ function Buildings.build(S, map, data, perRow)
               -- the same cottage template everywhere else keeps its model.
               local key = tileset.id .. ":" .. index .. "@lavender:" .. tx .. ":" .. ty
               if not models[key] then
+                scope(key, buildMap)
                 local okK, Kit = pcall(V.require, "LavenderHouseKit")
                 local sp = okK and Kit and readSprite(Kit.SHEET)
                 local tex = sp and loadSpriteImage(Kit.SHEET)
@@ -2219,8 +2296,24 @@ function Buildings.build(S, map, data, perRow)
           end
         end
       end
+      if perfT0 then
+        local id = tostring(t.id)
+        local lab = PERF_LABEL[id]
+        if not lab then
+          lab = { "bld." .. id, "bldq." .. id }
+          PERF_LABEL[id] = lab
+        end
+        Perf.add(lab[1], perfT0)
+        Perf.count(lab[2], #quads + (S.spriteQuads and #S.spriteQuads or 0) - perfQ0)
+      end
     end
   end
+  -- the painted ground decodes each cell's turf and growth strings into
+  -- three 256-slot tables, and held every one it ever opened (~134 MB over
+  -- a tour of Kanto). They are only read while a map builds; the next
+  -- build reopens what it needs, from the same strings.
+  local okG, GroundKit = pcall(V.require, "LavenderGroundKit")
+  if okG and GroundKit and GroundKit.release then pcall(GroundKit.release) end
 end
 
 -- ------- how tall a building stands over each CELL it claims
@@ -2422,6 +2515,7 @@ end
 function Buildings.invalidate()
   spec = nil
   models = {}
+  scoped, scopedOrder, failed = {}, {}, {}
   sheets = {}
   for k in pairs(spriteImg) do spriteImg[k] = nil end
   Buildings.clearTall()

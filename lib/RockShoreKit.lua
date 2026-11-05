@@ -15,7 +15,9 @@
 local V = ...
 
 local Kit = { SHEET = "assets/buildings/rock_kit.png", SHEET_W = 8, SHEET_H = 4,
-              ROCK = { [50] = true, [51] = true, [84] = true }, SINK = 4 }
+              ROCK = { [50] = true, [51] = true, [84] = true }, SINK = 4,
+              -- keyed on the cell: kept per map, not per session (CaveKit)
+              PER_CELL = true }
 
 local STONE, STONE_DK, WET, MOSS = 0, 1, 2, 3
 local function sw(row, n) return row * 8 + n % 8 end

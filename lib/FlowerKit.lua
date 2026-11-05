@@ -20,7 +20,9 @@
 local V = ...
 
 local Kit = { SHEET = "assets/buildings/flower_kit.png", SHEET_W = 8, SHEET_H = 10,
-              FLOWER = { [3] = true } }
+              FLOWER = { [3] = true },
+              -- keyed on the cell: kept per map, not per session (CaveKit)
+              PER_CELL = true }
 
 local STEM, LEAF, CENTRE, RED, WHITE, YELLOW, PINK, LILAC, BLUE, ORANGE =
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9
