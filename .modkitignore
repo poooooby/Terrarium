@@ -124,6 +124,7 @@ tests/black_flicker_probe.lua
 tests/build_cache_probe.lua
 tests/build_cache_restore_probe.lua
 tests/build_veil_probe.lua
+tests/buildcache_code_probe.lua
 tests/buildings_baseline_probe.lua
 tests/buildings_perf_probe.lua
 tests/calm_probe.lua

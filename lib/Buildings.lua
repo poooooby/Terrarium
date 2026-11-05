@@ -51,6 +51,23 @@ local V = ...
 
 local Budget = V.require("BuildBudget")
 local Perf = V.require("Perf")
+-- LuaJIT's table.new(narray, nhash): a table born with its array part
+-- already the size it will be filled to. emit's voxel grid is indexed
+-- 0..(box volume - 1) and mostly air, which a plain {} cannot hold in its
+-- array part (Lua keeps an array only while it is over half full), so
+-- every voxel went into the HASH part, rehashing as it grew: the fill pass
+-- was 72% of emit and emit 20% of a cold Lavender visit (tools/profiler,
+-- DS_JP=Flm1). Preallocated, the same fill is 314 ms -> 4 ms on a 690k box
+-- with the JIT, 327 -> 14 ms without it (the phone's case). Built into
+-- every LuaJIT 2.1 and not on the sandbox's deny list; {} if ever absent.
+local okTN, tableNew = pcall(require, "table.new")
+if not (okTN and type(tableNew) == "function") then
+  tableNew = function() return {} end
+end
+-- ...but capped: 8 bytes a slot, and the Power Plant's plan is a 10.7 M
+-- voxel box. Past this many slots (32 MB) the grid falls back to a plain
+-- table -- slower, but never a phone's whole memory for one transient.
+local GRID_PREALLOC_MAX = 4 * 1024 * 1024
 -- template id -> { span label, quad-counter label }, built once per id so a
 -- measured build never concatenates a label per call (tools/profiler)
 local PERF_LABEL = {}
@@ -1010,7 +1027,6 @@ local function emit(m, sp, atlasW, atlasH)
   -- one call in 32, so the extra calls are free.
   local W = m.W
   local quads = { voxels = 0, shell = 0 }
-  local cell = {}                        -- (y, z, x) -> sprite pixel index
 
   local zmin, zmax, ytop = m.zmin, m.zmax, m.ytop
   -- the model may overhang its own box: the roof's side eaves stand at
@@ -1018,6 +1034,7 @@ local function emit(m, sp, atlasW, atlasH)
   local xmin, xmax = m.xmin or 0, m.xmax or (W - 1)
   local zn = zmax - zmin + 1
   local xn = xmax - xmin + 1
+  local cell                             -- (y, z, x) -> sprite pixel index
   if Buildings.progress then
     Buildings.progress.step = "emit:cells"
     Buildings.progress.box = ("%dx%dx%d"):format(xn, ytop + 1, zn)
@@ -1036,13 +1053,25 @@ local function emit(m, sp, atlasW, atlasH)
   -- pass stops paying for millions of empty lookups (the Power Plant's box
   -- is 10.7 M voxels).
   local ct = nil
+  -- the highest y any cell below can hold: the grid is y-major, so slots
+  -- past this layer are never written and need no room (a room's walls
+  -- are 28 voxels in a box twice that tall)
+  local yfill = ytop
   if m.colTop then
-    ct = {}
+    ct = tableNew(zn * xn, 0)
+    local hi = -1
     for z = zmin, zmax do
       local row = (z - zmin) * xn - xmin
-      for x = xmin, xmax do ct[row + x] = m.colTop(x, z) end
+      for x = xmin, xmax do
+        local c = m.colTop(x, z)
+        ct[row + x] = c
+        if c > hi then hi = c end
+      end
     end
+    yfill = math.min(ytop, hi)
   end
+  local slots = (yfill + 1) * zn * xn
+  cell = tableNew(slots > 0 and slots <= GRID_PREALLOC_MAX and slots or 0, 0)
   -- Which rows hold a voxel that is DRAWN (v >= 0): rowZ by (y, z), the
   -- rows the shell, +-z and +-y passes walk along x; rowX by (y, x), the
   -- rows the +-x pass walks along z. Every one of those passes emits only
@@ -1050,7 +1079,8 @@ local function emit(m, sp, atlasW, atlasH)
   -- is skipped whole and nothing it could have emitted is lost. It is most
   -- of a box: the air over a cave's floor, over a room's (ci() was 41% of
   -- a cave cell's build, almost all of it answering nil).
-  local rowZ, rowX = {}, {}
+  local rowZ = tableNew((ytop + 1) * zn, 0)
+  local rowX = tableNew((ytop + 1) * xn, 0)
   for y = 0, ytop do
     Budget.tick()
     for z = zmin, zmax do

@@ -223,6 +223,54 @@ local function modVersion()
   return tostring(mod and mod.version or "?")
 end
 
+-- ------- THE CODE THAT BUILT IT
+--
+-- The version alone was the code's whole say in the key, so two builds of
+-- one version shared their files: on a checkout between releases, a map
+-- built by the code of an hour ago was served after the change, and an
+-- efficiency baseline measured -- and photographed -- meshes this code
+-- never made. A player is covered by the version (every release bumps it);
+-- a hand-edited install and a developer are not.
+--
+-- So the key carries a fingerprint of every file the geometry comes from:
+--   * everywhere, each file's NAME AND SIZE in lib/, data/ and
+--     assets/buildings/ -- ~400 stat calls once a session, nothing read;
+--   * on a developer's checkout (a .git beside main.lua, which no release
+--     zip has), each code file's CONTENT too, md5 in love.data: an edit
+--     that keeps the size (`H = 20` -> `H = 21`) is the common one there.
+--     ~14 MB read once a session, which only ever happens on a desktop.
+-- Computed on the first signature asked for, then kept.
+local CODE_DIRS = { "lib", "data", "assets/buildings" }
+local CONTENT_DIRS = { lib = true, data = true }
+local codeSig = nil
+function BuildCache.codeHash()
+  if codeSig then return codeSig end
+  local mod = V.mod
+  if not (mod and mod.list and mod.info) then
+    codeSig = "unlisted"
+    return codeSig
+  end
+  local dev = try(function() return mod:info(".git") end) ~= nil
+  local parts = {}
+  for _, dir in ipairs(CODE_DIRS) do
+    -- (mod:list sorts its names, so the fingerprint is stable)
+    for _, name in ipairs(try(function() return mod:list(dir) end) or {}) do
+      local rel = dir .. "/" .. name
+      local info = try(function() return mod:info(rel) end)
+      if info and info.type == "file" then
+        local entry = rel .. "=" .. tostring(info.size)
+        if dev and CONTENT_DIRS[dir] and mod.read then
+          local body = try(function() return mod:read(rel) end)
+          if type(body) == "string" then entry = entry .. "=" .. md5(body) end
+        end
+        parts[#parts + 1] = entry
+      end
+    end
+  end
+  codeSig = (dev and "dev:" or "") .. md5(table.concat(parts, ";"))
+  return codeSig
+end
+
 local function masksSig(masks)
   if not masks or #masks == 0 then return "-" end
   local parts = {}
@@ -239,7 +287,7 @@ end
 -- The signature a file for `map` / `part` must carry to be used now.
 function BuildCache.signature(map, part, masks)
   local base = table.concat({
-    "f" .. BuildCache.FORMAT, modVersion(), gameVersion(),
+    "f" .. BuildCache.FORMAT, modVersion(), BuildCache.codeHash(), gameVersion(),
     tilesetHash(map.tileset), blocksHash(map.def), settingsSig(),
   }, "|")
   if part == "full" then base = base .. "|" .. masksSig(masks) end

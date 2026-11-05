@@ -50,6 +50,15 @@ local FUNNELS = { { 28 * 8 + 4, 70 }, { 31 * 8 + 4, 70 } }
 local TRUCK = {}
 for _, v in ipairs({ 72, 73, 74, 75, 76, 88, 89, 60 }) do TRUCK[v] = true end
 local LIGHT_ROW = 14                      -- (the glass row stands for a lamp)
+-- at() is asked once per voxel of a 48-voxel-tall box over the whole quay,
+-- so the little lists it loops over are built once here, not per call
+local SIDES = { -1, 1 }
+local WHEEL_X, WHEEL_Z = { 6, 23 }, { 1, 14 }
+-- the highest y (over the quay's floor) each kind of tile can answer, for
+-- emit's colTop: the tallest case of each branch of at() below
+local TOP = { [10] = 0, [58] = 1, [86] = 13, [87] = 13, [1] = 13, [80] = 13,
+              [49] = 7, [50] = 9, [59] = 9 }
+for v in pairs(TRUCK) do TOP[v] = 16 end
 
 local function build(t)
   local rows, cols = #t.tiles, #t.tiles[1]
@@ -135,7 +144,7 @@ local function build(t)
       end
     end
     -- lifeboats on the deck either side of the superstructure
-    for _, side in ipairs({ -1, 1 }) do
+    for _, side in ipairs(SIDES) do
       for i = 0, 2 do
         local bx = 26 * 8 + i * 22
         local bz = cz + side * (b - 3.5)
@@ -198,8 +207,8 @@ local function build(t)
       if y < 0 then return nil end
       local tx, tz = x - 40 * 8, z
       if y == 0 and not (tx >= 1 and tx <= 30 and tz >= 1 and tz <= 14) then return sw(CONCRETE, 3) end
-      for _, wx in ipairs({ 6, 23 }) do
-        for _, wz in ipairs({ 1, 14 }) do
+      for _, wx in ipairs(WHEEL_X) do
+        for _, wz in ipairs(WHEEL_Z) do
           if (tx - wx) ^ 2 + (y - 3) ^ 2 <= 9 and abs(tz - wz) <= 1 then
             return sw((tx - wx) ^ 2 + (y - 3) ^ 2 <= 1.5 and STEEL or DARK, 3)
           end
@@ -236,18 +245,29 @@ local function build(t)
       return nil
     end
     return nil
-  end, W, D
+  end, W, D, function(x, z)
+    -- emit's colTop: nothing at() answers is above this in the column, so
+    -- the fill pass stops there -- the ship's box keeps the whole height
+    -- (her funnels top out at the box's ytop), the quay what its tile draws
+    if moored and x >= SX0 and x <= SX1 and z >= SZ0 and z <= SZ1 then
+      return SINK + DECK_Y + 34
+    end
+    if x < 0 or x >= W or z < 0 or z >= D then return -1 end
+    local h = TOP[tile(floor(x / 8), floor(z / 8))]
+    return h and (SINK + h) or -1
+  end
 end
 
 function Kit.model(sp, t, mapId)
   if not Kit.MAPS[mapId] then return nil, "not the dock: " .. tostring(mapId) end
-  local at, W, D = build(t)
+  local at, W, D, colTop = build(t)
   -- the water stays the profile's
   local open = { [20] = true }
   local m, why = Lib.model(Kit, sp, t, at, open)
   if not m then return nil, why end
   m.W, m.xmin, m.xmax, m.zmax, m.ytop = W, 0, W - 1, D - 1, Kit.SINK + DECK_Y + 34
   m.sink = Kit.SINK
+  m.colTop = colTop
   return m
 end
 

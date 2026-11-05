@@ -66,11 +66,12 @@ return function(game)
   -- space) and the new (S.spritePlacements, model + offset) the same way,
   -- so two builds meant to upload the same sprite vertices must print the
   -- same numbers.
+  local sumLeft = nil      -- set below: sums the maps never trimmed
   if os.getenv("DS_SHOT_SUM") == "1" then
     local Structures = V.require("Structures")
     local trim = Structures.trim
     local seen = {}
-    Structures.trim = function(mapId, ...)
+    local function sumMap(mapId)
       local S = Structures.peek and Structures.peek({ id = mapId })
       if S and not S.trimmed and not seen[mapId] then
         seen[mapId] = true
@@ -119,8 +120,15 @@ return function(game)
         end
         log(("OBJ %-20s quads %8d  s1 %.17g  s2 %.17g"):format(mapId, n, s1, s2))
       end
+    end
+    Structures.trim = function(mapId, ...)
+      sumMap(mapId)
       return trim(mapId, ...)
     end
+    -- a map is trimmed only once several newer ones are kept, so a short
+    -- run (DS_SHOT_MAPS) would never sum its own maps: the visited ones
+    -- still whole at the end are summed then
+    sumLeft = function(ids) for _, id in ipairs(ids) do sumMap(id) end end
   end
 
   -- DS_SHOT_STILL=1: hold the frame still for a look comparison -- no cloud
@@ -148,6 +156,9 @@ return function(game)
     local c = { id = id, x = 6, y = 6 }
     local ok = Scenes.visit(game, V, c, log)
     local secs = love.timer.getTime() - t0
+    -- the map's own mesh (what the player waits for), apart from the whole
+    -- queue draining (its neighbours' prefetch too) that `secs` waits on
+    local own = Scenes.ownTime and (Scenes.ownTime - t0) or -1
     if not ok then fails = fails + 1 end
     Scenes.shot(OUT, "shot_" .. id)
     collectgarbage("collect")
@@ -169,12 +180,13 @@ return function(game)
     end
     local allQ = 0
     for _, r in ipairs(rows) do allQ = allQ + r.q end
-    log(("%-20s %s  %6.2fs  heap %6.0f MB  quads %8d  | %s"):format(
-      id, ok and "ok  " or "FAIL", secs, heap, allQ, table.concat(parts, "  ")))
+    log(("%-20s %s  %6.2fs (own %5.2fs)  heap %6.0f MB  quads %8d  | %s"):format(
+      id, ok and "ok  " or "FAIL", secs, own, heap, allQ, table.concat(parts, "  ")))
     -- leave the map's own builds behind before the next one is charged
     Scenes.wait(30)
   end
   Perf.setSegment(nil)
+  if sumLeft then sumLeft(MAPS) end
   -- let the last map's slots finish writing before the run ends
   if keepCache then Scenes.wait(240) end
   BuildCache.setting:sync("on")

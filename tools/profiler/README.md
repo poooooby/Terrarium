@@ -41,6 +41,23 @@ anything written in the repo also sits in the installed mod folder.
 `GEN1RECOMP`, `LOVE_EXE`, `LUAJIT` and `POKEPORT_VERSION` override the
 defaults at the top of `run.py`.
 
+Three more work in every driver, because the Harness reads them:
+
+- `DS_JIT_OFF=1` runs the whole driver on LuaJIT's interpreter. That is how
+  LÖVE runs on Android, so it gives the phone's cost shape, but not its CPU
+  speed: a cold Pewter is 2.7 s to its own mesh with the JIT, 5.0 s without.
+- `DS_JP=<mode>` runs LuaJIT's sampling profiler over the run and writes
+  `<name>_jp.txt`. The modes are `luajit -jp`'s: `Flm1` gives functions,
+  then lines, down to 1%; `F` gives functions only.
+- `DS_JV=1` writes the JIT's trace log, `<name>_jv.txt`. It lists every
+  trace aborted and why (a closure, a `pcall`, ...), which `-jp` cannot.
+
+The two front ends (`jit/p.lua`, `jit/v.lua`) are not shipped with LÖVE.
+`run.py` exports them once from the LuaJIT commit LÖVE 11.5 was built from
+(`43d0a19`; its version number is that commit's time) out of a LuaJIT
+checkout at `LUAJIT_REPO` (default `~/luajit`). Newer sources use syntax
+that build cannot parse.
+
 ## Reading a trace
 
 Drop the `.json` from the output directory onto https://ui.perfetto.dev (or

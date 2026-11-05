@@ -47,6 +47,39 @@ OUT_ROOT = Path(os.environ.get("TERRARIUM_PROBE_OUT")
                 or REPO.parent / (REPO.name + "-probe_out"))
 
 
+# LuaJIT's profiler front ends (jit/p.lua, jit/v.lua) for DS_JP / DS_JV.
+# LOVE ships the C half (jit.profile, jit.util) but not these, and they must
+# match the build that parses them: LOVE 11.5's lua51.dll is "LuaJIT
+# 2.1.1700008891", whose suffix is the commit's Unix time -- 43d0a19 -- and
+# LuaJIT's sources since then use syntax (`n += 1`) that build cannot read.
+# So they are exported from that commit of a LuaJIT checkout (LUAJIT_REPO,
+# default ~/luajit) once, beside the probe output. vmdef.lua is generated
+# at build time and not in git: the checkout's own is copied in (the
+# Harness drops its version assert; its tables barely move within 2.1).
+LOVE_LUAJIT_COMMIT = os.environ.get("LOVE_LUAJIT_COMMIT") or "43d0a19"
+LUAJIT_REPO = Path(os.environ.get("LUAJIT_REPO") or Path.home() / "luajit")
+
+
+def jit_lib():
+    dest = OUT_ROOT / (".jitlib-" + LOVE_LUAJIT_COMMIT)
+    if not (dest / "jit" / "p.lua").exists():
+        dest.mkdir(parents=True, exist_ok=True)
+        tar = subprocess.run(["git", "-C", str(LUAJIT_REPO), "archive",
+                              LOVE_LUAJIT_COMMIT, "src/jit"],
+                             capture_output=True, check=True).stdout
+        import io, tarfile
+        with tarfile.open(fileobj=io.BytesIO(tar)) as tf:
+            for m in tf.getmembers():
+                if m.isfile():
+                    name = Path(m.name).relative_to("src")
+                    (dest / name).parent.mkdir(parents=True, exist_ok=True)
+                    (dest / name).write_bytes(tf.extractfile(m).read())
+        vmdef = LUAJIT_REPO / "src" / "jit" / "vmdef.lua"
+        if vmdef.exists():
+            shutil.copy2(vmdef, dest / "jit" / "vmdef.lua")
+    return dest
+
+
 def game_running():
     if os.name != "nt":
         return False
@@ -122,6 +155,8 @@ def main():
         for kv in a.env:
             k, _, v = kv.partition("=")
             env[k] = v
+        if (env.get("DS_JP") or env.get("DS_JV")) and "LUAJIT_SRC" not in env:
+            env["LUAJIT_SRC"] = str(jit_lib())
         print(f"{a.driver} -> {out}  "
               f"({'all mods' if a.all_mods else ' + '.join(keep) + ' only'})")
         t0 = time.time()

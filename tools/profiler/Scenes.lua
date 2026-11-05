@@ -96,13 +96,23 @@ end
 -- once (the old Voxel3D.lampLights test), which is true from the first map
 -- on and let a probe screenshot Vermilion's 2D fallback while its kits
 -- were still building.
+--
+-- Scenes.ownAt: the frame (and love.timer time) the map's OWN mesh was
+-- first there -- what a player waits for. pending() == 0 is more: the
+-- queue also holds the neighbours VoxelScene.prefetch warms, and theirs, so
+-- a cold Lavender "never finished" at 1800 frames while Lavender itself had
+-- been 3D for most of them.
 local function ready(game, V, id, guard)
   local ChunkMesher = V.require("ChunkMesher")
   local Trees3D = V.require("Trees3D")
+  Scenes.ownAt, Scenes.ownTime = nil, nil
   for f = 1, guard or 1800 do
     local map = game.overworld.map
-    if map and map.id == id and ChunkMesher.peek(map, false)
-        and ChunkMesher.pending() == 0
+    local own = map and map.id == id and ChunkMesher.peek(map, false)
+    if own and not Scenes.ownAt then
+      Scenes.ownAt, Scenes.ownTime = f, love.timer.getTime()
+    end
+    if own and ChunkMesher.pending() == 0
         and (Trees3D.buildsInFlight == nil or Trees3D.buildsInFlight() == 0) then
       return f
     end

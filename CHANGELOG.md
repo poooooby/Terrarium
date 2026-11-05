@@ -50,6 +50,11 @@ A first visit to the new maps built far slower than before and grew the game's m
   - Plants on the painted ground are built in their own pass. The turf no longer carries the thin contact shadow at the foot of each plant. In exchange, the ground has 40–48% fewer faces and builds in about half the time.
   - The ground's 34 painted sheets are stored with 128 colours instead of about 400. That takes 17.7 MB to 7.9 MB off the download.
 - Everything else draws exactly as before.
+- **Later, also identical on screen:**
+  - Every built model's voxel grid is now allocated at its full size up front. Before, most of its slots were empty, so every voxel went into a slower kind of table that kept being resized. The tour's build work fell 16% and its meshing 17%. Its worst single stall went from 0.76 s to 0.36 s. Vermilion's own map is ready in 2.1 s instead of 3.4 s.
+  - The Vermilion Dock stops working through the empty air above the quay: 1.5 s becomes 0.8 s.
+  - Rock massifs stop drawing the walls buried between neighbouring cells: 12–26% fewer faces on Pewter and Routes 3, 4, 9, 10 and 22.
+- **The 3D cache knows the code that built it.** A cached map used to be reused by any build of the same version. Now the files' names and sizes are part of its key (29 ms once a session, nothing read), so a changed or hand-edited install builds afresh instead of showing old geometry. A developer's checkout hashes the files' contents too.
 
 ## 1.52.3
 
