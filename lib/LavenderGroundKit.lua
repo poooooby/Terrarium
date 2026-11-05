@@ -159,7 +159,12 @@ function Kit.spec(tileAt, tx, ty, mapId)
            w = d.sheet.w, h = d.sheet.h }
 end
 
-function Kit.model(spec)
+-- `part`, which Buildings.build asks for twice: "ground" answers the slab
+-- alone, so its tops merge as if nothing grew on them (the plants' contact
+-- shadows on the turf go with them); "plants" answers the growth alone, the
+-- slab standing as PHANTOM, so every plant face and its AO are what the
+-- whole cell gave it. nil is the whole cell, for tools and probes.
+function Kit.model(spec, part)
   local d = dataFor(spec.map)
   local cx, cy = spec.cx, spec.cy
   local o = d and cell(spec.map, cx, cy)
@@ -173,7 +178,11 @@ function Kit.model(spec)
     if x >= 0 and x <= 15 and z >= 0 and z <= 15 then
       local i = z * 16 + x + 1
       local b = base[i]
-      if y <= b then return origin + z * SW + x end      -- stone, or turf
+      if y <= b then                                     -- stone, or turf
+        if part == "plants" then return PHANTOM end
+        return origin + z * SW + x
+      end
+      if part == "ground" then return nil end
       local top = b + extra[i]
       if y > top then return nil end
       local g = grows[kind[i]]

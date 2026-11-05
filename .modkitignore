@@ -376,6 +376,7 @@ tools/profiler/flicker_record.py
 tools/profiler/imgdiff.py
 tools/profiler/run.py
 tools/publish_release.ps1
+tools/quantize_ground_sheets.py
 tools/run_autoquality_offline.py
 tools/run_leaf_fall_offline.py
 tools/run_leaf_litter_offline.py

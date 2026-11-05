@@ -123,6 +123,16 @@ return function(game)
     end
   end
 
+  -- DS_SHOT_STILL=1: hold the frame still for a look comparison -- no cloud
+  -- shadow drifting over the ground, no wildlife, no wind in the grass --
+  -- so two shots differ by what was built and not by the moment they took
+  if os.getenv("DS_SHOT_STILL") == "1" then
+    V.require("CloudShade").setting:sync("off")
+    V.require("AmbientLife").setting:sync("off")
+    V.require("Wind").setting:sync(0)
+    log("still frame: cloud shadow, wildlife and wind OFF")
+  end
+
   local function snapCounters()
     local c = {}
     for k, v in pairs(Perf.counters or {}) do c[k] = v end

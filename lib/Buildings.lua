@@ -2129,11 +2129,27 @@ function Buildings.build(S, map, data, perRow)
                   sheets[lay.sheet] = sp
                 end
                 local okM, m, why = false, nil, nil
-                if sp then okM, m, why = pcall(Kit.model, lay) end
+                -- The slab and the growth are emitted APART (see
+                -- LavenderGroundKit.model's `part`). Together, every plant
+                -- cut the turf's flat tops into runs round it -- through the
+                -- crisp-top ring and the corner AO -- and 81% of a Kanto
+                -- map's ground quads were plants or those cuts. Apart, the
+                -- slab merges as if nothing grew on it and each plant is
+                -- drawn as it was (the slab stands under it as PHANTOM).
+                -- What goes is the one-voxel contact shadow the turf wore at
+                -- a plant's foot: kanto_shots_probe, Pewter 558k -> 300k
+                -- ground quads and 6.7 -> 3.2 s, the look signed off against
+                -- still-frame shots of five maps.
+                if sp then okM, m, why = pcall(Kit.model, lay, "ground") end
                 if okM and m then
                   built = emit(m, sp, sp.W, sp.H)
                   built.tex = lay.sheet
                   built.claimMask = m.claimMask
+                  local okP, mp = pcall(Kit.model, lay, "plants")
+                  if okP and mp then
+                    local qp = emit(mp, sp, sp.W, sp.H)
+                    for i = 1, #qp do built[#built + 1] = qp[i] end
+                  end
                 else
                   Buildings.lastError = "lavender ground: "
                                         .. tostring(why or m or Kit)

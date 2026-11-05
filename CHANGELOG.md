@@ -40,6 +40,17 @@ All 226 maps in Red, Blue and Yellow are now built in Terrarium's kit style. Fad
 - **Unchanged:** tall grass, tree colours, the Underground Path, Lorelei's and Agatha's rooms, the link rooms and the Route 23 terraces.
 - **Known leftovers:** the S.S. Anne stairs and bow vents are still raised drawings, and the light-blue backdrop above some interiors is an engine limit.
 
+### Faster, lighter 3D builds
+
+A first visit to the new maps built far slower than before and grew the game's memory to several gigabytes. Measured on desktop with the 3D cache off, over a 16-map tour of Kanto:
+
+- **Memory:** the peak fell from 5.3 GB to under 0.8 GB, and what is still held after the tour from 3.5 GB to 0.5 GB. Models only one map can use are now dropped once you have moved on, and every built face is a single small record instead of eleven.
+- **Build times:** the tour takes 150 s instead of 262 s. Pewter takes 12 s instead of 22 s, Celadon 7.5 s instead of 17 s, Mt. Moon 1F 6.8 s instead of 14 s, the Power Plant 2.9 s instead of 8.9 s. Caves stop drawing the rock buried between their cells, and rooms and caves skip the empty air above their floors.
+- **Two visible changes:**
+  - Plants on the painted ground are built in their own pass. The turf no longer carries the thin contact shadow at the foot of each plant. In exchange, the ground has 40–48% fewer faces and builds in about half the time.
+  - The ground's 34 painted sheets are stored with 128 colours instead of about 400. That takes 17.7 MB to 7.9 MB off the download.
+- Everything else draws exactly as before.
+
 - **Battle hit effects now land on the foe too.** The hit sheet, flash, debris, ground mark and damage number went on your own mon on every blow whenever the game's ANIMATIONS option was off, and on any hit that arrived without a move animation starting first. The mon struck is now read off whichever HP bar is draining. The glass's hit wave had the same bug and the same fix.
 - **HIT FRAMES now controls battles.** Before, the row only covered the J-key demo in free roam, and battle effects played whatever it said. OFF now removes the whole battle hit: typed sheets, projectile, flash, attacker spotlight, debris, ground marks and damage numbers. The aim arc stays. To keep battles looking as they did, **the row now defaults to ON**. If you had saved a setting, it is kept.
 
