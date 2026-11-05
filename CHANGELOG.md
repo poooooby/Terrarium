@@ -26,7 +26,7 @@ Tags and packages:
 - Zip asset: `TERRARIUM-1.50.0.zip`
 - `manifest.json` / catalog `version` field: `1.50.0`
 
-## Unreleased
+## 1.60.0-beta (pre-release)
 
 ### All of Kanto in 3D (by [FadeyMods](https://github.com/FadeyMods), from their 1.53.0-test1 build)
 
