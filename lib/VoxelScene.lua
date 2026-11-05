@@ -271,8 +271,20 @@ local function entityGround(map, e, px, py)
       end
     end
   end
+  -- A clipboard the map pins to a WALL cell (Speary's in Viridian, the
+  -- notices in Mt. Moon's Centre and Silph 5F) hangs on the wall's face:
+  -- stood on the wall's class height it rode on top of the cornice. Its
+  -- foot at 10 puts the board over the dado rail and under the cornice (at
+  -- 8 the rail, a voxel proud of the face, hid its lower half).
+  if e and e.def and e.def.sprite == "SPRITE_CLIPBOARD" and map then
+    local shapes = TileShape.forMap(map)
+    local tx, ty = e.cellX * 2, e.cellY * 2 + 1
+    local s = shapes and TileShape.at(map, shapes, map:tileAt(tx, ty), tx, ty)
+    if s and s.class == "wall" then return VoxelScene.WALL_HANG end
+  end
   return groundAt(map, e.cellX, e.cellY)
 end
+VoxelScene.WALL_HANG = 10
 
 -- Whether what stands on this cell has a FLAT top at groundAt's height, or a
 -- shape carved out of its own artwork.
@@ -858,7 +870,11 @@ local function posesOf(state, spriteColors)
     }
   end
   for _, e in ipairs(state.entities or {}) do
-    if not (state.flyAnim and e == state.player) then
+    -- Not every entity is a figure: the Union Room (Gen1Recomp 0.4.0) puts
+    -- its name-tag overlay in the list, which has no pose at all. One call
+    -- on it threw, and the engine disables a pipeline that throws for the
+    -- rest of the session -- one visit and the whole game stayed flat 2D.
+    if not (state.flyAnim and e == state.player) and e.pose then
       local sprite, vx, vy, facing, phase, flip = e:pose()
       local onWater = e.surfing
       local drawPx, drawPy = vx, e.py
@@ -918,7 +934,14 @@ local function posesOf(state, spriteColors)
       if e == state.player then me = posed[#posed] end
     end
   end
-  return posed, me
+  -- A figure the engine draws itself poses with no sprite (a Union Room
+  -- member's pose() returns nil for it); everything downstream reads
+  -- p.sprite.def, so those are left out of the 3D pass rather than drawn.
+  local drawn = {}
+  for _, p in ipairs(posed) do
+    if p.sprite then drawn[#drawn + 1] = p end
+  end
+  return drawn, me
 end
 
 -- ------- what is worth submitting
@@ -1476,9 +1499,9 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor)
   -- plaster, cloth and wood, one texel per voxel, ruled over the same way.
   local homeDef = (not outdoor) and state.map and state.map.def
   local home = homeDef and LavenderHomeKit.MAPS[homeDef.id or homeDef.name]
-  if homeDef and not home then                      -- ...and Vermilion's three
-    local okV, VKit = pcall(V.require, "VermilionHomeKit")
-    home = okV and VKit and VKit.MAPS and VKit.MAPS[homeDef.id or homeDef.name]
+  if homeDef and not home then             -- ...and every home since (HomeKits)
+    local okH, HomeKits = pcall(V.require, "HomeKits")
+    home = okH and HomeKits.kitFor(homeDef.id or homeDef.name) ~= nil
   end
   if (crypt and Crypt.fxOn()) or (shop and Shop.fxOn()) or home then
     if VoxelGrid.override == nil then
@@ -1743,6 +1766,20 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor)
     if okH and HouseKit and HouseKit.GLASS_UV then
       sheetFx[HouseKit.SHEET] = function(on)
         Voxel3D.lantern(on and HouseKit.GLASS_UV or nil, { 0, 0 })
+      end
+    end
+    -- ...and every town's since (lib/HouseKits.lua), the same way
+    local okHK, HouseKits = pcall(V.require, "HouseKits")
+    if okHK and HouseKits then
+      for _, TKit in ipairs(HouseKits.all()) do
+        -- (a kit for several towns lists every sheet it paints from)
+        for _, sheet in ipairs(TKit.SHEETS or { TKit.SHEET }) do
+          if TKit.GLASS_UV and sheet then
+            sheetFx[sheet] = function(on)
+              Voxel3D.lantern(on and TKit.GLASS_UV or nil, { 0, 0 })
+            end
+          end
+        end
       end
     end
     local okR, ReefKit = pcall(V.require, "ReefKit")

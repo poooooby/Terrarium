@@ -28,6 +28,18 @@ Tags and packages:
 
 ## Unreleased
 
+### All of Kanto in 3D (by [FadeyMods](https://github.com/FadeyMods), from their 1.53.0-test1 build)
+
+All 226 maps in Red, Blue and Yellow are now built in Terrarium's kit style. FadeyMods checked every one in-game in all three versions.
+
+- **Towns and routes:** Pewter, Cerulean, Vermilion, Saffron, Celadon, Fuchsia, Cinnabar and every route between them sit on the painted meadow ground. Their houses, gyms, gates and landmarks are built as real buildings, not raised pixel art.
+- **Mountains:** rock massifs rise as layered rock with heath on top (`lib/MassifKit.lua`). Cave entrances (Mt. Moon, Diglett's Cave, Rock Tunnel, Cerulean Cave, the Route 20 caves) open as arches in the rock (`lib/CaveMouthKit.lua`).
+- **Safari Zone:** meadow ground, round trees, timber fences, rock hills and the rest houses.
+- **Route 23 and Indigo Plateau:** painted ground with a paved path to the League.
+- **Interiors:** every cave; the S.S. Anne (tables, galley, captain's cabin, seats the player is drawn sitting on) and the dock with and without the ship; Silph Co., the Rocket Hideout, the Pokémon Mansion; Celadon's store, Game Corner and Mansion; every gym, the Elite Four rooms and the Hall of Fame; the labs, all the houses and Yellow's beach house.
+- **Unchanged:** tall grass, tree colours, the Underground Path, Lorelei's and Agatha's rooms, the link rooms and the Route 23 terraces.
+- **Known leftovers:** the S.S. Anne stairs and bow vents are still raised drawings, and the light-blue backdrop above some interiors is an engine limit.
+
 - **Battle hit effects now land on the foe too.** The hit sheet, flash, debris, ground mark and damage number went on your own mon on every blow whenever the game's ANIMATIONS option was off, and on any hit that arrived without a move animation starting first. The mon struck is now read off whichever HP bar is draining. The glass's hit wave had the same bug and the same fix.
 - **HIT FRAMES now controls battles.** Before, the row only covered the J-key demo in free roam, and battle effects played whatever it said. OFF now removes the whole battle hit: typed sheets, projectile, flash, attacker spotlight, debris, ground marks and damage numbers. The aim arc stays. To keep battles looking as they did, **the row now defaults to ON**. If you had saved a setting, it is kept.
 

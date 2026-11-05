@@ -227,6 +227,314 @@ return {
       camX = 64, camY = 140, camZ = 330, focY = 30,
       fov = 28, frames = 12, flat = true },
   },
+  -- Red's room and the Copycat's (lib/RedsRoomKit.lua): another plan, the
+  -- same 128x128 box and the same reasons, so the homes' eye.
+  REDS_HOUSE_2F = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  COPYCATS_HOUSE_2F = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  -- Red's ground floor and the Copycat's (lib/RedsHouseKit.lua): the same eye.
+  REDS_HOUSE_1F = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  COPYCATS_HOUSE_1F = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  -- The town houses since (lib/TownHomeKit.lua): the same room, the same eye.
+  BLUES_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  VIRIDIAN_SCHOOL_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_2_TRADE_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  PEWTER_NIDORAN_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  PEWTER_SPEECH_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CERULEAN_TRADE_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CERULEAN_MELANIES_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  DAYCARE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  MR_PSYCHICS_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_12_SUPER_ROD_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  SAFFRON_PIDGEY_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_16_FLY_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  FUCHSIA_BILLS_GRANDPAS_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  BILLS_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  BIKE_SHOP = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CERULEAN_BADGE_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CERULEAN_TRASHED_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  VIRIDIAN_NICKNAME_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  -- The Pokemon Centres (lib/PokecenterKit.lua): one 224x128 room, the
+  -- homes' eye moved back for its width.
+  VIRIDIAN_POKECENTER = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  PEWTER_POKECENTER = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CERULEAN_POKECENTER = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  VERMILION_POKECENTER = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  LAVENDER_POKECENTER = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CELADON_POKECENTER = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  FUCHSIA_POKECENTER = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  SAFFRON_POKECENTER = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CINNABAR_POKECENTER = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  MT_MOON_POKECENTER = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROCK_TUNNEL_POKECENTER = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  -- The gatehouses (lib/GateKit.lua): 160x128 rooms, the homes' eye moved
+  -- back for the width (k = 1 + (W/128 - 1) * 0.45).
+  ROUTE_22_GATE = {
+    { x = 80, z = 64, bx = 80, bz = 64, mode = "fixed",
+      camX = 80, camY = 155, camZ = 360, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_2_GATE = {
+    { x = 80, z = 64, bx = 80, bz = 64, mode = "fixed",
+      camX = 80, camY = 155, camZ = 360, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_11_GATE_1F = {
+    { x = 64, z = 80, bx = 64, bz = 80, mode = "fixed",
+      camX = 64, camY = 155, camZ = 360, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_11_GATE_2F = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  SAFARI_ZONE_CENTER_REST_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  SAFARI_ZONE_EAST_REST_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  SAFARI_ZONE_NORTH_REST_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  SAFARI_ZONE_WEST_REST_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_8_GATE = {
+    { x = 48, z = 64, bx = 48, bz = 64, mode = "fixed",
+      camX = 48, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_7_GATE = {
+    { x = 48, z = 64, bx = 48, bz = 64, mode = "fixed",
+      camX = 48, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  UNDERGROUND_PATH_ROUTE_7 = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  UNDERGROUND_PATH_ROUTE_8 = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_12_GATE_1F = {
+    { x = 80, z = 64, bx = 80, bz = 64, mode = "fixed",
+      camX = 80, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_12_GATE_2F = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_15_GATE_1F = {
+    { x = 64, z = 80, bx = 64, bz = 80, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_15_GATE_2F = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_16_GATE_1F = {
+    { x = 64, z = 112, bx = 64, bz = 112, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_16_GATE_2F = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_18_GATE_1F = {
+    { x = 64, z = 80, bx = 64, bz = 80, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_18_GATE_2F = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  SAFARI_ZONE_GATE = {
+    { x = 64, z = 48, bx = 64, bz = 48, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_5_GATE = {
+    { x = 80, z = 48, bx = 80, bz = 48, mode = "fixed",
+      camX = 80, camY = 155, camZ = 360, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  ROUTE_6_GATE = {
+    { x = 80, z = 48, bx = 80, bz = 48, mode = "fixed",
+      camX = 80, camY = 155, camZ = 360, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  UNDERGROUND_PATH_ROUTE_5 = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  UNDERGROUND_PATH_ROUTE_6 = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  VIRIDIAN_FOREST_SOUTH_GATE = {
+    { x = 80, z = 64, bx = 80, bz = 64, mode = "fixed",
+      camX = 80, camY = 155, camZ = 360, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  VIRIDIAN_FOREST_NORTH_GATE = {
+    { x = 80, z = 64, bx = 80, bz = 64, mode = "fixed",
+      camX = 80, camY = 155, camZ = 360, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
   -- Vermilion's three (lib/VermilionHomeKit.lua): the same room, the same eye.
   VERMILION_OLD_ROD_HOUSE = {
     { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
@@ -283,5 +591,81 @@ return {
     { x = 160, z = 144, bx = 160, bz = 144, mode = "fixed",
       camX = 192, camY = 110, camZ = 400, focY = 8,
       fov = 38, frames = 12, flat = true },
+  },
+  -- the last rooms built: one screen each, the houses' and Centres' shots
+  FUCHSIA_GOOD_ROD_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CELADON_CHIEF_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CELADON_MANSION_ROOF_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CINNABAR_LAB_TRADE_ROOM = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CINNABAR_LAB_METRONOME_ROOM = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CINNABAR_LAB_FOSSIL_ROOM = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  SAFARI_ZONE_SECRET_HOUSE = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CHAMPIONS_ROOM = {
+    { x = 64, z = 64, bx = 64, bz = 64, mode = "fixed",
+      camX = 64, camY = 140, camZ = 330, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  WARDENS_HOUSE = {
+    { x = 80, z = 64, bx = 80, bz = 64, mode = "fixed",
+      camX = 80, camY = 155, camZ = 360, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  HALL_OF_FAME = {
+    { x = 80, z = 64, bx = 80, bz = 64, mode = "fixed",
+      camX = 80, camY = 155, camZ = 360, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  CELADON_HOTEL = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  POKECENTER_2F = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  FUCHSIA_MEETING_ROOM = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
+  },
+  INDIGO_PLATEAU_LOBBY = {
+    { x = 128, z = 96, bx = 128, bz = 96, mode = "fixed",
+      camX = 128, camY = 230, camZ = 520, focY = 30,
+      fov = 30, frames = 12, flat = true },
+  },
+  SUMMER_BEACH_HOUSE = {
+    { x = 112, z = 64, bx = 112, bz = 64, mode = "fixed",
+      camX = 112, camY = 186, camZ = 420, focY = 30,
+      fov = 28, frames = 12, flat = true },
   },
 }

@@ -1653,14 +1653,87 @@ local function stairCell(S, map, data, cx, cy, s)
     end
   end
 
+  -- A stairwell has no drawing of its own: the 2D art shows the flight
+  -- from the side, and stretched down the excavation its railing and
+  -- banding smear into glossy streaks that read as water.  The well's
+  -- faces wear one plain texel instead -- the cell's commonest non-black
+  -- colour -- and darken with depth, so the steps read by light alone.
+  local plainU, plainV
+  if down then
+    local count, best = {}, 0
+    for py = 0, 15 do
+      for px = 0, 15 do
+        local tile = S.tileAt[keyOf(cx * 2 + (px >= 8 and 1 or 0),
+                                    cy * 2 + (py >= 8 and 1 or 0))]
+        if tile then
+          local ax = (tile % perRow) * 8 + px % 8
+          local ay = math.floor(tile / perRow) * 8 + py % 8
+          local r, g, b, a = data:getPixel(ax, ay)
+          if a > 0 and math.max(r, g, b) > 0.17 then
+            local key = math.floor(r * 15 + 0.5) * 256
+                      + math.floor(g * 15 + 0.5) * 16 + math.floor(b * 15 + 0.5)
+            count[key] = (count[key] or 0) + 1
+            if count[key] > best then
+              best = count[key]
+              plainU, plainV = (ax + 0.5) / atlasW, (ay + 0.5) / atlasH
+            end
+          end
+        end
+      end
+    end
+  end
+  local function plainFace(c1, c2, c3, c4, shade)
+    quads[#quads + 1] = { c1, c2, c3, c4,
+      uv = { { plainU, plainV }, { plainU, plainV },
+             { plainU, plainV }, { plainU, plainV } },
+      shade = shade }
+  end
+  -- light falls off down the well: 1 at the floor line, 0.35 at the bottom
+  local function depthShade(y) return 1 - 0.65 * math.min(1, -y / h) end
+
   for i = 0, STAIR_STEPS - 1 do
     local sx0 = east and (i * runW) or (16 - (i + 1) * runW)
     local sx1 = sx0 + runW
     local x0, x1 = mx + sx0, mx + sx1
 
-    if down then
+    if down and plainU then
       -- stairwell: tread i sits (i+1) rises below the floor; the walls
-      -- above it are the excavation, wearing the drawing at its depth
+      -- above it are the excavation, one rise-tall strip at a time so
+      -- each strip takes the light of its own depth
+      local yTop = -(i + 1) * rise
+      plainFace({ x0, yTop, z0 }, { x1, yTop, z0 },
+                { x1, yTop, z1 }, { x0, yTop, z1 },
+                STAIR_SHADE.wellTread * depthShade(yTop))
+      for j = 0, i do
+        local sy0, sy1 = -(j + 1) * rise, -j * rise
+        local k = depthShade((sy0 + sy1) / 2)
+        plainFace({ x0, sy0, z0 }, { x1, sy0, z0 }, { x1, sy1, z0 },
+                  { x0, sy1, z0 }, STAIR_SHADE.wellN * k)
+        plainFace({ x1, sy0, z1 }, { x0, sy0, z1 }, { x0, sy1, z1 },
+                  { x1, sy1, z1 }, STAIR_SHADE.wellS * k)
+      end
+      local rx = east and x0 or x1
+      local ry1 = -i * rise
+      local kr = STAIR_SHADE.riser * 0.8 * depthShade((yTop + ry1) / 2)
+      if east then
+        plainFace({ rx, yTop, z0 }, { rx, yTop, z1 },
+                  { rx, ry1, z1 }, { rx, ry1, z0 }, kr)
+      else
+        plainFace({ rx, yTop, z1 }, { rx, yTop, z0 },
+                  { rx, ry1, z0 }, { rx, ry1, z1 }, kr)
+      end
+      if i == STAIR_STEPS - 1 then
+        local px = east and (mx + 16) or mx
+        if east then
+          plainFace({ px, -h, z1 }, { px, -h, z0 }, { px, 0, z0 }, { px, 0, z1 },
+                    STAIR_SHADE.wellEnd)
+        else
+          plainFace({ px, -h, z0 }, { px, -h, z1 }, { px, 0, z1 }, { px, 0, z0 },
+                    STAIR_SHADE.wellEnd)
+        end
+      end
+    elseif down then
+      -- (no plain texel found: fall back to the drawing)
       local yTop = -(i + 1) * rise
       local dep = (i + 1) * rise
 

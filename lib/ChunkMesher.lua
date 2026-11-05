@@ -764,8 +764,106 @@ local function runGeometry(map, bodyOnly, masks, sink, waterSink)
     return aoSide
   end
 
-  local function topQuad(x0, z0, h, tile, shade)
-    local u0, u1, v0, v1 = uvRect(tile, 0, 8)
+  -- One texel of `tile` (pixel px, py), as a uv rect: a surface that has no
+  -- drawing of its own wears its wall's colour, flat, instead of a strip of
+  -- pixels stretched into stripes.
+  local function uvPixel(tile, px, py)
+    local ax = (tile % perRow) * 8 + px
+    local ay = math.floor(tile / perRow) * 8 + py
+    return (ax + 0.25) / atlasW, (ax + 0.75) / atlasW,
+           (ay + 0.25) / atlasH, (ay + 0.75) / atlasH
+  end
+
+  -- The texel a plain stretch of wall wears: the colour the tile shows
+  -- most, which is the wall's own paint rather than a porthole's rim or a
+  -- window's frame. Read from the atlas once per tile; {0, 0} headless.
+  local okPx, atlasPx = pcall(Assets.imageData, tileset.image)
+  if not (okPx and atlasPx and atlasPx.getPixel) then atlasPx = nil end
+  -- the profile's drawings set into a wall (TileShape.wallArt): only these
+  -- are lifted to the top of the face and kept off the wall's top
+  local wallArt = TileShape.wallArt(tileset.id) or {}
+  -- ...and the objects it names as lying on a furniture top
+  local topArt = TileShape.topArt(tileset.id) or {}
+  local plainOf = {}
+  local function plainTexel(tile)
+    local p = plainOf[tile]
+    if p then return p end
+    p = { 0, 0 }
+    if atlasPx then
+      local ax = (tile % perRow) * 8
+      local ay = math.floor(tile / perRow) * 8
+      local count, first, best = {}, {}, -1
+      for py = 0, 7 do
+        for px = 0, 7 do
+          local r, g, b = atlasPx:getPixel(ax + px, ay + py)
+          local k = math.floor(r * 255) * 65536 + math.floor(g * 255) * 256
+                    + math.floor(b * 255)
+          count[k] = (count[k] or 0) + 1
+          if not first[k] then first[k] = { px, py } end
+          if count[k] > best then best = count[k]; p = first[k] end
+        end
+      end
+    end
+    plainOf[tile] = p
+    return p
+  end
+
+  -- How much of a tile its dominant colour covers, 0..64 (64 headless, so
+  -- every tile counts as plain and the search below stays put).
+  local coverOf = {}
+  local function plainCover(tile)
+    local c = coverOf[tile]
+    if c then return c end
+    c = 64
+    if atlasPx then
+      local p = plainTexel(tile)
+      local ax = (tile % perRow) * 8
+      local ay = math.floor(tile / perRow) * 8
+      local r0, g0, b0 = atlasPx:getPixel(ax + p[1], ay + p[2])
+      c = 0
+      for py = 0, 7 do
+        for px = 0, 7 do
+          local r, g, b = atlasPx:getPixel(ax + px, ay + py)
+          if r == r0 and g == g0 and b == b0 then c = c + 1 end
+        end
+      end
+    end
+    coverOf[tile] = c
+    return c
+  end
+
+  -- The plain paint of the wall a drawing sits in: the nearest tile along
+  -- the same row of the same class that is mostly one colour (a blank
+  -- course). A window drawn as dark blinds is mostly black, and its own
+  -- colour put a black square on top of the wall over every window.
+  -- NIL when the row has no plain course at all: that wall is a TEXTURE
+  -- (a cave's rock face), which tiles by repeating, so the callers keep
+  -- repeating it -- painting it its dominant colour turned Mt. Moon's rock
+  -- walls black.
+  local function wallPaint(tx, ty, cls, tile)
+    if plainCover(tile) >= 48 then return tile, plainTexel(tile) end
+    for dx = 1, 8 do
+      for _, sx in ipairs({ tx - dx, tx + dx }) do
+        local k = keyOf(sx, ty)
+        local ns = S.shapeAt[k]
+        local nt = S.tileAt[k]
+        if ns and ns.authored and ns.class == cls and nt
+           and plainCover(nt) >= 48 then
+          return nt, plainTexel(nt)
+        end
+      end
+    end
+    return nil
+  end
+
+  -- `plain` = a pixel {px, py} of `tile` to wear flat instead of its art
+  local function topQuad(x0, z0, h, tile, shade, plain)
+    local u0, u1, v0, v1
+    if plain then
+      u0, u1, v0, v1 = uvPixel(tile, plain[1], plain[2])
+    else
+      u0, u1, v0, v1 = uvRect(tile, 0, 8)
+    end
     push({ { x0, h, z0 }, { x0 + 8, h, z0 },
            { x0 + 8, h, z0 + 8 }, { x0, h, z0 + 8 } },
          { { u0, v0 }, { u1, v0 }, { u1, v1 }, { u0, v1 } },
@@ -777,7 +875,7 @@ local function runGeometry(map, bodyOnly, masks, sink, waterSink)
   -- Corners run bottom-left, bottom-right, top-right, top-left as seen
   -- from outside; u follows +X on the north/south faces so a door or sign
   -- never draws mirrored.
-  local function sideQuad(d, x0, z0, y0, y1, tile, vTop, vBot, shade)
+  local function sideQuad(d, x0, z0, y0, y1, tile, vTop, vBot, shade, plain)
     local x1, z1 = x0 + 8, z0 + 8
     local c
     if d == 5 then                                       -- south, at z1
@@ -789,7 +887,12 @@ local function runGeometry(map, bodyOnly, masks, sink, waterSink)
     else                                                 -- west, at x0
       c = { { x0, y0, z0 }, { x0, y0, z1 }, { x0, y1, z1 }, { x0, y1, z0 } }
     end
-    local u0, u1, v0, v1 = uvRect(tile, vTop, vBot)
+    local u0, u1, v0, v1
+    if plain then
+      u0, u1, v0, v1 = uvPixel(tile, plain[1], plain[2])
+    else
+      u0, u1, v0, v1 = uvRect(tile, vTop, vBot)
+    end
     push(c, { { u0, v1 }, { u1, v1 }, { u1, v0 }, { u0, v0 } }, shade)
   end
 
@@ -986,6 +1089,7 @@ local function runGeometry(map, bodyOnly, masks, sink, waterSink)
           topQuad(x0, z0, h, topTile, VOLUME_TOP_SHADE)
         else
           local topTile = tile
+          local topStrip, borrowRow = false, nil
           -- A VOID cell draws as the dark itself. The class is "nothing
           -- stands here", and it is pinned onto tiles that are not black
           -- (the tower of graves' grey stock, $11 of CEMETERY) precisely
@@ -1019,23 +1123,62 @@ local function runGeometry(map, bodyOnly, masks, sink, waterSink)
               end
             end
             local row = math.min(ty, front - math.floor(h / 8))
+            -- A face row borrowing the row above the face block for its top
+            -- borrows whatever is DRAWN in that row: the bowl on a cabin
+            -- table (SHIP 26) lay on the apron's top as well as its own
+            -- cell, two bowls in a row. When the borrowed tile is an object
+            -- the profile names as lying on the top (TileShape.topArt), the
+            -- apron's top wears the plain surface of that same row instead
+            -- (wallPaint, below); anything else -- a table's drawn edge
+            -- included -- is borrowed as it always was.
+            -- (furniture only: a wall's courses are one drawing, and a gate's
+            -- glazing borrowed by the course in front of it is the glass
+            -- continuing, not a second object)
+            borrowRow = (s.class ~= "wall" and row >= north and row ~= ty)
+                        and row or nil
             if row < north then
               -- the whole run folded onto the face: top with the drawn
               -- row just above it when that row is furniture too (a
               -- bookcase wearing its shelf-top trim), else with the
               -- run's own top row
               local above = S.shapeAt[keyOf(tx, north - 1)]
-              row = (above and above.authored and above.art == "upright")
-                    and (north - 1) or north
+              if above and above.authored and above.art == "upright" then
+                row = north - 1
+              elseif not wallArt[S.tileAt[keyOf(tx, north)] or tile] then
+                -- the run's top row seen from above, as it always has been
+                -- (Silph Co's dark cap course, a terminal's screen): only a
+                -- drawing the profile names as set INTO the wall stays off
+                -- the top
+                row = north
+              else
+                -- ...but with no cap row above, the run's own top row IS
+                -- the face: a cabin bulkhead drawn one row tall (SHIP's
+                -- porthole, 2/3, at the map's north edge) stood up as its
+                -- 16px face AND lay on top of every one of its cells, so
+                -- each porthole showed two and three times over. The top
+                -- wears the wall's own colour instead (the tile's corner
+                -- texel, flat).
+                row = north
+                topStrip = true
+              end
             end
             topTile = S.tileAt[keyOf(tx, row)]
+          end
+          local plainTop = nil
+          if topStrip then
+            local pt, pp = wallPaint(tx, ty, s.class, topTile)
+            if pt then topTile, plainTop = pt, pp end
+          elseif borrowRow and topArt[topTile] then
+            local pt, pp = wallPaint(tx, borrowRow, s.class, topTile)
+            if pt then topTile, plainTop = pt, pp end
           end
           topQuad(x0, z0, h, topTile,
                   s.art == "upright" and VOLUME_TOP_SHADE
                   or (s.art == "grass" and inBody
                       and map:isGrassCell(math.floor(tx / 2),
                                           math.floor(ty / 2)))
-                     and ChunkMesher.GRASS_BASE_SHADE or 1)
+                     and ChunkMesher.GRASS_BASE_SHADE or 1,
+                  plainTop)
         end
 
         -- sides: 8px bands wherever the neighbour is lower. Band k spans
@@ -1056,6 +1199,7 @@ local function runGeometry(map, bodyOnly, masks, sink, waterSink)
               local y1 = math.min(h, band * 8 + 8)
               if y1 > y0 then
                 local src, shade = tile, Voxel3D.FACE_SHADE[d]
+                local strip, paintP = false, nil
                 if run then
                   -- fold the structure's artwork up this face: band k
                   -- samples the map row k tiles north of the structure's
@@ -1090,15 +1234,60 @@ local function runGeometry(map, bodyOnly, masks, sink, waterSink)
                       break
                     end
                   end
-                  local fk = keyOf(tx, front - band)
-                  local fs = S.shapeAt[fk]
-                  if fs and fs.authored and fs.class == s.class then
-                    src = S.tileAt[fk]
+                  -- A WALL drawn fewer rows than it has bands (a cabin
+                  -- bulkhead is one row of porthole, stood up 16px) wears
+                  -- its drawing in the TOP bands, where a porthole or a
+                  -- window sits -- the Center's high windows are modelled
+                  -- the same way (RoomKit `artTop`) -- and the bands under
+                  -- it in the wall's own colour. Repeating the row instead
+                  -- drew every porthole twice, one over the other, and the
+                  -- lower copy was the one a table in front hid.
+                  local nb = math.ceil(h / 8)
+                  local rows = 1
+                  while rows < nb do
+                    local rs = S.shapeAt[keyOf(tx, front - rows)]
+                    if rs and rs.authored and rs.class == s.class then
+                      rows = rows + 1
+                    else
+                      break
+                    end
+                  end
+                  local lift = 0
+                  local paintT = nil
+                  local isArt = false
+                  for r = 0, rows - 1 do
+                    if wallArt[S.tileAt[keyOf(tx, front - r)] or -1] then
+                      isArt = true
+                      break
+                    end
+                  end
+                  if s.class == "wall" and rows < nb and isArt then
+                    paintT, paintP = wallPaint(tx, ty, s.class,
+                                               S.tileAt[keyOf(tx, front)] or tile)
+                    if paintT then lift = nb - rows end
+                  end
+                  -- (lift > 0 first: beside water the bands start below 0,
+                  -- at the bed, and band -1 < 0 must not read as lifted)
+                  if lift > 0 and band >= 0 and band < lift then
+                    src = paintT
+                    strip = true
+                  else
+                    local fk = keyOf(tx, front - (band - lift))
+                    local fs = S.shapeAt[fk]
+                    if fs and fs.authored and fs.class == s.class then
+                      src = S.tileAt[fk]
+                    end
                   end
                 end
-                sideQuad(d, x0, z0, y0, y1, src,
-                         (band * 8 + 8) - y1, (band * 8 + 8) - y0,
-                         sideShades(hl, hr, y0, y1, y0 <= nh, shade))
+                if strip then
+                  -- one flat texel: the wall's own paint
+                  sideQuad(d, x0, z0, y0, y1, src, 7, 8,
+                           sideShades(hl, hr, y0, y1, y0 <= nh, shade), paintP)
+                else
+                  sideQuad(d, x0, z0, y0, y1, src,
+                           (band * 8 + 8) - y1, (band * 8 + 8) - y0,
+                           sideShades(hl, hr, y0, y1, y0 <= nh, shade))
+                end
               end
             end
           end

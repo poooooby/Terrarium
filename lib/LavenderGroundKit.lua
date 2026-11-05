@@ -45,8 +45,11 @@ local V = ...
 -- `INDEXES`: one per painted WORLD. Lavender and its three routes are one
 -- picture (tools/lavender_ground.py); Vermilion City is another
 -- (tools/vermilion_ground.py), with its own origin -- so a cell's neighbour
--- is only ever looked for inside its own world.
-local Kit = { LIFT = 1, INDEXES = { "lavground_index", "vermground_index" } }
+-- is only ever looked for inside its own world. The meadow world -- Pallet
+-- Town, Route 1 and on -- is a third (tools/kanto_ground.py: a new painter
+-- for the same files).
+local Kit = { LIFT = 1, INDEXES = { "lavground_index", "vermground_index",
+                                    "kantoground_index" } }
 
 local floor = math.floor
 
@@ -96,7 +99,8 @@ local function cell(mapId, cx, cy)
     opened[id] = false
     return nil
   end
-  o = { base = {}, extra = {}, kind = {}, tiles = src.t, claim = src.claim ~= false }
+  o = { base = {}, extra = {}, kind = {}, tiles = src.t, tiles2 = src.t2,
+        claim = src.claim ~= false }
   local whole = #src.b == 1 and src.b:byte(1) - 48 or nil
   for i = 1, 256 do
     o.base[i] = whole or (src.b:byte(i) - 48)
@@ -137,11 +141,12 @@ function Kit.spec(tileAt, tx, ty, mapId)
   local cx, cy = floor(tx / 2), floor(ty / 2)
   local o = cell(mapId, cx, cy)
   if not o then return nil end
-  local t = o.tiles
-  if tileAt(tx, ty) ~= t[1] or tileAt(tx + 1, ty) ~= t[2]
-     or tileAt(tx, ty + 1) ~= t[3] or tileAt(tx + 1, ty + 1) ~= t[4] then
-    return nil
+  -- the four tiles it was painted for, or (t2) another edition's four
+  local function fits(t)
+    return t and tileAt(tx, ty) == t[1] and tileAt(tx + 1, ty) == t[2]
+       and tileAt(tx, ty + 1) == t[3] and tileAt(tx + 1, ty + 1) == t[4]
   end
+  if not (fits(o.tiles) or fits(o.tiles2)) then return nil end
   local d = dataFor(mapId)
   return { map = mapId, cx = cx, cy = cy, sheet = d.entry.sheet,
            w = d.sheet.w, h = d.sheet.h }

@@ -1405,7 +1405,10 @@ local function matches(S, t, tx, ty)
   for r = 1, #tiles do
     local row = tiles[r]
     for c = 1, #row do
-      if S.tileAt[keyOf(tx + c - 1, ty + r - 1)] ~= row[c] then
+      local live = S.tileAt[keyOf(tx + c - 1, ty + r - 1)]
+      -- `alt`: tiles a plan tile may also be at run time (a door a script
+      -- paints in over the floor)
+      if live ~= row[c] and not (t.alt and t.alt[row[c]] and t.alt[row[c]][live]) then
         return false
       end
     end
@@ -1468,7 +1471,11 @@ function Buildings.build(S, map, data, perRow)
           if free then
             for r = 0, bh - 1 do
               for c = 0, bw - 1 do
-                if S.skip[keyOf(tx + c, ty + r)] then
+                -- (`allowSkip`: tiles of the template another pass already
+                -- stands -- a room built round the developer's props, which
+                -- it leaves alone)
+                local k = keyOf(tx + c, ty + r)
+                if S.skip[k] and not (t.allowSkip and t.allowSkip[S.tileAt[k]]) then
                   free = false
                   break
                 end
@@ -1492,17 +1499,29 @@ function Buildings.build(S, map, data, perRow)
                             and "LavenderCivicKit")
                            or (t.id == "pokemon_tower" and towerOn()
                                and "LavenderTowerKit") or nil
-            if lavKit and (map.def.id or map.def.name) == "LAVENDER_TOWN" then
-              local key = tileset.id .. ":" .. index .. "@lavender-civic"
+            -- (...and the Centre and Mart of every town since, the same
+            -- buildings in that town's colours: LavenderCivicKit.TOWNS names
+            -- each town's sheet, its rows the same as Lavender's)
+            local mapId = map.def.id or map.def.name
+            local civicSheet = nil
+            if lavKit == "LavenderCivicKit" then
+              local okC, CKit = pcall(V.require, "LavenderCivicKit")
+              civicSheet = okC and CKit and CKit.TOWNS and CKit.TOWNS[mapId]
+            elseif lavKit and mapId == "LAVENDER_TOWN" then
+              civicSheet = true
+            end
+            if civicSheet then
+              local key = tileset.id .. ":" .. index .. "@lavender-civic:" .. mapId
               if not models[key] then
                 local okK, Kit = pcall(V.require, lavKit)
-                local sp = okK and Kit and readSprite(Kit.SHEET)
-                local tex = sp and loadSpriteImage(Kit.SHEET)
+                local sheet = (type(civicSheet) == "string") and civicSheet or (okK and Kit and Kit.SHEET)
+                local sp = okK and Kit and readSprite(sheet)
+                local tex = sp and loadSpriteImage(sheet)
                 local okM, m, why = false, nil, nil
                 if sp and tex then okM, m, why = pcall(Kit.model, sp, t) end
                 if okM and m then
                   local q = emit(m, sp, sp.W, sp.H)
-                  q.tex = Kit.SHEET
+                  q.tex = sheet
                   models[key] = q
                 else
                   Buildings.lastError = "lavender civic " .. tostring(t.id)
@@ -1536,6 +1555,37 @@ function Buildings.build(S, map, data, perRow)
               end
               if models[key] then built = models[key] end
             end
+            -- ...and every town's buildings since (lib/HouseKits.lua): the
+            -- kit names its map and the templates it takes over, and builds
+            -- per placement, on the same terms.
+            local okHK, HouseKits = pcall(V.require, "HouseKits")
+            local hkName, HKit = nil, nil
+            if okHK and HouseKits then
+              hkName, HKit = HouseKits.kitFor(map.def.id or map.def.name, t.id)
+            end
+            if HKit then
+              local key = tileset.id .. ":" .. index .. "@" .. hkName .. ":"
+                          .. tostring(map.def.id or map.def.name) .. ":" .. tx .. ":" .. ty
+              -- (a kit for several towns paints each from its own sheet)
+              local hkSheet = (HKit.sheetFor and HKit.sheetFor(map.def.id or map.def.name)) or HKit.SHEET
+              if not models[key] then
+                local sp = readSprite(hkSheet)
+                local tex = sp and loadSpriteImage(hkSheet)
+                local okM, m, why = false, nil, nil
+                if sp and tex then
+                  okM, m, why = pcall(HKit.model, sp, t, tx, ty, map.def.id or map.def.name)
+                end
+                if okM and m then
+                  local q = emit(m, sp, sp.W, sp.H)
+                  q.tex = hkSheet
+                  models[key] = q
+                else
+                  Buildings.lastError = hkName .. " " .. tx .. ":" .. ty
+                                        .. ": " .. tostring(why or m)
+                end
+              end
+              if models[key] then built = models[key] end
+            end
             if t.bank then
               -- (`bank`, not `ledge`: the band templates already spell
               -- their awning as `ledge`, and a Center's awning read as
@@ -1551,8 +1601,30 @@ function Buildings.build(S, map, data, perRow)
               -- model stamps and claims nothing, and the profile's ledge
               -- class stands the tiles as it always did.
               built = {}
-              if ledgeOn() then
-                local okL, LedgeKit = pcall(V.require, "LedgeKit")
+              local okL, LedgeKit = pcall(V.require, "LedgeKit")
+              local authored = ledgeOn() and okL and LedgeKit and LedgeKit.AUTHORED
+                               and LedgeKit.AUTHORED[map.def.id or map.def.name]
+              if authored then
+                -- on a painted ground the bank wears that ground's colours,
+                -- from its own sheet (LedgeKit.modelAuthored)
+                local key = "bank@" .. t.id
+                if not models[key] then
+                  local sp = readSprite(LedgeKit.SHEET)
+                  local tex = sp and loadSpriteImage(LedgeKit.SHEET)
+                  local okM, m, why = false, nil, nil
+                  if sp and tex then okM, m, why = pcall(LedgeKit.modelAuthored, sp, t) end
+                  if okM and m then
+                    local q = emit(m, sp, sp.W, sp.H)
+                    q.tex = LedgeKit.SHEET
+                    q.claimMask = m.claimMask
+                    models[key] = q
+                  else
+                    Buildings.lastError = "bank: " .. tostring(why or m)
+                    models[key] = {}
+                  end
+                end
+                built = models[key]
+              elseif ledgeOn() then
                 local g = nil
                 if okL and LedgeKit and LedgeKit.groundFor then
                   local okG, got = pcall(LedgeKit.groundFor, t,
@@ -1648,7 +1720,18 @@ function Buildings.build(S, map, data, perRow)
               built = {}
               local okS, ShopKit = pcall(V.require, "ShopKit")
               if okS and ShopKit and ShopKit.model then
+                -- Yellow's counter runs on to the product wall, Red's and
+                -- Blue's stops a row short (see ShopKit.signature), and the
+                -- whole room -- every band's halo -- follows the plan this
+                -- map has, so the cache is per signature as the crypt's is
+                local sig = nil
+                if ShopKit.signature then
+                  local okG, got = pcall(ShopKit.signature, t,
+                    function(cx, cy) return S.tileAt[keyOf(cx, cy)] end)
+                  if okG then sig = got end
+                end
                 local key = tileset.id .. ":" .. index .. "@shop"
+                            .. (sig and ("@" .. sig) or "")
                 if not models[key] then
                   local rel = spriteRel(ShopKit.SHEET)
                   Buildings.progress.step = "shop:read"
@@ -1659,7 +1742,7 @@ function Buildings.build(S, map, data, perRow)
                   local why = nil
                   if sheet and tex then
                     Buildings.progress.step = "shop:model"
-                    local okM, m, err = pcall(ShopKit.model, sheet, t)
+                    local okM, m, err = pcall(ShopKit.model, sheet, t, sig)
                     if okM and m then
                       Buildings.progress.step = "shop:emit"
                       q = emit(m, sheet, sheet.W, sheet.H)
@@ -1770,13 +1853,67 @@ function Buildings.build(S, map, data, perRow)
                 end
                 built = models["reef@" .. key]
               end
+            elseif t.sign then
+              -- A town sign (lib/SignKit.lua): one board for every sign. An
+              -- empty model on failure, and the profile's card stands.
+              built = {}
+              if not models["sign@board"] then
+                local okK, Kit = pcall(V.require, "SignKit")
+                local sp = okK and Kit and readSprite(Kit.SHEET)
+                local tex = sp and loadSpriteImage(Kit.SHEET)
+                local okM, m, why = false, nil, nil
+                if sp and tex then okM, m, why = pcall(Kit.model, sp) end
+                if okM and m then
+                  local q = emit(m, sp, sp.W, sp.H)
+                  q.tex = Kit.SHEET
+                  models["sign@board"] = q
+                else
+                  Buildings.lastError = "sign: " .. tostring(why or m or Kit)
+                  models["sign@board"] = {}
+                end
+              end
+              built = models["sign@board"]
+            elseif t.cellKit then
+              -- A cell kit: the flowerbeds (lib/FlowerKit.lua), the rocky
+              -- shore (lib/RockShoreKit.lua). `Kit.spec(tileAt, tx, ty, map)`
+              -- says what of this cell it builds (nil: nothing, and the
+              -- empty model stamps and claims nothing); `Kit.model(sp, key)`
+              -- builds it and claims only its own tiles (`claimMask`), so
+              -- what stands beside them keeps its drawing.
+              built = {}
+              local okK, Kit = pcall(V.require, t.cellKit)
+              local mapId = tostring(map.def.id or map.def.name)
+              local key = okK and Kit and Kit.spec and Kit.spec(
+                function(x, y) return S.tileAt[keyOf(x, y)] end, tx, ty, mapId)
+              if key then
+                local mk = t.cellKit .. "@" .. key
+                if not models[mk] then
+                  local sp = readSprite(Kit.SHEET)
+                  local tex = sp and loadSpriteImage(Kit.SHEET)
+                  local okM, m, why = false, nil, nil
+                  if sp and tex then okM, m, why = pcall(Kit.model, sp, key) end
+                  if okM and m then
+                    local q = emit(m, sp, sp.W, sp.H)
+                    q.tex = Kit.SHEET
+                    q.claimMask, q.standH = m.claimMask, m.standH
+                    models[mk] = q
+                  else
+                    Buildings.lastError = t.cellKit .. ": " .. tostring(why or m or Kit)
+                    models[mk] = {}
+                  end
+                end
+                built = models[mk]
+              end
             elseif t.fence then
               -- A timber fence (lib/FenceKit.lua): one model per signature
               -- -- which neighbours carry the run on. An empty model on
               -- failure stamps and claims nothing, and the profile's `post`
               -- class stands the two pegs as it always did.
               built = {}
-              local okK, Kit = pcall(V.require, "FenceKit")
+              -- (a town's own fence names its kit, `fenceKit`: Pallet's
+              -- pickets, lib/PicketFenceKit.lua; Vermilion's is the default)
+              local fenceKit = t.fenceKit or "FenceKit"
+              local okK, Kit = pcall(V.require, fenceKit)
               local joined = map.def.connections or {}
               local sig = okK and Kit and Kit.signature and Kit.signature(
                 function(x, y) return S.tileAt[keyOf(x, y)] end, tx, ty,
@@ -1785,7 +1922,7 @@ function Buildings.build(S, map, data, perRow)
                       or (y < 0 and joined.north ~= nil) or (y >= th and joined.south ~= nil)
                 end)
               if sig then
-                local key = "fence@" .. sig
+                local key = "fence@" .. fenceKit .. ":" .. sig
                 if not models[key] then
                   local sp = readSprite(Kit.SHEET)
                   local tex = sp and loadSpriteImage(Kit.SHEET)
@@ -1855,17 +1992,21 @@ function Buildings.build(S, map, data, perRow)
               local mapId = tostring(map.def.id or map.def.name)
               local key = tileset.id .. ":" .. index .. "@home:" .. mapId
               if not models[key] then
-                local okV, VKit = pcall(V.require, "VermilionHomeKit")
-                local kitName = (okV and VKit and VKit.MAPS and VKit.MAPS[mapId])
-                                and "VermilionHomeKit" or "LavenderHomeKit"
+                -- ...and every home since (lib/HomeKits.lua): the first kit
+                -- whose MAPS names this map builds it, from the sheet it
+                -- names for this map; Lavender's is the default, as it
+                -- always was.
+                local okH, HomeKits = pcall(V.require, "HomeKits")
+                local kitName = okH and HomeKits.kitFor(mapId) or "LavenderHomeKit"
                 local okK, Kit = pcall(V.require, kitName)
-                local sp = okK and Kit and readSprite(Kit.SHEET)
-                local tex = sp and loadSpriteImage(Kit.SHEET)
+                local sheet = okK and Kit and (okH and HomeKits.sheetFor(Kit, mapId) or Kit.SHEET)
+                local sp = sheet and readSprite(sheet)
+                local tex = sp and loadSpriteImage(sheet)
                 local okM, m, why = false, nil, nil
                 if sp and tex then okM, m, why = pcall(Kit.model, sp, t, mapId) end
                 if okM and m then
                   local q = emit(m, sp, sp.W, sp.H)
-                  q.tex = Kit.SHEET
+                  q.tex = sheet
                   q.standH, q.noFigure, q.claimMask = m.standH, m.noFigure, m.claimMask
                   models[key] = q
                 else
@@ -2056,7 +2197,24 @@ function Buildings.build(S, map, data, perRow)
             -- on (a wall's end matches the grass beyond it) -- claim only
             -- its own
             Buildings.progress.phase = "stamp"
-            Buildings.stamp(S, map, built, tx, ty, bw, t.claimRows or bh)
+            -- (a cell the script has painted over -- `alt` -- is not claimed:
+            -- its own tile stands, a door the profile builds)
+            if t.alt and built.claimMask then
+              local mask = {}
+              for r = 0, bh - 1 do
+                for c = 0, bw - 1 do
+                  local i = r * bw + c + 1
+                  mask[i] = built.claimMask[i]
+                    and S.tileAt[keyOf(tx + c, ty + r)] == t.tiles[r + 1][c + 1]
+                end
+              end
+              local own = built.claimMask
+              built.claimMask = mask
+              Buildings.stamp(S, map, built, tx, ty, bw, t.claimRows or bh)
+              built.claimMask = own
+            else
+              Buildings.stamp(S, map, built, tx, ty, bw, t.claimRows or bh)
+            end
             Buildings.progress.phase = "scan"
           end
         end
