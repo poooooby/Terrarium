@@ -426,6 +426,36 @@ local function hangPanel(slot, shot, R, offR, offU, w, faceW, faceH, yaw,
   return px, py, c
 end
 
+-- Which message the panel is showing (see msgPanel's note): the engine's
+-- queue item while there is one, the identity it already had while that
+-- item's lines linger under an animation or a hold, and the lines
+-- themselves otherwise (the menu's own prompt). `prev` is the last answer.
+--
+-- A frame with NOTHING to show holds the identity too. Those are the gaps:
+-- the frames after A, before the next message has typed its first letter,
+-- and a new message's own first frame. The pane is held through them
+-- (msgPanel only repaints it when there are lines), so an identity change
+-- there replayed the pop on the OLD pane -- the message popped again as it
+-- was leaving -- and then the next one popped on its first letter. Measured
+-- in a real fight (tests/battleui_probe.lua): five such pops in two rounds,
+-- one after every message that waited for A.
+local function blank(lines)
+  for i = 1, #(lines or {}) do
+    if lines[i] ~= "" then return false end
+  end
+  return true
+end
+
+function BattlePanelsXY._msgIdentity(battle, msgLines, prev)
+  if prev ~= nil and blank(msgLines) then return prev end
+  local cur = battle and battle.current
+  if type(cur) == "table" then return cur end
+  if battle and (battle.animPlaying or battle.msgHold) and prev ~= nil then
+    return prev
+  end
+  return table.concat(msgLines or {}, "\n")
+end
+
 local function msgPanel(shot, R, B, msgLines, battle)
   S.msg = S.msg or {}
   local now = (love.timer and love.timer.getTime and love.timer.getTime()) or 0
@@ -433,13 +463,23 @@ local function msgPanel(shot, R, B, msgLines, battle)
   -- sized to its text now, and re-rendering it empty between two chained
   -- messages would blink it down to a stub and back up -- a flicker the
   -- old fixed slab never had to think about.
-  local ident
+  --
+  -- A message is WHICH message, not what it says: the engine's own queue
+  -- item (battle.current), one pop per message. Two things went wrong when
+  -- it was the text:
+  --   * the engine clears `current` while a move's animation plays, and
+  --     through a hold after A (msgHold: a faint slide, a hit blink), and
+  --     leaves the message's last two lines up (BattleState drawTextArea's
+  --     own condition; BattleBoxXY reads the same window). The identity fell
+  --     back to those two lines joined -- a different string from the whole
+  --     text -- and the panel popped a second time over the SAME message:
+  --     "used THUNDERSHOCK!" popped again as the bolt went off, and an
+  --     A-to-advance line popped again after the press
+  --   * two different messages with the same words did not pop at all
+  -- So those lingering frames hold the identity they had; the menu's own
+  -- prompt (no current, no animation) is still its own pane.
+  local ident = BattlePanelsXY._msgIdentity(battle, msgLines, S.msgIdent)
   local full = battle and battle.current and battle.current.text
-  if type(full) == "string" and full ~= "" then
-    ident = full
-  else
-    ident = table.concat(msgLines or {}, "\n")
-  end
   if ident ~= S.msgIdent then
     S.msgIdent = ident
     S.msgEnterAt = now

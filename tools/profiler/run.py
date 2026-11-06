@@ -174,6 +174,13 @@ def main():
     moved = [n for n, t in save_stamps(version).items() if stamps.get(n) != t]
     if moved:
         print("WARNING: save files changed during the run:", ", ".join(moved))
+    # a log line can carry what a Windows console code page cannot print
+    # (NIDORAN's sign, tests/battleui_probe.lua): replace it rather than let
+    # the summary raise after the run has already been restored and written
+    try:
+        sys.stdout.reconfigure(errors="replace")
+    except (AttributeError, ValueError):
+        pass
     for log in sorted(out.glob("*.log")):
         print(f"--- {log.name}")
         lines = log.read_text(encoding="utf-8", errors="replace").splitlines()

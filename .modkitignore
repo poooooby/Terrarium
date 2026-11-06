@@ -117,10 +117,12 @@ tests/battleglassfx_probe.lua
 tests/battlehitfx_probe.lua
 tests/battleimpact_probe.lua
 tests/battlemenu_probe.lua
+tests/battlepanel_pop_offline.lua
 tests/battlepanels_probe.lua
 tests/battleribbon_probe.lua
 tests/battlescreen_probe.lua
 tests/battleshot_probe.lua
+tests/battleui_probe.lua
 tests/black_flicker_probe.lua
 tests/build_cache_probe.lua
 tests/build_cache_restore_probe.lua
