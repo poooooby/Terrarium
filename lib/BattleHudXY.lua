@@ -19,10 +19,12 @@
 -- data/hudxy_glyphs.lua for the glyph strips and TROUGH/EXP_SLOT for the two
 -- holes in the frames. Re-cutting the art means re-measuring, not guessing.
 --
--- WHAT IT DOES NOT DO. There is no gender mark. The sheet carries one and
--- Generation 1 has no such field -- gender arrived in Generation 2 -- so
--- drawing it would mean inventing a fact about the mon. The sheet's Mega
--- Evolution badge is unused for the same reason.
+-- THE GENDER MARK is drawn only when a mon HAS a gender. Generation 1 has
+-- no such field -- gender arrived in Generation 2 -- so on a vanilla save
+-- nothing is drawn, and nothing is invented about the mon. A mod that gives
+-- mons one (Kanto-Reforged's `mon.gender` = "M"/"F", the Gen 2 Mon's
+-- "male"/"female") gets its mark beside the name: see genderName below.
+-- The sheet's Mega Evolution badge is unused for the no-such-field reason.
 --
 -- KNOWN ARTEFACT, and it is NOT this file's. A solid blue rectangle sits above
 -- the player's EXP slot, at window x849..958 / y469..478 in a 1024x768 frame,
@@ -338,6 +340,107 @@ local function nativeFont()
   return vecFont or nil
 end
 
+-- ------- the two signs the face does not have
+--
+-- Vera Sans has no MALE SIGN or FEMALE SIGN (U+2642, U+2640): asked through
+-- Font:hasGlyphs, it answers false for both, and love.graphics.print skips a
+-- character the face lacks -- so NIDORAN's ♂ and ♀, and every gender mark a
+-- mod puts in a name, simply vanished from the battle costume. A second
+-- face cannot fill the hole (LOVE's setFallbacks will not mix a vector face
+-- with an image one, and no permissively licensed face ships here), so the
+-- two signs are DRAWN: a ring and a stroke, in the line's own colour, set
+-- in the face's own metrics so they sit on its baseline at its x-height and
+-- scale with it. Everything else in the string is still the face's.
+local MALE, FEMALE = "\xe2\x99\x82", "\xe2\x99\x80"
+local SIGN_AT = "\xe2\x99[\x80\x82]"
+
+-- advance of one sign, in the face's own pixels
+local function signAdvance(f)
+  return f:getAscent() * 0.72
+end
+
+-- one sign with its pen at (px, 0) in face pixels, inside the caller's
+-- translate/scale: the ring sits on the x-height, the stroke comes off it
+local function drawSign(f, which, px)
+  local A = f:getAscent()
+  local base = f:getBaseline()
+  local r = A * 0.2
+  local lw = A * 0.085
+  px = px + A * 0.06          -- a hair of side bearing, like a letter's
+  love.graphics.setLineWidth(lw)
+  if which == FEMALE then
+    local cx, cy = px + A * 0.31, base - A * 0.56
+    love.graphics.circle("line", cx, cy, r)
+    love.graphics.line(cx, cy + r, cx, base + A * 0.02)
+    local my = cy + r + (base - cy - r) * 0.45
+    love.graphics.line(cx - r * 0.75, my, cx + r * 0.75, my)
+  else
+    local cx, cy = px + A * 0.25, base - A * 0.3
+    love.graphics.circle("line", cx, cy, r)
+    local d = r * 0.7071
+    local tx, ty = cx + r * 2.15, cy - r * 2.15
+    love.graphics.line(cx + d, cy - d, tx, ty)
+    love.graphics.line(tx - r * 0.95, ty, tx, ty, tx, ty + r * 0.95)
+  end
+end
+
+-- the string's width in face pixels, signs included
+local function faceWidth(f, text)
+  if not text:find(SIGN_AT) then return f:getWidth(text) end
+  local w, i = 0, 1
+  while i <= #text do
+    local a, b = text:find(SIGN_AT, i)
+    if not a then w = w + f:getWidth(text:sub(i)); break end
+    if a > i then w = w + f:getWidth(text:sub(i, a - 1)) end
+    w = w + signAdvance(f)
+    i = b + 1
+  end
+  return w
+end
+
+-- print `text` in face f at (x, y) and scale s, the signs drawn in place
+local function facePrint(f, text, x, y, s)
+  if not text:find(SIGN_AT) then
+    love.graphics.print(text, x, y, 0, s, s)
+    return
+  end
+  local lw = love.graphics.getLineWidth()
+  love.graphics.push()
+  love.graphics.translate(x, y)
+  love.graphics.scale(s, s)
+  local pen, i = 0, 1
+  while i <= #text do
+    local a, b = text:find(SIGN_AT, i)
+    local run = a and text:sub(i, a - 1) or text:sub(i)
+    if run ~= "" then
+      love.graphics.print(run, pen, 0)
+      pen = pen + f:getWidth(run)
+    end
+    if not a then break end
+    drawSign(f, text:sub(a, b), pen)
+    pen = pen + signAdvance(f)
+    i = b + 1
+  end
+  love.graphics.pop()
+  love.graphics.setLineWidth(lw)
+end
+
+-- `name` with the mon's gender mark after it, when the mon has a gender and
+-- the name does not already carry one (NIDORAN's is part of the species
+-- name, so a NIDORAN♂ is not marked twice -- Kanto-Reforged's own rule).
+-- Read here, beside the name, rather than off the battler's `name` field:
+-- Kanto-Reforged writes the mark into that field only for the length of
+-- the engine's own drawHUDs and puts the plain name back after, so a HUD
+-- drawn anywhere else -- this one -- only ever saw the plain name.
+function BattleHudXY.genderName(mon, name)
+  name = name or ""
+  local g = mon and mon.gender
+  local sign = (g == "M" or g == "male") and MALE
+               or (g == "F" or g == "female") and FEMALE or nil
+  if not sign or name:find(SIGN_AT) then return name end
+  return name .. sign
+end
+
 -- True when this file is spelling with its own face rather than the strips.
 -- Asked per call rather than cached: `ENABLED` and the assets are both things
 -- a probe flips mid-run.
@@ -416,7 +519,7 @@ function BattleHudXY.textWidth(text, tracking)
   if native() then
     local f = nativeFont()
     if not (f and text) then return 0 end
-    return f:getWidth(text) * (FONT_CELL / f:getHeight())
+    return faceWidth(f, text) * (FONT_CELL / f:getHeight())
   end
   local g = glyphData()
   if not (g and text) then return 0 end
@@ -447,10 +550,10 @@ function BattleHudXY.text(text, x, y, h, color)
     love.graphics.setColor(color and color[1] or 1, color and color[2] or 1,
                            color and color[3] or 1, color and color[4] or 1)
     love.graphics.setFont(f)
-    love.graphics.print(text, x, y, 0, s, s)
+    facePrint(f, text, x, y, s)
     if prev then love.graphics.setFont(prev) end
     love.graphics.setColor(1, 1, 1, 1)
-    return f:getWidth(text) * s
+    return faceWidth(f, text) * s
   end
   local g, img = glyphData(), art("font")
   if not (g and img and text) then return 0 end
@@ -581,7 +684,7 @@ function BattleHudXY.read(side)
   local maxHP = (side.curStats and side.curStats.hp) or (mon.stats and mon.stats.hp)
   local now = side.shownHP or mon.hp or 0
   local info = {
-    name = side.name or mon.species or "?",
+    name = BattleHudXY.genderName(mon, side.name or mon.species or "?"),
     level = mon.level or 0,
     hp = math.max(0, math.floor(now + 0.5)),
     maxHP = math.max(1, maxHP or 1),
