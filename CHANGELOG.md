@@ -28,6 +28,58 @@ Tags and packages:
 
 ## Unreleased
 
+### Untamed Tohjo in 3D
+
+[Untamed Tohjo](https://github.com/goldenroddeptstore/untamed-tohjo) puts wild Pokémon and a follower on the map. Its Pokémon already stood in the diorama. Three of its effects were missing in 3D and now show there as they do in 2D:
+
+- **Shiny sparkles** twinkle over their Pokémon. The 3D pass ignored the frame a figure is told to show, so the sparkle stayed on its blank first frame. It also cut every sheet into 16×16 frames, and the sparkle's are 16×24.
+- **The follower's emote bubble** sits on its head in 3D. On Red, Blue and Yellow, Untamed Tohjo paints the bubble over the flat map after the map is drawn, and the diorama never showed that layer. Anything a mod paints there is now carried into the 3D view at the same spot over the same figure.
+- **The Poké Ball** that the follower goes into at the Pokémon Center plays its frames.
+- **Also fixed: the nurse's bow** when she heals your Pokémon now shows in 3D.
+- **For mod authors:** `exports.overlay.add(fn)` draws a picture in the 3D view through the diorama's own camera, as `fn(project, scale, state)`.
+- Everything else draws exactly as before.
+
+### Battle text
+
+- **Messages no longer end early.** "No running from a trainer battle!" stopped at "batt". The box counted the message in bytes, but the game counts it in letters, and every line break and every contraction like 's put it one letter further behind.
+- **No more empty boxes in the middle of a message.** A break that waits for A before scrolling was drawn as a missing letter ("from a▯trainer").
+- **Two lines at a time, as on the cart.** The box now shows the game's own two-line window and scrolls when you press A. Before, it printed the whole message at once.
+- The typing marker on the battle panel now goes away when a message is finished.
+- **♂ and ♀ show in battle.** The battle panels' font has no male or female sign, so NIDORAN♂, NIDORAN♀ and every gender mark disappeared from names and messages. The two signs are now drawn in place, in the text's own colour and size.
+- **Gender marks next to names**, for mods that give Pokémon a gender (Kanto-Reforged, Gen 2-style mons). They now show on the battle HUD and the party cards. Kanto-Reforged only added its mark to the game's own HUD, so Terrarium's panels never saw it. A mon without a gender gets no mark, so vanilla Red/Blue/Yellow looks as before. A NIDORAN keeps the one sign its name already has.
+- **The camera holds when you choose a Pokémon mid-battle.** With g9-battle-sprites' HD party screen on, opening the party (after a knockout, or to switch) pulled the battle camera far back and shrank the party cards to a sixth of their size. That party screen asks the game for a larger screen surface, and the battle's 3D view took its scale from whatever surface was open. The battle now keeps its own.
+
+## 1.60.0-beta (pre-release)
+
+### All of Kanto in 3D (by [FadeyMods](https://github.com/FadeyMods), from their 1.53.0-test1 build)
+
+All 226 maps in Red, Blue and Yellow are now built in Terrarium's kit style. FadeyMods checked every one in-game in all three versions.
+
+- **Towns and routes:** Pewter, Cerulean, Vermilion, Saffron, Celadon, Fuchsia, Cinnabar and every route between them sit on the painted meadow ground. Their houses, gyms, gates and landmarks are built as real buildings, not raised pixel art.
+- **Mountains:** rock massifs rise as layered rock with heath on top (`lib/MassifKit.lua`). Cave entrances (Mt. Moon, Diglett's Cave, Rock Tunnel, Cerulean Cave, the Route 20 caves) open as arches in the rock (`lib/CaveMouthKit.lua`).
+- **Safari Zone:** meadow ground, round trees, timber fences, rock hills and the rest houses.
+- **Route 23 and Indigo Plateau:** painted ground with a paved path to the League.
+- **Interiors:** every cave; the S.S. Anne (tables, galley, captain's cabin, seats the player is drawn sitting on) and the dock with and without the ship; Silph Co., the Rocket Hideout, the Pokémon Mansion; Celadon's store, Game Corner and Mansion; every gym, the Elite Four rooms and the Hall of Fame; the labs, all the houses and Yellow's beach house.
+- **Unchanged:** tall grass, tree colours, the Underground Path, Lorelei's and Agatha's rooms, the link rooms and the Route 23 terraces.
+- **Known leftovers:** the S.S. Anne stairs and bow vents are still raised drawings, and the light-blue backdrop above some interiors is an engine limit.
+
+### Faster, lighter 3D builds
+
+A first visit to the new maps built far slower than before and grew the game's memory to several gigabytes. Measured on desktop with the 3D cache off, over a 16-map tour of Kanto:
+
+- **Memory:** the peak fell from 5.3 GB to under 0.8 GB, and what is still held after the tour from 3.5 GB to 0.5 GB. Models only one map can use are now dropped once you have moved on, and every built face is a single small record instead of eleven.
+- **Build times:** the tour takes 150 s instead of 262 s. Pewter takes 12 s instead of 22 s, Celadon 7.5 s instead of 17 s, Mt. Moon 1F 6.8 s instead of 14 s, the Power Plant 2.9 s instead of 8.9 s. Caves stop drawing the rock buried between their cells, and rooms and caves skip the empty air above their floors.
+- **Two visible changes:**
+  - Plants on the painted ground are built in their own pass. The turf no longer carries the thin contact shadow at the foot of each plant. In exchange, the ground has 40–48% fewer faces and builds in about half the time.
+  - The ground's 34 painted sheets are stored with 128 colours instead of about 400. That takes 17.7 MB to 7.9 MB off the download.
+- Everything else draws exactly as before.
+- **Later, also identical on screen:**
+  - Every built model's voxel grid is now allocated at its full size up front. Before, most of its slots were empty, so every voxel went into a slower kind of table that kept being resized. The tour's build work fell 16% and its meshing 17%. Its worst single stall went from 0.76 s to 0.36 s. Vermilion's own map is ready in 2.1 s instead of 3.4 s.
+  - The Vermilion Dock stops working through the empty air above the quay: 1.5 s becomes 0.8 s.
+  - Rock massifs stop drawing the walls buried between neighbouring cells: 12–26% fewer faces on Pewter and Routes 3, 4, 9, 10 and 22.
+  - The painted ground builds about twice as fast on phones. Model building does less work for every model, the painted ground stops working through empty air, and cells with nothing growing skip their plants pass. On a simulated phone, a first visit to Pewter is ready in 3.8 s instead of 5.0 s, and its whole neighbourhood in 16.8 s instead of 22.3 s. On desktop, 2.7 s becomes 2.4 s.
+- **The 3D cache knows the code that built it.** A cached map used to be reused by any build of the same version. Now the files' names and sizes are part of its key (29 ms once a session, nothing read), so a changed or hand-edited install builds afresh instead of showing old geometry. A developer's checkout hashes the files' contents too.
+
 ## 1.52.3
 
 - **The 3D view now starts ON, at FULL.** Before, a new install stayed in flat 2D until you found the VOXEL row in OPTIONS. Phones have no V key to switch it on by accident, so players took the mod for broken. If you already chose a VOXEL setting, OFF included, it is kept.

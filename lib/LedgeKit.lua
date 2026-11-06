@@ -278,6 +278,101 @@ function LedgeKit.model(sp, t)
            xmin = 0, xmax = C - 1, zmin = 0, zmax = C - 1 }
 end
 
+-- ------------------------------------------------------ authored banks --
+-- On a map whose ground is painted (tools/kanto_ground.py's worlds) the
+-- bank wears that ground's colours from its own sheet instead of the
+-- drawing's: turf rolling over the crest with a clover or two, dry loam on
+-- the steep face with a pebble in it, the dark rim at the foot. The same
+-- strokes, the same height field; only the texels differ.
+LedgeKit.SHEET = "assets/buildings/bank_kit.png"
+LedgeKit.SHEET_W, LedgeKit.SHEET_H = 8, 8
+LedgeKit.AUTHORED = { PALLET_TOWN = true, ROUTE_1 = true, VIRIDIAN_CITY = true,
+                      ROUTE_22 = true, ROUTE_2 = true, PEWTER_CITY = true, ROUTE_3 = true, ROUTE_4 = true, CERULEAN_CITY = true,
+                      ROUTE_24 = true, ROUTE_25 = true, ROUTE_5 = true, ROUTE_9 = true,
+                      SAFFRON_CITY = true, ROUTE_7 = true, CELADON_CITY = true, ROUTE_16 = true, ROUTE_17 = true, ROUTE_18 = true, FUCHSIA_CITY = true, ROUTE_15 = true, ROUTE_14 = true, ROUTE_13 = true, ROUTE_19 = true, ROUTE_20 = true, CINNABAR_ISLAND = true, ROUTE_21 = true }
+
+function LedgeKit.modelAuthored(sp, t)
+  if not sp or sp.W ~= LedgeKit.SHEET_W or sp.H ~= LedgeKit.SHEET_H then
+    return nil, "sheet is not " .. LedgeKit.SHEET_W .. "x" .. LedgeKit.SHEET_H
+  end
+  local TURF, TURF_DK, EARTH, EARTH_DK, RIM, CLOVER, STONE, WOOD = 0, 1, 2, 3, 4, 5, 6, 7
+  local function sw(row, n) return row * 8 + n % 8 end
+  local C = 16
+  -- A gap in a ledge row ($3C, the bridge tile, two of them between one
+  -- run and the next): the drawing lays a short plank crossing there, and
+  -- so does this -- boards across the way through, one voxel thick, the
+  -- seams dark, flush with the turf either side. `t.plank` names the rows.
+  if t.plank then
+    local mask, rows = {}, {}
+    for r = 1, #t.tiles do
+      for c = 1, #t.tiles[r] do
+        local on = t.tiles[r][c] == 60
+        mask[(r - 1) * #t.tiles[1] + c] = on
+        if on then rows[r] = true end
+      end
+    end
+    local function at(x, y, z)
+      if y ~= 0 or x < 0 or x >= C or z < 0 or z >= C then return nil end
+      if not rows[floor(z / 8) + 1] then return nil end
+      if z % 2 == 0 then return sw(WOOD, 1) end             -- the seams
+      return sw(WOOD, 4 + floor(hash2(floor(z / 2), x * 0.37) * 3))
+    end
+    return { at = at, W = C, ytop = 0, claimMask = mask,
+             xmin = 0, xmax = C - 1, zmin = 0, zmax = C - 1 }
+  end
+  local strokes = t.bank
+  if type(strokes) ~= "table" or #strokes == 0 then return nil end
+  local hv, ytop = {}, 0
+  for z = 0, C - 1 do
+    for x = 0, C - 1 do
+      local h = 0
+      for i = 1, #strokes do
+        local v = strokeAt(strokes[i], x, z)
+        if v > h then h = v end
+      end
+      local n = floor(h + 0.5)
+      if n > LedgeKit.H16 then n = LedgeKit.H16 end
+      hv[z * C + x] = n
+      if n > ytop then ytop = n end
+    end
+  end
+  if ytop == 0 then return nil end
+  local function hAt(x, z)
+    if x < 0 or x >= C or z < 0 or z >= C then return 0 end
+    return hv[z * C + x]
+  end
+
+  local function at(x, y, z)
+    if x < 0 or x >= C or z < 0 or z >= C or y < 0 then return nil end
+    local n = hv[z * C + x]
+    if y >= n then return nil end
+    if n == 1 then return sw(RIM, 4) end                   -- the foot
+    -- how steep it is here: the drop to the lowest neighbour
+    local drop = n - math.min(hAt(x - 1, z), hAt(x + 1, z), hAt(x, z - 1), hAt(x, z + 1))
+    if y == n - 1 and drop <= 2 then
+      local r = hash2(x * 3 + 1, z * 5 + y)
+      if r < 0.04 then return sw(CLOVER, 4 + floor(r * 100) % 3) end
+      if r < 0.20 then return sw(TURF_DK, 4 + floor(r * 37) % 3) end
+      return sw(TURF, 3 + floor(hash2(x, z) * 4))
+    end
+    -- the face: loam, darker low down, a pebble now and then
+    local r = hash2(x, y * 7 + z)
+    if r < 0.05 then return sw(STONE, 4) end
+    if y <= 1 then return sw(EARTH_DK, 3 + floor(r * 3)) end
+    return sw(EARTH, 3 + floor(r * 4))
+  end
+
+  local mask = {}
+  local tiles = t.tiles
+  for r = 1, #tiles do
+    for c = 1, #tiles[r] do
+      mask[(r - 1) * #tiles[1] + c] = LedgeKit.ART[tiles[r][c]] and true or false
+    end
+  end
+  return { at = at, W = C, ytop = ytop - 1, claimMask = mask,
+           xmin = 0, xmax = C - 1, zmin = 0, zmax = C - 1 }
+end
+
 -- The tile the bank's top should wear. The candidates are the tiles just
 -- beyond the first stroke's two edges -- the HIGH side first, then the
 -- landing -- inside the cell when the ledge is the cell's lower row or

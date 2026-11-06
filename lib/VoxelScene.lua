@@ -271,8 +271,20 @@ local function entityGround(map, e, px, py)
       end
     end
   end
+  -- A clipboard the map pins to a WALL cell (Speary's in Viridian, the
+  -- notices in Mt. Moon's Centre and Silph 5F) hangs on the wall's face:
+  -- stood on the wall's class height it rode on top of the cornice. Its
+  -- foot at 10 puts the board over the dado rail and under the cornice (at
+  -- 8 the rail, a voxel proud of the face, hid its lower half).
+  if e and e.def and e.def.sprite == "SPRITE_CLIPBOARD" and map then
+    local shapes = TileShape.forMap(map)
+    local tx, ty = e.cellX * 2, e.cellY * 2 + 1
+    local s = shapes and TileShape.at(map, shapes, map:tileAt(tx, ty), tx, ty)
+    if s and s.class == "wall" then return VoxelScene.WALL_HANG end
+  end
   return groundAt(map, e.cellX, e.cellY)
 end
+VoxelScene.WALL_HANG = 10
 
 -- Whether what stands on this cell has a FLAT top at groundAt's height, or a
 -- shape carved out of its own artwork.
@@ -332,7 +344,19 @@ end
 -- (The follow camera used to turn, and this picked the drawing for the side
 -- it stood on. It no longer turns -- 2026-10-29 -- so the compass facing is
 -- always the right drawing again.)
-local function frameFor(def, facing, phase, flip)
+--
+-- `override` is the entity's frameOverride: a frame the engine is told to
+-- show whatever the pose says (the Pokemon Center nurse's bow,
+-- OverworldController's heal; a mod's own animation -- Untamed Tohjo plays
+-- its 21-frame shiny sparkle and its Poke Ball this way). SpriteRenderer:draw
+-- takes it as-is, unflipped, when the sheet has that frame; so does this.
+-- Before it was read here the 3D pass drew the standing frame instead: no
+-- bow, and the sparkle's frame 0, which is blank.
+local function frameFor(def, facing, phase, flip, override)
+  if type(override) == "number" and override >= 0
+     and override < (def.frames or 1) then
+    return override, false
+  end
   local SR = require("src.render.SpriteRenderer")
   local frame, mirror = 0, false
   if (def.frames or 1) > 1 then
@@ -350,9 +374,9 @@ end
 -- beginShadows, which supplies the translucent black; the texture is only
 -- consulted for its alpha, so no palette work is needed.
 local function drawShadow(sprite, px, py, facing, phase, flip, gh, lift,
-                          waterline)
+                          waterline, override)
   local def = sprite.def
-  local frame, mirror = frameFor(def, facing, phase, flip)
+  local frame, mirror = frameFor(def, facing, phase, flip, override)
   local mesh = SpriteBillboards.shadowQuad(def, frame, waterline or 0)
   if not mesh then return end
   Voxel3D.draw(mesh, sprite:resolveImage(),
@@ -558,7 +582,7 @@ local drawModel, drawCaster, drawSnug = {}, {}, {}
 -- `lift` raises the figure off the ground plane (ledge hops arc UP in 3D,
 -- where the 2D path could only slide the sprite north).
 local function drawEntity(sprite, px, py, facing, phase, flip, gh, colors,
-                          lift, waterline, swim)
+                          lift, waterline, swim, override)
   local def = sprite.def
   local tex = sprite:resolveImage()
   if colors and not def.trueColor then
@@ -587,7 +611,7 @@ local function drawEntity(sprite, px, py, facing, phase, flip, gh, colors,
   -- waterline > 0: only the top of the card is built, origin at the
   -- waterline (SpriteBillboards), so a swimming mon is cut by the pond
   -- rather than standing on it.
-  local frame, mirror = frameFor(def, facing, phase, flip)
+  local frame, mirror = frameFor(def, facing, phase, flip, override)
   local mesh = SpriteBillboards.mesh(def, frame, waterline or 0)
   if not mesh then return false end
   -- Camera-ward pull (applied per vertex in the shader, along each
@@ -638,7 +662,7 @@ VoxelScene.drawEntity = drawEntity
 -- mesh for it.
 local function drawGhost(p)
   local def = p.sprite.def
-  local frame, mirror = frameFor(def, p.facing, p.phase, p.flip)
+  local frame, mirror = frameFor(def, p.facing, p.phase, p.flip, p.frameOverride)
   local mesh = SpriteBillboards.shadowQuad(def, frame)
   if not mesh then return end
   local tex = p.sprite:resolveImage()
@@ -847,6 +871,7 @@ local function posesOf(state, spriteColors)
       onWater = onWater,
       sink = sink,
       ent = g.npc,
+      frameOverride = g.npc.frameOverride,
       colors = spriteColors(g.map or state.map),
       -- A ghost stands on a NEIGHBOUR map, and the persistent wear field
       -- bound this frame belongs to the map underfoot. Its world position
@@ -858,7 +883,11 @@ local function posesOf(state, spriteColors)
     }
   end
   for _, e in ipairs(state.entities or {}) do
-    if not (state.flyAnim and e == state.player) then
+    -- Not every entity is a figure: the Union Room (Gen1Recomp 0.4.0) puts
+    -- its name-tag overlay in the list, which has no pose at all. One call
+    -- on it threw, and the engine disables a pipeline that throws for the
+    -- rest of the session -- one visit and the whole game stayed flat 2D.
+    if not (state.flyAnim and e == state.player) and e.pose then
       local sprite, vx, vy, facing, phase, flip = e:pose()
       local onWater = e.surfing
       local drawPx, drawPy = vx, e.py
@@ -907,6 +936,7 @@ local function posesOf(state, spriteColors)
         onWater = onWater,
         sink = sink,
         ent = e,
+        frameOverride = e.frameOverride,
         colors = colors,
         -- Who is doing the walking, for the persistent wear field. Taken
         -- from the entity here rather than guessed at the write site: the
@@ -918,7 +948,14 @@ local function posesOf(state, spriteColors)
       if e == state.player then me = posed[#posed] end
     end
   end
-  return posed, me
+  -- A figure the engine draws itself poses with no sprite (a Union Room
+  -- member's pose() returns nil for it); everything downstream reads
+  -- p.sprite.def, so those are left out of the 3D pass rather than drawn.
+  local drawn = {}
+  for _, p in ipairs(posed) do
+    if p.sprite then drawn[#drawn + 1] = p end
+  end
+  return drawn, me
 end
 
 -- ------- what is worth submitting
@@ -1158,10 +1195,10 @@ local function shadowSignature(terrain, nbMesh, posed, cx, cy, vw, vh)
   put(tostring(terrain))
   for i = 1, #nbMesh do put(tostring(nbMesh[i])) end
   for _, p in ipairs(posed) do
-    put(p.sprite.def.image)
+    put(SpriteBillboards.imageKey(p.sprite.def.image))
     put(p.px); put(p.py); put(p.gh); put(p.lift or 0)
     put(p.facing); put(p.phase); put(p.flip and 1 or 0)
-    put(p.waterline or 0)
+    put(p.waterline or 0); put(p.frameOverride or -1)
   end
   for i = n + 1, #sigBuf do sigBuf[i] = nil end
   return table.concat(sigBuf, ",")
@@ -1259,7 +1296,7 @@ local function castShadows(state, terrain, nbMesh, posed, cx, cy, vw, vh,
   end
   for _, p in ipairs(posed) do
     local def = p.sprite.def
-    local frame, mirror = frameFor(def, p.facing, p.phase, p.flip)
+    local frame, mirror = frameFor(def, p.facing, p.phase, p.flip, p.frameOverride)
     local mesh = SpriteBillboards.shadowQuad(def, frame, p.waterline or 0)
     if mesh then
       ShadowMap.draw(mesh, p.sprite:resolveImage(),
@@ -1476,9 +1513,9 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor)
   -- plaster, cloth and wood, one texel per voxel, ruled over the same way.
   local homeDef = (not outdoor) and state.map and state.map.def
   local home = homeDef and LavenderHomeKit.MAPS[homeDef.id or homeDef.name]
-  if homeDef and not home then                      -- ...and Vermilion's three
-    local okV, VKit = pcall(V.require, "VermilionHomeKit")
-    home = okV and VKit and VKit.MAPS and VKit.MAPS[homeDef.id or homeDef.name]
+  if homeDef and not home then             -- ...and every home since (HomeKits)
+    local okH, HomeKits = pcall(V.require, "HomeKits")
+    home = okH and HomeKits.kitFor(homeDef.id or homeDef.name) ~= nil
   end
   if (crypt and Crypt.fxOn()) or (shop and Shop.fxOn()) or home then
     if VoxelGrid.override == nil then
@@ -1745,6 +1782,20 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor)
         Voxel3D.lantern(on and HouseKit.GLASS_UV or nil, { 0, 0 })
       end
     end
+    -- ...and every town's since (lib/HouseKits.lua), the same way
+    local okHK, HouseKits = pcall(V.require, "HouseKits")
+    if okHK and HouseKits then
+      for _, TKit in ipairs(HouseKits.all()) do
+        -- (a kit for several towns lists every sheet it paints from)
+        for _, sheet in ipairs(TKit.SHEETS or { TKit.SHEET }) do
+          if TKit.GLASS_UV and sheet then
+            sheetFx[sheet] = function(on)
+              Voxel3D.lantern(on and TKit.GLASS_UV or nil, { 0, 0 })
+            end
+          end
+        end
+      end
+    end
     local okR, ReefKit = pcall(V.require, "ReefKit")
     local sheetSway = {}
     if okR and ReefKit then
@@ -1835,7 +1886,7 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor)
     Voxel3D.beginShadows()
     for _, p in ipairs(posed) do
       drawShadow(p.sprite, p.px, p.py, p.facing, p.phase, p.flip, p.gh,
-                 p.lift, p.waterline)
+                 p.lift, p.waterline, p.frameOverride)
     end
     Voxel3D.endShadows()
   end
@@ -1937,7 +1988,7 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor)
     end
     Voxel3D.wet = w
     drawEntity(p.sprite, p.px, p.py, p.facing, p.phase, p.flip, p.gh,
-               p.colors, p.lift, p.waterline, p.onWater)
+               p.colors, p.lift, p.waterline, p.onWater, p.frameOverride)
   end
   Voxel3D.coat = 0
   Voxel3D.wet = 0
@@ -2056,7 +2107,7 @@ function VoxelScene.render(state, w, h, vw, vh, paletteFor)
         end
         if k > 0 then
           local def = p.sprite and p.sprite.def
-          local frame, mirror = frameFor(def, p.facing, p.phase, p.flip)
+          local frame, mirror = frameFor(def, p.facing, p.phase, p.flip, p.frameOverride)
           local mesh, img = snowField.cap(def, frame, k, p.waterline or 0)
           if mesh then
             if not drewOne then

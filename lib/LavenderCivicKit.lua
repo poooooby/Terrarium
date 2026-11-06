@@ -626,4 +626,23 @@ end
 
 Kit.TEMPLATES = { pokecenter = true, pokemart = true }
 
+-- Where this Centre and Mart stand, and from which sheet: Lavender's own,
+-- and every town finished since, each in its own colours on the same rows
+-- (tools/civic_sheets.py recolours this sheet's town rows and keeps the
+-- Centre's red, the Mart's blue and the trim as they are)
+Kit.TOWNS = {
+  LAVENDER_TOWN = "assets/buildings/lavender_civic.png",
+  VIRIDIAN_CITY = "assets/buildings/viridian_civic.png",
+  PEWTER_CITY = "assets/buildings/pewter_civic.png",
+  -- the Centre at Mt. Moon's foot, in the mountain's stone (Pewter's)
+  ROUTE_4 = "assets/buildings/pewter_civic.png",
+  CERULEAN_CITY = "assets/buildings/cerulean_civic.png",
+  -- the Centre at the Rock Tunnel, on the Lavender side: Lavender's own
+  ROUTE_10 = "assets/buildings/lavender_civic.png",
+  SAFFRON_CITY = "assets/buildings/saffron_civic.png",
+  CELADON_CITY = "assets/buildings/celadon_civic.png",
+  FUCHSIA_CITY = "assets/buildings/fuchsia_civic.png",
+  CINNABAR_ISLAND = "assets/buildings/cinnabar_civic.png",
+}
+
 return Kit

@@ -584,6 +584,43 @@ function TileShape.bookcaseBackfill(tilesetId)
   return mode == "above" and mode or nil
 end
 
+-- The tiles a tileset draws INTO a wall as one object -- a porthole, a
+-- window, an emblem (a tileset entry's `wall_art`, a list of ids). A wall
+-- drawn fewer rows than it stands tall would otherwise repeat such a
+-- drawing up its face and lay it again on its top; named here, the
+-- drawing is worn once, high on the face, and the wall's plain paint
+-- fills the rest (lib/ChunkMesher.lua). Named, not detected: a terminal
+-- block's screen or a cap course is the same shape to the mesher and wants
+-- the old fold. Returns a set, or nil.
+local artCache = {}
+
+-- A tileset entry's list `key` (a list of tile ids) as a set, or nil.
+local function tileSet(tilesetId, key)
+  local ck = tostring(tilesetId) .. "/" .. key
+  local hit = artCache[ck]
+  if hit ~= nil then return hit or nil end
+  local s = load()
+  local entry = s and s.tilesets and s.tilesets[tilesetId]
+  local list = entry and entry[key]
+  local out, any = {}, false
+  if type(list) == "table" then
+    for _, t in ipairs(list) do
+      if type(t) == "number" then out[t] = true; any = true end
+    end
+  end
+  artCache[ck] = any and out or false
+  return artCache[ck] or nil
+end
+
+function TileShape.wallArt(tilesetId) return tileSet(tilesetId, "wall_art") end
+
+-- The objects a tileset draws LYING ON a furniture top -- a plate, a book
+-- (a tileset entry's `top_art`). The front row of a table borrows the row
+-- above it for its own top; when that row is one of these, the borrowed
+-- top is the plain surface beside it instead, so the plate is not laid
+-- twice (lib/ChunkMesher.lua).
+function TileShape.topArt(tilesetId) return tileSet(tilesetId, "top_art") end
+
 -- Drop the cache: a mod that shadows data/voxel_heights.lua or a tileset
 -- record needs the next lookup to re-resolve (hot reload, mod toggle).
 function TileShape.invalidate()
@@ -591,6 +628,7 @@ function TileShape.invalidate()
   cache = {}
   figCache = {}
   bgCache = {}
+  artCache = {}
 end
 
 return TileShape

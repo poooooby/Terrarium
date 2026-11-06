@@ -242,10 +242,11 @@ local LOW, HIGH = 1.3, 1.5
 local function roomScale()
   local okS, Scene = pcall(V.require, "BattleScene")
   if not (okS and Scene and Scene.pixelSize and Scene.GB_W) then return 1 end
-  local okR, Renderer = pcall(require, "src.render.Renderer")
-  if not (okR and Renderer) then return 1 end
   local okP, pw = pcall(Scene.pixelSize)
-  local okFit, s = pcall(Renderer.fitScale, Renderer)
+  -- the battle's own scale, not the UI surface's: a party screen that asks
+  -- for a bigger surface must not change how far the attack camera swings
+  -- (see BattleScene.fitScale)
+  local okFit, s = pcall(Scene.fitScale)
   if not (okP and okFit and pw and s and s > 0) then return 1 end
   local ratio = pw / (Scene.GB_W * s)
   if ratio <= LOW then return 0 end

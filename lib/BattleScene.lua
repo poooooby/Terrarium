@@ -91,10 +91,40 @@ local INDOOR_SHADE = 4
 -- blits the 160x144 UI canvas into a centred, integer-scaled letterbox. So
 -- these have to agree with Renderer:endFrame exactly, or the pins land off
 -- the mons by however much they disagree.
-function BattleScene.letterbox()
+--
+-- The scale is the BATTLE's, not the UI surface's of the moment.
+-- Renderer:fitScale divides the window by whatever surface Game:draw sized
+-- this frame, and Game:draw sizes it from the TOP state -- so a screen
+-- opened over the battle that asks for its own surface takes the scale with
+-- it. g9-battle-sprites' party screen asks for 640x576 (its HD party page,
+-- Renderer's own ceiling): on a 1659x951 window the scale fell from 6 to 1,
+-- letterboxFov below widened the lens about sixfold -- the camera "fell way
+-- back" the moment the party opened after a knockout -- and every panel
+-- sized off the scale, this mod's own party cards included, shrank to a
+-- sixth in the middle of the frame. The staged battle is composed for the
+-- 160x144 frame whatever is on top (OverworldBattle.forceOG), so the scale
+-- is the engine's own fitScale arithmetic asked about THAT surface: the
+-- same function, run against a stand-in whose uiSize is the GB frame.
+local fitProbe = nil
+function BattleScene.fitScale()
   local Renderer = require("src.render.Renderer")
+  local w, h = Renderer:uiSize()
+  if w == BattleScene.GB_W and h == BattleScene.GB_H then
+    return Renderer:fitScale()
+  end
+  if not fitProbe then
+    fitProbe = setmetatable({
+      uiSize = function() return BattleScene.GB_W, BattleScene.GB_H end,
+    }, { __index = Renderer })
+  end
+  local ok, s = pcall(Renderer.fitScale, fitProbe)
+  if ok and type(s) == "number" and s >= 1 then return s end
+  return Renderer:fitScale()
+end
+
+function BattleScene.letterbox()
   local pw, ph = BattleScene.pixelSize()
-  local s = Renderer:fitScale()
+  local s = BattleScene.fitScale()
   return math.floor((pw - BattleScene.GB_W * s) / 2),
          math.floor((ph - BattleScene.GB_H * s) / 2),
          s, pw, ph

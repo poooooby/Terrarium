@@ -109,6 +109,7 @@ tests/battle_nav_probe.lua
 tests/battle_theme_probe.lua
 tests/battle_vanish_probe.lua
 tests/battlebox_probe.lua
+tests/battlebox_text_offline.lua
 tests/battlecapsule_probe.lua
 tests/battledynamic_probe.lua
 tests/battlefan_probe.lua
@@ -124,6 +125,7 @@ tests/black_flicker_probe.lua
 tests/build_cache_probe.lua
 tests/build_cache_restore_probe.lua
 tests/build_veil_probe.lua
+tests/buildcache_code_probe.lua
 tests/buildings_baseline_probe.lua
 tests/buildings_perf_probe.lua
 tests/calm_probe.lua
@@ -159,6 +161,7 @@ tests/grass_wear_shot.lua
 tests/ground_grid_dump.lua
 tests/hearth_probe.lua
 tests/hudxy_probe.lua
+tests/kanto_shots_probe.lua
 tests/lamp_card_probe.lua
 tests/lamppost_probe.lua
 tests/lavender_shots_probe.lua
@@ -291,6 +294,7 @@ tests/treevox_probe.lua
 tests/underpass_rail_probe.lua
 tests/underpass_rail_report.py
 tests/underpass_rt_cost_probe.lua
+tests/untamed_probe.lua
 tests/veg_probe.lua
 tests/visual_ab_probe.lua
 tests/void_cost_probe.lua
@@ -375,6 +379,7 @@ tools/profiler/flicker_record.py
 tools/profiler/imgdiff.py
 tools/profiler/run.py
 tools/publish_release.ps1
+tools/quantize_ground_sheets.py
 tools/run_autoquality_offline.py
 tools/run_leaf_fall_offline.py
 tools/run_leaf_litter_offline.py

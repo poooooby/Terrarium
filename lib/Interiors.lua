@@ -69,11 +69,22 @@ Interiors.HOMES = {
   BEACH_HOUSE = true,
 }
 
+-- A room an authored home kit builds (lib/HomeKits.lua) lays its own table:
+-- its cups stand where its furniture is. The mug below is placed by the
+-- profile's tile classes, which in such a room no longer say where a top
+-- is -- the Copycat's ground floor put one on a bookcase's lid and two in
+-- the air beside the table -- so it stays out of those rooms.
+local function kitBuilt(map)
+  local ok, HomeKits = pcall(V.require, "HomeKits")
+  return ok and HomeKits and HomeKits.kitFor(map.def.id or map.def.name) ~= nil
+end
+
 local function isHome(map)
   if not (map and map.def) then return false end
   if Map.isOutdoor(map.def) then return false end
   local tileset = map.def.tileset
-  return (tileset and Interiors.HOMES[tileset]) and true or false
+  if not (tileset and Interiors.HOMES[tileset]) then return false end
+  return not kitBuilt(map)
 end
 
 -- ------- the hash

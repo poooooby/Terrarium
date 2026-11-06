@@ -15,9 +15,10 @@
 -- what the message says, and how fast it types. All of it is read off the
 -- battle every frame: `menuIndex` (1..4 in reading order, found by moving
 -- the cursor and watching which field changed), `moveIndex`,
--- `player.curMoves`, `current.text`, and `charIndex`, which is the
--- typewriter's own cursor -- honouring it is what keeps the text appearing
--- a letter at a time instead of all at once.
+-- `player.curMoves`, and the message as the engine is typing it: its
+-- rolling two-line window (`shown`, glyphs typed per visible line, over
+-- `lines`, the message cut at its breaks) -- honouring it is what keeps the
+-- text appearing a letter at a time, two lines at a time, as on the cart.
 --
 -- EVERYTHING FITS IN THE BOX'S OWN RECT. The first cut of this menu grew
 -- the panel to 1.9x the box's height, full width -- measured on a 1080p
@@ -237,6 +238,110 @@ end
 
 BattleBoxXY._revealed = revealed     -- named for the suite
 
+-- ------- the message as the engine types it
+--
+-- The engine's battle box (src/battle/BattleState.lua startMessage) cuts a
+-- message at BOTH of its breaks -- \n, the next line, and \v, CONT: the
+-- blinking arrow, a wait for A, and a scroll -- and types it into a ROLLING
+-- TWO-LINE window, `shown`, one array of glyph codes per visible line, over
+-- `lines`, each break's chunk of text. `charIndex` counts GLYPHS typed over
+-- the whole message, not bytes.
+--
+-- This box used to read `current.text` cut at `charIndex` and split on
+-- \n alone, which was right for the engine it was written against and wrong
+-- for this one three ways at once, all in the same message:
+--
+--   * a \v was never split on, so it reached the font and drew as the
+--     missing-glyph box ("from a\vtrainer" -> "from a[]trainer")
+--   * glyphs are fewer than bytes -- every break is a byte and no glyph,
+--     and Gen 1's contractions ('s 'd 'l 't 'v 'r 'm) are two bytes and one
+--     glyph -- so the cut fell short, and short by more the longer the
+--     message ran: "trainer battle!" ended "batt"
+--   * every line showed at once, where the cart shows two and scrolls
+--
+-- So the window is read off the engine instead: each visible line's text,
+-- cut after as many glyphs as the engine has typed into it. The cut goes
+-- through Font.split -- the engine's own segmentation, one span per glyph
+-- (src/render/Font.lua; Font.encode is one code per span) -- so it lands
+-- exactly where the engine's count does, ligatures and accents included.
+-- Each line's glyph ends are worked out once and kept.
+local Font = nil
+local glyphEndsOf, nGlyphEnds = {}, 0
+
+local function glyphEnds(text)
+  local e = glyphEndsOf[text]
+  if e then return e end
+  if Font == nil then
+    local ok, F = pcall(require, "src.render.Font")
+    Font = (ok and type(F) == "table" and F.split) and F or false
+  end
+  e = {}
+  if Font then
+    local ok, spans = pcall(Font.split, text)
+    if ok and type(spans) == "table" then
+      for k = 1, #spans do e[k] = spans[k].to end
+    end
+  end
+  if #e == 0 and #text > 0 then
+    -- no Font to ask: one glyph per UTF-8 character, the old backstop
+    local k = 0
+    for i = 1, #text do
+      local b = text:byte(i)
+      if b < 0x80 or b >= 0xC0 then k = k + 1 end
+      e[k] = i
+    end
+  end
+  if nGlyphEnds >= 256 then glyphEndsOf, nGlyphEnds = {}, 0 end
+  glyphEndsOf[text] = e
+  nGlyphEnds = nGlyphEnds + 1
+  return e
+end
+
+-- `text` after its first `k` glyphs.
+local function glyphPrefix(text, k)
+  if k <= 0 or text == "" then return "" end
+  local e = glyphEnds(text)
+  if k >= #e then return text end
+  return text:sub(1, e[k])
+end
+
+BattleBoxXY._glyphPrefix = glyphPrefix   -- named for the suite
+
+-- The engine's visible lines, as typed so far, or nil when this engine has
+-- no rolling window to read (then the old charIndex cut stands in). Only
+-- while the engine itself draws the window: a message on, or the move's
+-- animation playing under the "used X!" it left up (BattleState
+-- drawTextArea's own condition -- pokered never clears the box for one).
+local function engineLines(battle)
+  local L, shown, li = battle.lines, battle.shown, battle.lineIndex
+  if type(L) ~= "table" or type(shown) ~= "table" or type(li) ~= "number" then
+    return nil
+  end
+  if not (battle.current or battle.animPlaying or battle.msgHold) then
+    return {}
+  end
+  local out, count = {}, #shown
+  for j = 1, count do
+    local ln = L[li - count + j]
+    local typed = type(shown[j]) == "table" and #shown[j] or 0
+    out[#out + 1] = (ln and type(ln.text) == "string")
+                    and glyphPrefix(ln.text, typed) or ""
+  end
+  return out
+end
+
+BattleBoxXY._engineLines = engineLines   -- named for the suite
+
+-- Whether the message is still being typed: glyphs typed against the
+-- engine's total, or (an engine without one) bytes against the text.
+function BattleBoxXY.typing(battle)
+  local ci = battle and battle.charIndex
+  if type(ci) ~= "number" then return false end
+  if type(battle.total) == "number" then return ci < battle.total end
+  local full = battle.current and battle.current.text
+  return type(full) == "string" and ci < #full
+end
+
 -- The message, split on the engine's own newlines. No re-wrapping: the engine
 -- decided where the breaks go and it knows about the box it wrote them for.
 local function lines(text)
@@ -393,8 +498,11 @@ end
 
 -- ------- the message, typed into a panel
 local function drawMessage(battle, x, y, w, h, shot)
-  local msg = battle.current and battle.current.text
-  local shownLines = lines(revealed(msg, battle.charIndex))
+  local shownLines = engineLines(battle)
+  if not shownLines then
+    local msg = battle.current and battle.current.text
+    shownLines = lines(revealed(msg, battle.charIndex))
+  end
 
   local P = panels3d()
   if P and shot then
@@ -439,8 +547,10 @@ end
 -- LAYOUT owes the player when there is not (see the note above drawMenu's
 -- old body -- the engine's WideBattle prints it beside the commands).
 local function menuLines(battle)
-  local shown = revealed(battle.current and battle.current.text,
-                         battle.charIndex)
+  local typed = battle.current and engineLines(battle)
+  if typed and #typed > 0 and table.concat(typed) ~= "" then return typed end
+  local shown = typed and "" or revealed(battle.current and battle.current.text,
+                                         battle.charIndex)
   if shown ~= "" then return lines(shown) end
   if not battle.demo then
     local who = (battle.player and battle.player.name) or ""

@@ -125,6 +125,11 @@ are not included for licensing reasons, and the mod works fine without them.
   under **LANGUAGE**), Breno's final unreleased build merged in, every gameplay
   change removed so it is purely visual, the dark glass battle theme, and
   performance and compatibility fixes. See [`CHANGELOG.md`](CHANGELOG.md).
+- **[FadeyMods](https://github.com/FadeyMods)** (contributor): the rest of
+  Kanto in 3D. The painted ground of the towns and routes, the rock massifs
+  and cave mouths, the Safari Zone, Route 23 and the Indigo Plateau, and the
+  kits for the caves, the S.S. Anne, Silph Co., the gyms, the Elite Four, the
+  labs and the houses.
 - **[bryanthaboi](https://github.com/bryanthaboi/gen1recomp)** and the
   Gen1Recomp contributors, for the engine and its mod platform.
 - **Roy Stan's [Toon Water Shader](https://roystan.net/articles/toon-water/)**,

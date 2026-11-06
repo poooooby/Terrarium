@@ -267,7 +267,8 @@ local function partyCard(game, mon, x, y, w, h, opts)
 
   local def = game.data and game.data.pokemon
               and game.data.pokemon[mon.species]
-  local name = mon.nickname or (def and def.name) or tostring(mon.species)
+  local name = BattleHudXY.genderName(mon,
+    mon.nickname or (def and def.name) or tostring(mon.species))
   local dimA = a * (fnt and 0.55 or 1)
   local th = h * 0.24
   local lv = "Lv." .. tostring(mon.level)

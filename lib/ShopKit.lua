@@ -632,23 +632,38 @@ end
 
 local CTOP = 10                    -- the counter's top face, 0.96 m
 
+-- The NORTH CAP is Yellow's. In Yellow the counter's L runs on up to the
+-- product wall: plan rows 4-5, cells 0-3 are counter (90 91 / 25 24). In
+-- Red and Blue those four cells are floor (54 11 / 26 27) and the counter
+-- stops a row short, open at its north end -- so the mid band, written
+-- against Yellow's plan, matched no Red or Blue Mart at all, and the west
+-- shelf and both gondolas fell back to extruded tile boxes there. Which
+-- plan a Mart has is read off the map (ShopKit.signature), and every band
+-- of that Mart -- the north band's halo reaches into the cap's row too --
+-- reads the room with the cap on or off accordingly; see `withCap` below.
+local northCap = true
+
 -- Is this column part of the counter's L? The clerk's own cell (x 0..15,
 -- z 80..95) is deliberately not: he is an NPC the game walks, and a counter
 -- drawn through him is a counter drawn through him.
 local function onCounter(x, z)
   if x < 0 or x > 31 then return false end
-  if z >= 32 and z <= 47 then return true end            -- the north cap
+  if z >= 32 and z <= 47 then return northCap end        -- the north cap
   if z >= 96 and z <= 111 then return true end           -- the south cap
   return x >= 16 and z >= 48 and z <= 95                 -- the run
 end
 
 local function counter(x, y, z)
   if not onCounter(x, z) or y >= CTOP then return nil end
+  -- the counter's north end: the cap's face on Yellow, the run's own end
+  -- on Red and Blue, where it stops a row short (see `northCap`). The nose,
+  -- the toe kick and the edge band below belong to whichever it is.
+  local nz = northCap and 32 or 48
   if y >= CTOP - 2 then
     -- the worktop's NOSE: the last course is cut back one voxel on every
     -- edge that faces the room, so the top reads as a rolled edge over an
     -- overhanging slab rather than as the lid of a box
-    if y == CTOP - 1 and (x >= 31 or z >= 111 or z <= 32) then return nil end
+    if y == CTOP - 1 and (x >= 31 or z >= 111 or z <= nz) then return nil end
     -- ...and its SEAMS. A four-metre laminate top is not one sheet, and
     -- the unbroken slab was the second largest flat surface in the room.
     -- Every 28 along the run -- two counter modules, which is where a
@@ -658,10 +673,10 @@ local function counter(x, y, z)
   end
   if y <= 1 then                                         -- the toe kick
     if x <= 17 and z >= 48 and z <= 95 then return nil end
-    if x >= 30 or z >= 110 or z <= 33 then return nil end
+    if x >= 30 or z >= 110 or z <= nz + 1 then return nil end
     return tx("kick", x, z)
   end
-  if y == CTOP - 3 and (x == 31 or z == 111 or z == 32) then
+  if y == CTOP - 3 and (x == 31 or z == 111 or z == nz) then
     return tx("counter_ed", x, y)                        -- the edge band
   end
   -- ------- the front, PANELLED
@@ -1401,7 +1416,9 @@ local CONTACT_SLICES = { 1, 5, 10, 18 }
 local K_NEAR, K_WIDE = 0.34, 0.30     -- the seam, and the pool
 local R_NEAR, R_WIDE = 1, 5           -- voxels; 5 = half a metre of penumbra
 
-local contactField                    -- baked once; see bakeContact
+-- baked once per counter variant (with and without the north cap); see
+-- bakeContact
+local contactFields = {}
 
 -- separable box blur over the room's plan. Two axes, one pass: a box is a
 -- coarse tent, but the field it blurs is already a 0..1 occupancy and the
@@ -1439,6 +1456,7 @@ end
 -- what keeps the shadow continuous across the seam -- a per-band field
 -- would have drawn a step down the middle of the floor.
 local function bakeContact()
+  local contactField = contactFields[northCap]
   if contactField then return contactField end
   local Wd, D = ShopKit.ROOM_W, ShopKit.ROOM_D
   local near, wide = {}, {}
@@ -1455,6 +1473,7 @@ local function bakeContact()
     wide[s] = blurPlan(occ, R_WIDE)
   end
   contactField = { near = near, wide = wide }
+  contactFields[northCap] = contactField
   return contactField
 end
 
@@ -1617,6 +1636,26 @@ end
 local FLOOR_TILE = { [1] = true, [11] = true, [17] = true, [27] = true,
                      [54] = true, [26] = true, [12] = true, [28] = true }
 
+-- Which counter this Mart has: "cap" (Yellow) or "open" (Red, Blue), read
+-- off the plan cell the cap would stand in. The bands are pinned to the
+-- room's corner (`where` in data/voxel_heights.lua), so the cell is the
+-- same for every band. Called by Buildings.build, which caches one model
+-- per (band, signature), the way lib/CryptKit.lua's signature works.
+function ShopKit.signature(_, tileAt)
+  return tileAt(0, 4) == 90 and "cap" or "open"
+end
+
+-- Run `fn` with the counter's north cap as signature `sig` says, and put
+-- the default back after, so a Yellow Mart built in the same session (or a
+-- headless caller of ShopKit.room) never sees the Red/Blue room.
+local function withCap(sig, fn, ...)
+  local prev = northCap
+  northCap = sig ~= "open"
+  local a, b2 = fn(...)
+  northCap = prev
+  return a, b2
+end
+
 local function claimMaskFor(b, t)
   local rows, cols = #t.tiles, #t.tiles[1]
   local mask = {}
@@ -1639,8 +1678,10 @@ local function claimMaskFor(b, t)
   return mask
 end
 
--- The model for one band. `t.shop` names it.
-function ShopKit.model(sp, t)
+-- The model for one band. `t.shop` names it; `sig` is ShopKit.signature's
+-- answer for the Mart it stands in (nil means Yellow's plan, the one the
+-- kit was first written against).
+function ShopKit.model(sp, t, sig)
   local b = BAND_DEF[t.shop]
   if not b then return nil, "unknown band " .. tostring(t.shop) end
   if not ShopKit.sheetOk(sp) then
@@ -1658,7 +1699,7 @@ function ShopKit.model(sp, t)
   return {
     at = function(x, y, z)
       local rz = z0 + z
-      local v = room(x, y, rz)
+      local v = withCap(sig, room, x, y, rz)
       if not v then return nil end
       if ownerOf(rz) ~= name then return PHANTOM end
       return v
@@ -1666,7 +1707,7 @@ function ShopKit.model(sp, t)
     tint = tintFor,
     -- the emit hands corners in the BAND's coordinates; the field is the
     -- whole room's, so z comes back through the same z0 `at` uses
-    contact = function(x, y, z) return contactAt(x, y, z0 + z) end,
+    contact = function(x, y, z) return withCap(sig, contactAt, x, y, z0 + z) end,
     W = ShopKit.ROOM_W,
     ytop = b.ytop,
     xmin = X0, xmax = X1,
@@ -1677,7 +1718,7 @@ function ShopKit.model(sp, t)
     -- the one lib/RoomKit relied on. Both were being built, one standing
     -- inside the other. The kit does the job, so the figure stands down.
     noFigure = true,
-    claimMask = claimMaskFor(b, t),
+    claimMask = withCap(sig, claimMaskFor, b, t),
   }
 end
 

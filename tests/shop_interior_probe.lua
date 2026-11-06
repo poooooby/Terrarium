@@ -229,7 +229,7 @@ return function(game)
       local c = -1
       if okS and S then
         c = ((S.objectQuads and #S.objectQuads) or 0)
-            + ((S.spriteQuads and #S.spriteQuads) or 0)
+            + (S.spriteCount or 0)
       end
       if c > 0 and c == last then stable = stable + 1 else stable, last = 0, c end
       if stable >= 30 then return true, c end
@@ -408,7 +408,7 @@ return function(game)
   map = game.overworld.map
   local okS, S = pcall(Structures.forMap, map)
   local objN = (okS and S) and #S.objectQuads or -1
-  local sprN = (okS and S and S.spriteQuads) and #S.spriteQuads or 0
+  local sprN = (okS and S and S.spriteCount) or 0
   local figN = (okS and S and S.figures) and #S.figures or 0
   log(("  objectQuads=%d spriteQuads=%d figures=%d outdoor=%s"):format(
       objN, sprN, figN, okS and tostring(S.outdoor) or "?"))

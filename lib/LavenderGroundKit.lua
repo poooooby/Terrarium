@@ -45,8 +45,11 @@ local V = ...
 -- `INDEXES`: one per painted WORLD. Lavender and its three routes are one
 -- picture (tools/lavender_ground.py); Vermilion City is another
 -- (tools/vermilion_ground.py), with its own origin -- so a cell's neighbour
--- is only ever looked for inside its own world.
-local Kit = { LIFT = 1, INDEXES = { "lavground_index", "vermground_index" } }
+-- is only ever looked for inside its own world. The meadow world -- Pallet
+-- Town, Route 1 and on -- is a third (tools/kanto_ground.py: a new painter
+-- for the same files).
+local Kit = { LIFT = 1, INDEXES = { "lavground_index", "vermground_index",
+                                    "kantoground_index" } }
 
 local floor = math.floor
 
@@ -96,20 +99,38 @@ local function cell(mapId, cx, cy)
     opened[id] = false
     return nil
   end
-  o = { base = {}, extra = {}, kind = {}, tiles = src.t, claim = src.claim ~= false }
+  o = { base = {}, extra = {}, kind = {}, tiles = src.t, tiles2 = src.t2,
+        claim = src.claim ~= false }
   local whole = #src.b == 1 and src.b:byte(1) - 48 or nil
+  -- `top`: the highest voxel anything here stands to, -1 for nothing (all
+  -- void). It is the model's ytop: emit walks every layer of the box, and
+  -- the slab never rises over y = 1 while the box was always 4 tall.
+  local top, gs = -1, src.g
   for i = 1, 256 do
-    o.base[i] = whole or (src.b:byte(i) - 48)
-    local g = src.g and src.g:sub(i, i) or "."
+    local b = whole or (src.b:byte(i) - 48)
+    o.base[i] = b
+    local g = gs and gs:sub(i, i) or "."
     if g == "." then
       o.extra[i] = 0
+      if b > top then top = b end
     else
       local low = g:lower()
-      o.extra[i], o.kind[i] = (g == low) and 1 or 2, low
+      local e = (g == low) and 1 or 2
+      o.extra[i], o.kind[i] = e, low
+      if b + e > top then top = b + e end
+      o.grows = true
     end
   end
+  o.top = top
   opened[id] = o
   return o
+end
+
+-- Forget every opened cell (Buildings.build calls this when a map's build
+-- is done). The data files stay loaded -- they are the strings, interned,
+-- 13 MB for all of Kanto -- only their per-texel tables go.
+function Kit.release()
+  opened = {}
 end
 
 -- The cell at (cx, cy) of `mapId`, which may lie off that map: then it is
@@ -137,31 +158,58 @@ function Kit.spec(tileAt, tx, ty, mapId)
   local cx, cy = floor(tx / 2), floor(ty / 2)
   local o = cell(mapId, cx, cy)
   if not o then return nil end
-  local t = o.tiles
-  if tileAt(tx, ty) ~= t[1] or tileAt(tx + 1, ty) ~= t[2]
-     or tileAt(tx, ty + 1) ~= t[3] or tileAt(tx + 1, ty + 1) ~= t[4] then
-    return nil
+  -- the four tiles it was painted for, or (t2) another edition's four
+  local function fits(t)
+    return t and tileAt(tx, ty) == t[1] and tileAt(tx + 1, ty) == t[2]
+       and tileAt(tx, ty + 1) == t[3] and tileAt(tx + 1, ty + 1) == t[4]
   end
+  if not (fits(o.tiles) or fits(o.tiles2)) then return nil end
   local d = dataFor(mapId)
   return { map = mapId, cx = cx, cy = cy, sheet = d.entry.sheet,
            w = d.sheet.w, h = d.sheet.h }
 end
 
-function Kit.model(spec)
+-- `part`, which Buildings.build asks for twice: "ground" answers the slab
+-- alone, so its tops merge as if nothing grew on them (the plants' contact
+-- shadows on the turf go with them); "plants" answers the growth alone, the
+-- slab standing as PHANTOM, so every plant face and its AO are what the
+-- whole cell gave it. nil is the whole cell, for tools and probes.
+function Kit.model(spec, part)
   local d = dataFor(spec.map)
   local cx, cy = spec.cx, spec.cy
   local o = d and cell(spec.map, cx, cy)
   if not o then return nil, "no cell " .. tostring(cx) .. ":" .. tostring(cy) end
+  -- a cell where nothing grows has no plants to stand up: its "plants"
+  -- model is all PHANTOM and air, and emits nothing (a quarter of Pewter)
+  if part == "plants" and not o.grows then return nil, "nothing grows" end
   local PHANTOM = -1
   local SW, grows, mapId = d.sheet.w, d.grows, spec.map
   local origin = cy * 16 * SW + cx * 16     -- the sheet is the map's plan
   local base, extra, kind = o.base, o.extra, o.kind
 
+  -- The eight cells round this one, looked up once each: the ring of the
+  -- box asks for them ~140 times a model, and cellNear builds a string key
+  -- and may walk the index on every call. false = looked for, none there.
+  local near = {}
+  local function nearCell(dx, dz)
+    local k = (dz + 1) * 3 + dx + 2
+    local n = near[k]
+    if n == nil then
+      n = cellNear(mapId, cx + dx, cy + dz) or false
+      near[k] = n
+    end
+    return n or nil
+  end
+
   local function at(x, y, z)
     if x >= 0 and x <= 15 and z >= 0 and z <= 15 then
       local i = z * 16 + x + 1
       local b = base[i]
-      if y <= b then return origin + z * SW + x end      -- stone, or turf
+      if y <= b then                                     -- stone, or turf
+        if part == "plants" then return PHANTOM end
+        return origin + z * SW + x
+      end
+      if part == "ground" then return nil end
       local top = b + extra[i]
       if y > top then return nil end
       local g = grows[kind[i]]
@@ -170,7 +218,7 @@ function Kit.model(spec)
     end
     -- the cell next door: solid at the slab, and as high as ITS turf says
     if y > 1 then return nil end
-    local n = cellNear(mapId, cx + floor(x / 16), cy + floor(z / 16))
+    local n = nearCell(floor(x / 16), floor(z / 16))
     if not n then return nil end
     -- (a texel may be VOID -- `b` = "-", under zero: the water's half of a
     -- shore cell, where Vermilion's quay stops -- and then nothing is there)
@@ -181,8 +229,16 @@ function Kit.model(spec)
 
   local mask = nil
   if not o.claim then mask = { false, false, false, false } end
+  -- The box stops where the cell does: at() answers nil above the slab
+  -- (y = 1, the turf -- and the ring's neighbour turf, which is why the
+  -- slab's box is never lower than 1 even on a cell of bare stone) and
+  -- above the tallest plant, so a lid over either changes no voxel, no
+  -- face and no AO sample. It was 4 tall for every cell: half of the
+  -- slab's lookups, and most of the growth's, were of that air.
+  local ytop = 1
+  if part ~= "ground" and o.top > ytop then ytop = o.top end
   return { at = at, W = 16, xmin = -1, xmax = 16, zmin = -1, zmax = 16,
-           ytop = 3, claimMask = mask,
+           ytop = ytop, claimMask = mask,
            -- a flank here is a sliver of turf one voxel high: let a run of
            -- them wear its first texel and merge (Buildings.emit)
            looseSides = true,

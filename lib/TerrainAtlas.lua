@@ -704,15 +704,32 @@ end
 -- through the same cutoffs the shader uses, alpha preserved so OBJ color
 -- 0 stays transparent. Falls back to nil (caller keeps its texture) when
 -- pixels are unreachable.
+-- `path` may also be the sheet itself, an ImageData a mod handed the
+-- engine instead of a path (src/render/SpriteRenderer.lua takes either):
+-- keyed on its tostring, read as it is. An Image cannot be read back here,
+-- so it gets no recolour (nil: the caller draws the sheet as it stands).
+local spriteKeys = setmetatable({}, { __mode = "k" })
 function TerrainAtlas.forSprite(path, colors)
   if not (colors and love.image and love.image.newImageData) then
     return nil
   end
-  local key = "spr:" .. path .. "#" .. paletteKey(colors)
+  local pathKey = path
+  if type(path) ~= "string" then
+    if not (type(path) == "userdata" and path.typeOf
+            and path:typeOf("ImageData")) then
+      return nil
+    end
+    pathKey = spriteKeys[path]
+    if not pathKey then
+      pathKey = tostring(path)
+      spriteKeys[path] = pathKey
+    end
+  end
+  local key = "spr:" .. pathKey .. "#" .. paletteKey(colors)
   if cache[key] ~= nil then return cache[key] or nil end
 
   local ok, img = pcall(function()
-    local src = Assets.imageData(path)
+    local src = type(path) == "string" and Assets.imageData(path) or path
     local w, h = src:getDimensions()
     local out = love.image.newImageData(w, h)
     for y = 0, h - 1 do

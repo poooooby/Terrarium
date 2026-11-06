@@ -529,6 +529,95 @@ function kinds.worktop(sp, t, off, P)
   }
 end
 
+-- bed: a bed drawn from above, one cell wide and two long -- the headboard
+-- (its pale rail over a dark band) at the north end, the mattress, the dark
+-- foot at the south end. The drawing is the bed's PLAN, so it lies on the
+-- top 1:1, row by row along z, the way Red's bed is pinned (`bed`, 7 tall)
+-- -- not stood up as a front, which is what turned the Silph Co and Mansion
+-- beds into towers four courses tall. Around that plan the piece a real
+-- bed is: the mattress 7 tall on a dark frame on four short legs, the
+-- headboard standing above it to 12, the footboard to 9.
+function kinds.bed(sp, t, off, P)
+  local W = sp.W
+  local D = sp.H - off                 -- the drawn length, 32 for 1x2 cells
+  local HEAD_Z1 = 3                    -- the rail and its dark band
+  local FOOT_Z0 = D - 6                -- the dark foot row
+  local MAT_TOP, HEAD_TOP, FOOT_TOP = 6, 11, 8
+  local function leg(x, z)
+    return (x <= 1 or x >= W - 2) and (z <= 1 or z >= D - 2)
+  end
+  return {
+    at = function(x, y, z)
+      if x < 0 or x >= W or z < 0 or z >= D or y < 0 then return nil end
+      local i = pix(sp, x, off + z)
+      if z <= HEAD_Z1 then
+        if y > HEAD_TOP then return nil end
+        return i
+      end
+      if z >= FOOT_Z0 then
+        if y > FOOT_TOP then return nil end
+        if y <= 1 and not leg(x, z) then return nil end
+        return i
+      end
+      if y > MAT_TOP then return nil end
+      if y <= 1 then return leg(x, z) and P[BLACK] or nil end
+      -- the frame under the mattress, set in one voxel so the mattress
+      -- reads as lying on it rather than as one block to the floor
+      if y <= 3 then
+        if x == 0 or x == W - 1 then return nil end
+        return P[DARK]
+      end
+      return i
+    end,
+    W = W, ytop = HEAD_TOP, xmin = 0, xmax = W - 1, zmin = 0, zmax = D - 1,
+  }
+end
+
+-- statue: the gym and League statue, 2 cols x 4 rows drawn FACE-ON -- a
+-- Pokemon figure (rows 0-15) on a round pedestal with a plaque (rows
+-- 16-31). Face-on means the drawing is an elevation, not a plan: the
+-- statue stands in the SOUTH cell of its footprint and rises 32, the
+-- pedestal a column 16 tall wearing its drawn front, the figure a cutout
+-- six deep on top of it -- only the pixels inside its black outline, so
+-- the striped floor drawn round it in the tile is not built. Unmodelled,
+-- a column of these (Lance's corridor: one every two cells, rows on end)
+-- read as one repeating drawing and stood as a wall forty courses long.
+function kinds.statue(sp, t, off, P)
+  local W = sp.W
+  local CX, CZ, R = (W - 1) / 2, 23.5, 7.2    -- the pedestal's column
+  local FZ0, FZ1 = 21, 26                     -- the figure's thickness
+  -- each figure row's silhouette: from its leftmost to its rightmost
+  -- black pixel (the outline every Gen 1 sprite is drawn inside)
+  local span = {}
+  for r = 0, 15 do
+    local l, rr = nil, nil
+    for x = 0, W - 1 do
+      if sp.col[(off + r) * W + x] == BLACK then
+        l = l or x
+        rr = x
+      end
+    end
+    span[r] = l and { l, rr } or nil
+  end
+  return {
+    at = function(x, y, z)
+      if x < 0 or x >= W or y < 0 then return nil end
+      if y <= 15 then
+        local dx, dz = x - CX, z - CZ
+        if dx * dx + dz * dz > R * R then return nil end
+        return pix(sp, x, off + 16 + (15 - y))
+      end
+      if y <= 31 and z >= FZ0 and z <= FZ1 then
+        local r = 31 - y
+        local s = span[r]
+        if s and x >= s[1] and x <= s[2] then return pix(sp, x, off + r) end
+      end
+      return nil
+    end,
+    W = W, ytop = 31, xmin = 0, xmax = W - 1, zmin = 16, zmax = 31,
+  }
+end
+
 -- ------------------------------------------------------------------- api --
 
 -- The model for template `t` read into sprite `sp`, or nil when the kind

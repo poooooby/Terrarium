@@ -50,6 +50,27 @@
 local V = ...
 
 local Budget = V.require("BuildBudget")
+local Perf = V.require("Perf")
+-- LuaJIT's table.new(narray, nhash): a table born with its array part
+-- already the size it will be filled to. emit's voxel grid is indexed
+-- 0..(box volume - 1) and mostly air, which a plain {} cannot hold in its
+-- array part (Lua keeps an array only while it is over half full), so
+-- every voxel went into the HASH part, rehashing as it grew: the fill pass
+-- was 72% of emit and emit 20% of a cold Lavender visit (tools/profiler,
+-- DS_JP=Flm1). Preallocated, the same fill is 314 ms -> 4 ms on a 690k box
+-- with the JIT, 327 -> 14 ms without it (the phone's case). Built into
+-- every LuaJIT 2.1 and not on the sandbox's deny list; {} if ever absent.
+local okTN, tableNew = pcall(require, "table.new")
+if not (okTN and type(tableNew) == "function") then
+  tableNew = function() return {} end
+end
+-- ...but capped: 8 bytes a slot, and the Power Plant's plan is a 10.7 M
+-- voxel box. Past this many slots (32 MB) the grid falls back to a plain
+-- table -- slower, but never a phone's whole memory for one transient.
+local GRID_PREALLOC_MAX = 4 * 1024 * 1024
+-- template id -> { span label, quad-counter label }, built once per id so a
+-- measured build never concatenates a label per call (tools/profiler)
+local PERF_LABEL = {}
 
 local Buildings = {}
 
@@ -94,6 +115,55 @@ end
 
 local models = {}          -- "<tileset>:<index>" -> prebuilt local quads
 local sheets = {}          -- authored sheet path -> readSprite's answer
+
+-- ------- models that belong to ONE map
+--
+-- `models` was a session-long memo, and for what it was written for -- one
+-- drawing, one model, every map that stands it -- that is right: a fence or
+-- a Centre is built once and stamped across Kanto. The Kanto import (3adf5ed)
+-- added keys no other map can ever ask for: a room per map (`@home:<map>`),
+-- a house per PLACEMENT (`<map>:<tx>:<ty>`), and cell kits whose key is the
+-- cell itself (CaveKit, FlowerKit, RockShoreKit: `Kit.PER_CELL`). Kept for
+-- the session, those were the Lua heap's growth: kanto_shots_probe measured
+-- 1.4 GB after one town and 5.3 GB by Fuchsia, after a full collect.
+--
+-- So those keys are SCOPED to the map that built them and dropped once that
+-- map has fallen out of the last SCOPED_MAPS maps built. Not dropped at once:
+-- a visit builds a map's body, its neighbours, and then its full variant,
+-- and a rebuild of a recent map should still find its models. A dropped one
+-- is only a rebuild away, and the rebuild is the same model (nothing a kit
+-- reads is time, quality or chance -- BuildCache relies on the same fact).
+Buildings.SCOPED_MAPS = 4
+local scoped = {}          -- key -> id of the map whose build made it
+local scopedOrder = {}     -- map ids, least recently built first
+
+-- A kit that REFUSED a placement (no model, an error) used to be asked
+-- again on every rebuild and for every template it claims, because only a
+-- success was remembered. Remembered now too, scoped like the model would
+-- have been; the classic branch still stands the placement, as before.
+local failed = {}
+
+local function scope(key, mapId)
+  scoped[key] = mapId
+end
+
+-- `mapId` is being built: make it the most recent, and let the oldest go
+local function touchScope(mapId)
+  for i = #scopedOrder, 1, -1 do
+    if scopedOrder[i] == mapId then table.remove(scopedOrder, i) end
+  end
+  scopedOrder[#scopedOrder + 1] = mapId
+  while #scopedOrder > Buildings.SCOPED_MAPS do
+    local old = table.remove(scopedOrder, 1)
+    for k, m in pairs(scoped) do
+      if m == old then
+        models[k] = nil
+        failed[k] = nil
+        scoped[k] = nil
+      end
+    end
+  end
+end
 
 -- Instruments for the probes: what the ledge branch did in this session.
 Buildings.ledgeLog = { placements = 0, builds = 0, seconds = 0, lastKey = nil,
@@ -937,6 +1007,17 @@ end
 -- Any negative index is a phantom.
 Buildings.PHANTOM = -1
 
+-- CULL is a phantom with half the meaning: there for the hidden-face test
+-- (a face against it is not drawn) and NOT there for the corner AO or the
+-- crisp-top ring. It is what a kit answers for a NEIGHBOUR cell's voxel
+-- when it wants the faces between the two cells gone without the seam's
+-- light changing: the AO of a cell built alone never saw the next cell,
+-- and a full PHANTOM would make it see it -- darkening every seam, which
+-- is a different picture. A face buried against a solid neighbour is
+-- inside the rock either way, so dropping it shows nothing new (CaveKit).
+Buildings.CULL = -2
+local CULL = Buildings.CULL
+
 local function emit(m, sp, atlasW, atlasH)
   -- Budget.tick() once per z-ROW as well as once per y-slice: one slice of
   -- a 4x4-block house is ~16k m.at() evaluations, and with the tick only
@@ -946,7 +1027,6 @@ local function emit(m, sp, atlasW, atlasH)
   -- one call in 32, so the extra calls are free.
   local W = m.W
   local quads = { voxels = 0, shell = 0 }
-  local cell = {}                        -- (y, z, x) -> sprite pixel index
 
   local zmin, zmax, ytop = m.zmin, m.zmax, m.ytop
   -- the model may overhang its own box: the roof's side eaves stand at
@@ -954,42 +1034,115 @@ local function emit(m, sp, atlasW, atlasH)
   local xmin, xmax = m.xmin or 0, m.xmax or (W - 1)
   local zn = zmax - zmin + 1
   local xn = xmax - xmin + 1
+  local cell                             -- (y, z, x) -> sprite pixel index
   if Buildings.progress then
     Buildings.progress.step = "emit:cells"
     Buildings.progress.box = ("%dx%dx%d"):format(xn, ytop + 1, zn)
   end
+  -- The grid stands in a one-voxel margin that is never written, so a
+  -- lookup one past any side of the box finds nil without asking whether
+  -- it is inside: ci() was six comparisons and an index, called ~25 times
+  -- a voxel by the passes below, and the comparisons were a third of it
+  -- (57% of a painted-ground cell's build with the JIT off, as on a phone).
+  -- Every caller asks at most ONE past the box -- the run's ends, the AO's
+  -- corners, the crisp-top ring -- which is all the margin has to cover:
+  -- two past would wrap into the next row.
+  --   index(x, y, z) = ((y + 1) * zn2 + (z - zmin + 1)) * xn2 + (x - xmin + 1)
+  --                  = (y * zn2 + z) * xn2 + x + off
+  local zn2, xn2 = zn + 2, xn + 2
+  local off = (zn2 + 1 - zmin) * xn2 + 1 - xmin
   local function ci(x, y, z)
-    if x < xmin or x > xmax or y < 0 or y > ytop or z < zmin or z > zmax then
-      return nil
-    end
-    return cell[(y * zn + (z - zmin)) * xn + (x - xmin)]
+    return cell[(y * zn2 + z) * xn2 + x + off]
   end
+  -- `colTop(x, z)`: the highest y the model can answer in that column (-1:
+  -- none), for a model whose box is mostly air -- a whole room's plan, where
+  -- the walls stand 28 voxels and the floor is one (lib/FacilityKit.lua).
+  -- at() is not asked above it: the kit vouches that the answer there is
+  -- air, so the voxels, the faces and the AO are the same, and the fill
+  -- pass stops paying for millions of empty lookups (the Power Plant's box
+  -- is 10.7 M voxels).
+  local ct = nil
+  -- the highest y any cell below can hold: the grid is y-major, so slots
+  -- past this layer are never written and need no room (a room's walls
+  -- are 28 voxels in a box twice that tall)
+  local yfill = ytop
+  if m.colTop then
+    ct = tableNew(zn * xn, 0)
+    local hi = -1
+    for z = zmin, zmax do
+      local row = (z - zmin) * xn - xmin
+      for x = xmin, xmax do
+        local c = m.colTop(x, z)
+        ct[row + x] = c
+        if c > hi then hi = c end
+      end
+    end
+    yfill = math.min(ytop, hi)
+  end
+  -- (the last slot a voxel can be written to, margin and all)
+  local slots = (yfill * zn2 + zmax) * xn2 + xmax + off + 1
+  cell = tableNew(yfill >= 0 and slots <= GRID_PREALLOC_MAX and slots or 0, 0)
+  -- Which rows hold a voxel that is DRAWN (v >= 0): rowZ by (y, z), the
+  -- rows the shell, +-z and +-y passes walk along x; rowX by (y, x), the
+  -- rows the +-x pass walks along z. Every one of those passes emits only
+  -- from a drawn voxel at the position it is scanning, so a row with none
+  -- is skipped whole and nothing it could have emitted is lost. It is most
+  -- of a box: the air over a cave's floor, over a room's (ci() was 41% of
+  -- a cave cell's build, almost all of it answering nil).
+  local rowZ = tableNew((ytop + 1) * zn, 0)
+  local rowX = tableNew((ytop + 1) * xn, 0)
   for y = 0, ytop do
     Budget.tick()
     for z = zmin, zmax do
       Budget.tick()
-      local base = (y * zn + (z - zmin)) * xn - xmin
-      for x = xmin, xmax do
-        local v = m.at(x, y, z)
-        cell[base + x] = v
-        if v and v >= 0 then quads.voxels = quads.voxels + 1 end
+      local base = (y * zn2 + z) * xn2 + off
+      local rz = y * zn + (z - zmin)
+      local rx = y * xn - xmin
+      if ct then
+        local row = (z - zmin) * xn - xmin
+        for x = xmin, xmax do
+          if y <= ct[row + x] then
+            local v = m.at(x, y, z)
+            cell[base + x] = v
+            if v and v >= 0 then
+              quads.voxels = quads.voxels + 1
+              rowZ[rz], rowX[rx + x] = true, true
+            end
+          end
+        end
+      else
+        for x = xmin, xmax do
+          local v = m.at(x, y, z)
+          cell[base + x] = v
+          if v and v >= 0 then
+            quads.voxels = quads.voxels + 1
+            rowZ[rz], rowX[rx + x] = true, true
+          end
+        end
       end
     end
   end
   -- the shell: what survives hidden-face culling. Counted here rather than
   -- derived from the quads because it is the number
   -- tools/building_voxels.py checks this build against.
-  if Buildings.progress then Buildings.progress.step = "emit:shell" end
-  for y = 0, ytop do
-    Budget.tick()
-    for z = zmin, zmax do
+  -- (a statistic, and only that: Buildings.stats() hands it to the
+  -- methodology checks -- buildings_baseline_probe, lavender_tower_probe --
+  -- which set Buildings.countShell. Seven lookups a solid voxel, and a cave
+  -- cell is mostly solid rock, so a game build no longer pays for a number
+  -- nothing draws.)
+  if Buildings.countShell then
+    if Buildings.progress then Buildings.progress.step = "emit:shell" end
+    for y = 0, ytop do
       Budget.tick()
-      for x = xmin, xmax do
-        local v = ci(x, y, z)
-        if v and v >= 0 and not (ci(x + 1, y, z) and ci(x - 1, y, z)
-            and ci(x, y + 1, z) and ci(x, y - 1, z)
-            and ci(x, y, z + 1) and ci(x, y, z - 1)) then
-          quads.shell = quads.shell + 1
+      for z = zmin, zmax do
+        Budget.tick()
+        for x = xmin, rowZ[y * zn + (z - zmin)] and xmax or (xmin - 1) do
+          local v = ci(x, y, z)
+          if v and v >= 0 and not (ci(x + 1, y, z) and ci(x - 1, y, z)
+              and ci(x, y + 1, z) and ci(x, y - 1, z)
+              and ci(x, y, z + 1) and ci(x, y, z - 1)) then
+            quads.shell = quads.shell + 1
+          end
         end
       end
     end
@@ -1003,6 +1156,10 @@ local function emit(m, sp, atlasW, atlasH)
   -- so a building sits in the same light as the ground it stands on.
   local AO_STEP, AO_FLOOR = 0.09, 0.25
   local function aoCorner(s1, s2, dg)
+    -- (a CULL voxel is not there for the light: see Buildings.CULL)
+    if s1 == CULL then s1 = nil end
+    if s2 == CULL then s2 = nil end
+    if dg == CULL then dg = nil end
     local k = 0
     if s1 then k = k + 1 end
     if s2 then k = k + 1 end
@@ -1064,8 +1221,16 @@ local function emit(m, sp, atlasW, atlasH)
            (y0 + 0.05) / atlasH, (y0 + 1 - 0.05) / atlasH
   end
 
-  local function put(c1, c2, c3, c4, uv, shade)
-    quads[#quads + 1] = { c1, c2, c3, c4, uv = uv, shade = shade }
+  -- One quad is ONE table: its four corners' x, y, z (1-12) and their u, v
+  -- (13-20) in the array part, its shade beside them. It was eleven -- the
+  -- quad, four corner tables, a uv table and its four pairs -- and a Kanto
+  -- neighbourhood holds one to two million of them until its meshes are
+  -- built. Buildings.quadCorner / quadUV read it; the mesher and the
+  -- objectQuads copy in stamp read it directly.
+  local function put(x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4,
+                     u1, v1, u2, v2, u3, v3, u4, v4, shade)
+    quads[#quads + 1] = { x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4,
+                          u1, v1, u2, v2, u3, v3, u4, v4, shade = shade }
   end
 
   -- How far a run of exposed faces reaches from `x`, and whether it is a
@@ -1103,10 +1268,12 @@ local function emit(m, sp, atlasW, atlasH)
       Budget.tick()
       for z = zmin, zmax do
         Budget.tick()
-        local x = xmin
+        local x = rowZ[y * zn + (z - zmin)] and xmin or (xmax + 1)
+        local rb = (y * zn2 + z) * xn2 + off     -- ci(x, y, z) = cell[rb + x]
+        local rf = rb + d * xn2                  -- ...and the row it looks at
         while x <= xmax do
-          local v = ci(x, y, z)
-          if v and v >= 0 and not ci(x, y, z + d) then
+          local v = cell[rb + x]
+          if v and v >= 0 and not cell[rf + x] then
             local i, strip, n = runX(y, z, 0, 0, d, x)
             local u0, u1, v0, v1 = uvOf(i, strip, n)
             local zf = d == 1 and (z + 1) or z
@@ -1120,14 +1287,14 @@ local function emit(m, sp, atlasW, atlasH)
             local sTR = aoCorner(ci(xr, y, zo), ci(xe1, yu, zo), ci(xr, yu, zo))
             local sTL = aoCorner(ci(xl, y, zo), ci(xe0, yu, zo), ci(xl, yu, zo))
             if d == 1 then
-              put({ x, y, zf }, { x + n, y, zf },
-                  { x + n, y + 1, zf }, { x, y + 1, zf },
-                  { { u0, v1 }, { u1, v1 }, { u1, v0 }, { u0, v0 } },
+              put(x, y, zf, x + n, y, zf,
+                  x + n, y + 1, zf, x, y + 1, zf,
+                  u0, v1, u1, v1, u1, v0, u0, v0,
                   shades(lit(shade, y, i, "s"), sBL, sBR, sTR, sTL))
             else
-              put({ x + n, y, zf }, { x, y, zf },
-                  { x, y + 1, zf }, { x + n, y + 1, zf },
-                  { { u1, v1 }, { u0, v1 }, { u0, v0 }, { u1, v0 } },
+              put(x + n, y, zf, x, y, zf,
+                  x, y + 1, zf, x + n, y + 1, zf,
+                  u1, v1, u0, v1, u0, v0, u1, v0,
                   shades(lit(shade, y, i, "n"), sBR, sBL, sTL, sTR))
             end
             x = x + n
@@ -1149,17 +1316,18 @@ local function emit(m, sp, atlasW, atlasH)
   -- standing round the lid changes, so occlusion stays one voxel wide and a
   -- straight verge -- every voxel of it the same ring -- still merges.
   local crisp = m.crispTops
-  local function ring(x, yo, z)
-    local s = 0
-    if ci(x - 1, yo, z - 1) then s = s + 1 end
-    if ci(x, yo, z - 1) then s = s + 2 end
-    if ci(x + 1, yo, z - 1) then s = s + 4 end
-    if ci(x - 1, yo, z) then s = s + 8 end
-    if ci(x + 1, yo, z) then s = s + 16 end
-    if ci(x - 1, yo, z + 1) then s = s + 32 end
-    if ci(x, yo, z + 1) then s = s + 64 end
-    if ci(x + 1, yo, z + 1) then s = s + 128 end
-    return s
+  -- The ring is the eight voxels round (x, z) one layer up, as bits:
+  --     1   2   4        z - 1
+  --     8   .  16        z
+  --    32  64 128        z + 1
+  --   x-1   x x+1
+  -- 1 where a voxel is there for the light (not CULL). A run asks it at
+  -- every voxel along it, and the next voxel's ring is this one's moved
+  -- one column on -- so it is kept as three columns sliding along x: each
+  -- step reads the three voxels of the new column, not all eight.
+  local function lit1(i)                  -- a voxel there for the light: 1
+    local v = cell[i]
+    return (v and v ~= CULL) and 1 or 0
   end
   if Buildings.progress then Buildings.progress.step = "emit:y" end
   for _, d in ipairs({ 1, -1 }) do
@@ -1178,16 +1346,34 @@ local function emit(m, sp, atlasW, atlasH)
       if not (d == -1 and (y == 0 or m.noDown)) then
         for z = zmin, zmax do
           Budget.tick()
-          local x = xmin
+          local x = rowZ[y * zn + (z - zmin)] and xmin or (xmax + 1)
+          local rb = (y * zn2 + z) * xn2 + off       -- ci(x, y, z) = cell[rb + x]
+          local rf = rb + d * zn2 * xn2              -- ...and the layer it looks at
           while x <= xmax do
-            local v = ci(x, y, z)
-            if v and v >= 0 and not ci(x, y + d, z) then
+            local v = cell[rb + x]
+            if v and v >= 0 and not cell[rf + x] then
               local i, strip, n = runX(y, z, 0, d, 0, x)
               local first = nil
               if crisp and d == 1 then
-                first = ring(x, y + 1, z)
+                -- (rf: the layer over the lid; rn, rs: its rows z - 1, z + 1)
+                local rn, rs = rf - xn2, rf + xn2
+                local a0, b0, c0 = lit1(rn + x - 1), lit1(rf + x - 1), lit1(rs + x - 1)
+                local a1, c1 = lit1(rn + x), lit1(rs + x)
+                local b1 = lit1(rf + x)
+                local a2, b2, c2 = lit1(rn + x + 1), lit1(rf + x + 1), lit1(rs + x + 1)
+                first = a0 + 2 * a1 + 4 * a2 + 8 * b0 + 16 * b2
+                        + 32 * c0 + 64 * c1 + 128 * c2
                 local k = 1
-                while k < n and ring(x + k, y + 1, z) == first do k = k + 1 end
+                while k < n do
+                  a0, b0, c0, a1, b1, c1 = a1, b1, c1, a2, b2, c2
+                  local xc = x + k + 1
+                  a2, b2, c2 = lit1(rn + xc), lit1(rf + xc), lit1(rs + xc)
+                  if a0 + 2 * a1 + 4 * a2 + 8 * b0 + 16 * b2
+                     + 32 * c0 + 64 * c1 + 128 * c2 ~= first then
+                    break
+                  end
+                  k = k + 1
+                end
                 n = k
               end
               local u0, u1, v0, v1 = uvOf(i, strip, n)
@@ -1197,8 +1383,8 @@ local function emit(m, sp, atlasW, atlasH)
                 if first == 0 and o and o.n == n and o.z1 == z and o.strip == strip
                    and o.ax == sp.ax[i] and o.ay + 1 == sp.ay[i] then
                   local q = o.q
-                  q[3][3], q[4][3] = z + 1, z + 1
-                  q.uv[3][2], q.uv[4][2] = v1, v1
+                  q[9], q[12] = z + 1, z + 1      -- corners 3 and 4: z
+                  q[18], q[20] = v1, v1          -- and their v
                   o.z1, o.ay = z + 1, sp.ay[i]
                   grown = true
                 elseif first ~= 0 then
@@ -1218,9 +1404,9 @@ local function emit(m, sp, atlasW, atlasH)
               if grown then
                 -- the run above took this row in
               elseif d == 1 then
-                put({ x, yf, z }, { x + n, yf, z },
-                    { x + n, yf, z + 1 }, { x, yf, z + 1 },
-                    { { u0, v0 }, { u1, v0 }, { u1, v1 }, { u0, v1 } },
+                put(x, yf, z, x + n, yf, z,
+                    x + n, yf, z + 1, x, yf, z + 1,
+                    u0, v0, u1, v0, u1, v1, u0, v1,
                     shades(lit(shade, y, i, "up"),
                            f1 * cf(x, yf, z), f2 * cf(x + n, yf, z),
                            f3 * cf(x + n, yf, z + 1), f4 * cf(x, yf, z + 1)))
@@ -1229,9 +1415,9 @@ local function emit(m, sp, atlasW, atlasH)
                               ax = sp.ax[i], ay = sp.ay[i] }
                 end
               else
-                put({ x, yf, z + 1 }, { x + n, yf, z + 1 },
-                    { x + n, yf, z }, { x, yf, z },
-                    { { u0, v1 }, { u1, v1 }, { u1, v0 }, { u0, v0 } },
+                put(x, yf, z + 1, x + n, yf, z + 1,
+                    x + n, yf, z, x, yf, z,
+                    u0, v1, u1, v1, u1, v0, u0, v0,
                     shades(lit(shade, y, i, "down"), f4, f3, f2, f1))
               end
               x = x + n
@@ -1256,10 +1442,11 @@ local function emit(m, sp, atlasW, atlasH)
   for _, d in ipairs({ 1, -1 }) do
     for y = 0, ytop do
       for x = xmin, xmax do
-        local z = zmin
+        local z = rowX[y * xn - xmin + x] and zmin or (zmax + 1)
         while z <= zmax do
-          local i = ci(x, y, z)
-          if i and i >= 0 and not ci(x + d, y, z) then
+          local c = (y * zn2 + z) * xn2 + x + off   -- ci(x, y, z) = cell[c]
+          local i = cell[c]
+          if i and i >= 0 and not cell[c + d] then
             local n = 1
             while z + n <= zmax do
               local j = ci(x, y, z + n)
@@ -1281,14 +1468,14 @@ local function emit(m, sp, atlasW, atlasH)
             local fT0 = aoCorner(ci(xo, y, zl), ci(xo, yu, ze0), ci(xo, yu, zl))
             local fTn = aoCorner(ci(xo, y, zr), ci(xo, yu, ze1), ci(xo, yu, zr))
             if d == 1 then
-              put({ xf, y, z + n }, { xf, y, z },
-                  { xf, y + 1, z }, { xf, y + 1, z + n },
-                  { { u0, v1 }, { u1, v1 }, { u1, v0 }, { u0, v0 } },
+              put(xf, y, z + n, xf, y, z,
+                  xf, y + 1, z, xf, y + 1, z + n,
+                  u0, v1, u1, v1, u1, v0, u0, v0,
                   shades(lit(SHADE.side, y, i, "e"), fBn, fB0, fT0, fTn))
             else
-              put({ xf, y, z }, { xf, y, z + n },
-                  { xf, y + 1, z + n }, { xf, y + 1, z },
-                  { { u0, v1 }, { u1, v1 }, { u1, v0 }, { u0, v0 } },
+              put(xf, y, z, xf, y, z + n,
+                  xf, y + 1, z + n, xf, y + 1, z,
+                  u0, v1, u1, v1, u1, v0, u0, v0,
                   shades(lit(SHADE.side, y, i, "w"), fB0, fBn, fTn, fT0))
             end
             z = z + n
@@ -1405,7 +1592,10 @@ local function matches(S, t, tx, ty)
   for r = 1, #tiles do
     local row = tiles[r]
     for c = 1, #row do
-      if S.tileAt[keyOf(tx + c - 1, ty + r - 1)] ~= row[c] then
+      local live = S.tileAt[keyOf(tx + c - 1, ty + r - 1)]
+      -- `alt`: tiles a plan tile may also be at run time (a door a script
+      -- paints in over the floor)
+      if live ~= row[c] and not (t.alt and t.alt[row[c]] and t.alt[row[c]][live]) then
         return false
       end
     end
@@ -1430,9 +1620,30 @@ function Buildings.build(S, map, data, perRow)
   local quads = S.objectQuads
   Buildings.ledgeLog.maps = Buildings.ledgeLog.maps + 1
   Buildings.ledgeLog.lastMap = tostring(map.id)
+  local buildMap = tostring(map.def.id or map.def.name)
+  touchScope(buildMap)
+  local okHK, HouseKits = pcall(V.require, "HouseKits")
+  if not okHK then HouseKits = nil end
+  -- the tile lookup every cell kit's spec is handed, made once per build
+  -- instead of a closure per grid cell
+  local tileAtFn = function(x, y) return S.tileAt[keyOf(x, y)] end
 
   for index, t in ipairs(list) do
     if type(t.tiles) == "table" and #t.tiles > 0 and placedOn(t, map) then
+      -- the town kit that takes this template over (lib/HouseKits.lua), if
+      -- any. Asked once per template rather than once per placement: it
+      -- depends on the map and the template only, and every grid cell of
+      -- a `wild` template used to walk all seven kits to hear "none".
+      local hkName, HKit = nil, nil
+      if HouseKits and not t.wild then
+        hkName, HKit = HouseKits.kitFor(map.def.id or map.def.name, t.id)
+      end
+      -- per-template cost while Perf is on (one nil test while it is off):
+      -- which template a slow map's build actually goes to, and how many
+      -- quads it leaves behind -- the numbers the Kanto import's kits were
+      -- first judged on (cold_cost_probe, kanto_shots_probe)
+      local perfT0 = Perf.now()
+      local perfQ0 = perfT0 and (#quads + (S.spriteCount or 0))
       local bh, bw = #t.tiles, #t.tiles[1]
       Buildings.progress = { map = tostring(map.id), index = index,
                              id = tostring(t.id), phase = "scan" }
@@ -1468,7 +1679,11 @@ function Buildings.build(S, map, data, perRow)
           if free then
             for r = 0, bh - 1 do
               for c = 0, bw - 1 do
-                if S.skip[keyOf(tx + c, ty + r)] then
+                -- (`allowSkip`: tiles of the template another pass already
+                -- stands -- a room built round the developer's props, which
+                -- it leaves alone)
+                local k = keyOf(tx + c, ty + r)
+                if S.skip[k] and not (t.allowSkip and t.allowSkip[S.tileAt[k]]) then
                   free = false
                   break
                 end
@@ -1492,22 +1707,36 @@ function Buildings.build(S, map, data, perRow)
                             and "LavenderCivicKit")
                            or (t.id == "pokemon_tower" and towerOn()
                                and "LavenderTowerKit") or nil
-            if lavKit and (map.def.id or map.def.name) == "LAVENDER_TOWN" then
-              local key = tileset.id .. ":" .. index .. "@lavender-civic"
-              if not models[key] then
+            -- (...and the Centre and Mart of every town since, the same
+            -- buildings in that town's colours: LavenderCivicKit.TOWNS names
+            -- each town's sheet, its rows the same as Lavender's)
+            local mapId = map.def.id or map.def.name
+            local civicSheet = nil
+            if lavKit == "LavenderCivicKit" then
+              local okC, CKit = pcall(V.require, "LavenderCivicKit")
+              civicSheet = okC and CKit and CKit.TOWNS and CKit.TOWNS[mapId]
+            elseif lavKit and mapId == "LAVENDER_TOWN" then
+              civicSheet = true
+            end
+            if civicSheet then
+              local key = tileset.id .. ":" .. index .. "@lavender-civic:" .. mapId
+              if not models[key] and not failed[key] then
                 local okK, Kit = pcall(V.require, lavKit)
-                local sp = okK and Kit and readSprite(Kit.SHEET)
-                local tex = sp and loadSpriteImage(Kit.SHEET)
+                local sheet = (type(civicSheet) == "string") and civicSheet or (okK and Kit and Kit.SHEET)
+                local sp = okK and Kit and readSprite(sheet)
+                local tex = sp and loadSpriteImage(sheet)
                 local okM, m, why = false, nil, nil
                 if sp and tex then okM, m, why = pcall(Kit.model, sp, t) end
                 if okM and m then
                   local q = emit(m, sp, sp.W, sp.H)
-                  q.tex = Kit.SHEET
+                  q.tex = sheet
                   models[key] = q
                 else
                   Buildings.lastError = "lavender civic " .. tostring(t.id)
                                         .. ": " .. tostring(why or m or Kit)
+                  failed[key] = true
                 end
+                scope(key, buildMap)
               end
               if models[key] then built = models[key] end
             end
@@ -1519,7 +1748,7 @@ function Buildings.build(S, map, data, perRow)
             if (t.id == "flat_commercial" or t.id == "flat_block_4x4")
                and (map.def.id or map.def.name) == "VERMILION_CITY" then
               local key = tileset.id .. ":" .. index .. "@vermilion:" .. tx .. ":" .. ty
-              if not models[key] then
+              if not models[key] and not failed[key] then
                 local okK, Kit = pcall(V.require, "VermilionHouseKit")
                 local sp = okK and Kit and readSprite(Kit.SHEET)
                 local tex = sp and loadSpriteImage(Kit.SHEET)
@@ -1532,7 +1761,37 @@ function Buildings.build(S, map, data, perRow)
                 else
                   Buildings.lastError = "vermilion house " .. tx .. ":" .. ty
                                         .. ": " .. tostring(why or m or Kit)
+                  failed[key] = true
                 end
+                scope(key, buildMap)
+              end
+              if models[key] then built = models[key] end
+            end
+            -- ...and every town's buildings since (lib/HouseKits.lua): the
+            -- kit names its map and the templates it takes over, and builds
+            -- per placement, on the same terms.
+            if HKit then
+              local key = tileset.id .. ":" .. index .. "@" .. hkName .. ":"
+                          .. buildMap .. ":" .. tx .. ":" .. ty
+              -- (a kit for several towns paints each from its own sheet)
+              local hkSheet = (HKit.sheetFor and HKit.sheetFor(map.def.id or map.def.name)) or HKit.SHEET
+              if not models[key] and not failed[key] then
+                local sp = readSprite(hkSheet)
+                local tex = sp and loadSpriteImage(hkSheet)
+                local okM, m, why = false, nil, nil
+                if sp and tex then
+                  okM, m, why = pcall(HKit.model, sp, t, tx, ty, map.def.id or map.def.name)
+                end
+                if okM and m then
+                  local q = emit(m, sp, sp.W, sp.H)
+                  q.tex = hkSheet
+                  models[key] = q
+                else
+                  Buildings.lastError = hkName .. " " .. tx .. ":" .. ty
+                                        .. ": " .. tostring(why or m)
+                  failed[key] = true
+                end
+                scope(key, buildMap)
               end
               if models[key] then built = models[key] end
             end
@@ -1551,8 +1810,30 @@ function Buildings.build(S, map, data, perRow)
               -- model stamps and claims nothing, and the profile's ledge
               -- class stands the tiles as it always did.
               built = {}
-              if ledgeOn() then
-                local okL, LedgeKit = pcall(V.require, "LedgeKit")
+              local okL, LedgeKit = pcall(V.require, "LedgeKit")
+              local authored = ledgeOn() and okL and LedgeKit and LedgeKit.AUTHORED
+                               and LedgeKit.AUTHORED[map.def.id or map.def.name]
+              if authored then
+                -- on a painted ground the bank wears that ground's colours,
+                -- from its own sheet (LedgeKit.modelAuthored)
+                local key = "bank@" .. t.id
+                if not models[key] then
+                  local sp = readSprite(LedgeKit.SHEET)
+                  local tex = sp and loadSpriteImage(LedgeKit.SHEET)
+                  local okM, m, why = false, nil, nil
+                  if sp and tex then okM, m, why = pcall(LedgeKit.modelAuthored, sp, t) end
+                  if okM and m then
+                    local q = emit(m, sp, sp.W, sp.H)
+                    q.tex = LedgeKit.SHEET
+                    q.claimMask = m.claimMask
+                    models[key] = q
+                  else
+                    Buildings.lastError = "bank: " .. tostring(why or m)
+                    models[key] = {}
+                  end
+                end
+                built = models[key]
+              elseif ledgeOn() then
                 local g = nil
                 if okL and LedgeKit and LedgeKit.groundFor then
                   local okG, got = pcall(LedgeKit.groundFor, t,
@@ -1648,7 +1929,18 @@ function Buildings.build(S, map, data, perRow)
               built = {}
               local okS, ShopKit = pcall(V.require, "ShopKit")
               if okS and ShopKit and ShopKit.model then
+                -- Yellow's counter runs on to the product wall, Red's and
+                -- Blue's stops a row short (see ShopKit.signature), and the
+                -- whole room -- every band's halo -- follows the plan this
+                -- map has, so the cache is per signature as the crypt's is
+                local sig = nil
+                if ShopKit.signature then
+                  local okG, got = pcall(ShopKit.signature, t,
+                    function(cx, cy) return S.tileAt[keyOf(cx, cy)] end)
+                  if okG then sig = got end
+                end
                 local key = tileset.id .. ":" .. index .. "@shop"
+                            .. (sig and ("@" .. sig) or "")
                 if not models[key] then
                   local rel = spriteRel(ShopKit.SHEET)
                   Buildings.progress.step = "shop:read"
@@ -1659,7 +1951,7 @@ function Buildings.build(S, map, data, perRow)
                   local why = nil
                   if sheet and tex then
                     Buildings.progress.step = "shop:model"
-                    local okM, m, err = pcall(ShopKit.model, sheet, t)
+                    local okM, m, err = pcall(ShopKit.model, sheet, t, sig)
                     if okM and m then
                       Buildings.progress.step = "shop:emit"
                       q = emit(m, sheet, sheet.W, sheet.H)
@@ -1753,12 +2045,19 @@ function Buildings.build(S, map, data, perRow)
                     -- behind it is part of, and how far up that plant the
                     -- corner stands. The shader's reef branch moves each
                     -- kind its own way.
+                    -- (plantAt reads a quad as four corner tables; emit's
+                    -- quads are flat now, so each is lent as a scratch view)
+                    local view = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } }
                     for _, quad in ipairs(q) do
+                      for i = 1, 4 do
+                        local c, b = view[i], (i - 1) * 3
+                        c[1], c[2], c[3] = quad[b + 1], quad[b + 2], quad[b + 3]
+                      end
                       local packed = {}
                       for i = 1, 4 do
                         local s = type(quad.shade) == "table" and quad.shade[i] or quad.shade
-                        packed[i] = Kit.pack(s, Kit.plantAt(m, quad, i),
-                                             quad[i][1], quad[i][2], quad[i][3])
+                        local c = view[i]
+                        packed[i] = Kit.pack(s, Kit.plantAt(m, view, i), c[1], c[2], c[3])
                       end
                       quad.shade = packed
                     end
@@ -1770,13 +2069,68 @@ function Buildings.build(S, map, data, perRow)
                 end
                 built = models["reef@" .. key]
               end
+            elseif t.sign then
+              -- A town sign (lib/SignKit.lua): one board for every sign. An
+              -- empty model on failure, and the profile's card stands.
+              built = {}
+              if not models["sign@board"] then
+                local okK, Kit = pcall(V.require, "SignKit")
+                local sp = okK and Kit and readSprite(Kit.SHEET)
+                local tex = sp and loadSpriteImage(Kit.SHEET)
+                local okM, m, why = false, nil, nil
+                if sp and tex then okM, m, why = pcall(Kit.model, sp) end
+                if okM and m then
+                  local q = emit(m, sp, sp.W, sp.H)
+                  q.tex = Kit.SHEET
+                  models["sign@board"] = q
+                else
+                  Buildings.lastError = "sign: " .. tostring(why or m or Kit)
+                  models["sign@board"] = {}
+                end
+              end
+              built = models["sign@board"]
+            elseif t.cellKit then
+              -- A cell kit: the flowerbeds (lib/FlowerKit.lua), the rocky
+              -- shore (lib/RockShoreKit.lua). `Kit.spec(tileAt, tx, ty, map)`
+              -- says what of this cell it builds (nil: nothing, and the
+              -- empty model stamps and claims nothing); `Kit.model(sp, key)`
+              -- builds it and claims only its own tiles (`claimMask`), so
+              -- what stands beside them keeps its drawing.
+              built = {}
+              local okK, Kit = pcall(V.require, t.cellKit)
+              local key = okK and Kit and Kit.spec and Kit.spec(tileAtFn, tx, ty, buildMap)
+              if key then
+                local mk = t.cellKit .. "@" .. key
+                if not models[mk] then
+                  -- a kit whose key IS the cell (`PER_CELL`) makes a model
+                  -- nothing else will ask for: it lives with this map
+                  if Kit.PER_CELL then scope(mk, buildMap) end
+                  local sp = readSprite(Kit.SHEET)
+                  local tex = sp and loadSpriteImage(Kit.SHEET)
+                  local okM, m, why = false, nil, nil
+                  if sp and tex then okM, m, why = pcall(Kit.model, sp, key) end
+                  if okM and m then
+                    local q = emit(m, sp, sp.W, sp.H)
+                    q.tex = Kit.SHEET
+                    q.claimMask, q.standH = m.claimMask, m.standH
+                    models[mk] = q
+                  else
+                    Buildings.lastError = t.cellKit .. ": " .. tostring(why or m or Kit)
+                    models[mk] = {}
+                  end
+                end
+                built = models[mk]
+              end
             elseif t.fence then
               -- A timber fence (lib/FenceKit.lua): one model per signature
               -- -- which neighbours carry the run on. An empty model on
               -- failure stamps and claims nothing, and the profile's `post`
               -- class stands the two pegs as it always did.
               built = {}
-              local okK, Kit = pcall(V.require, "FenceKit")
+              -- (a town's own fence names its kit, `fenceKit`: Pallet's
+              -- pickets, lib/PicketFenceKit.lua; Vermilion's is the default)
+              local fenceKit = t.fenceKit or "FenceKit"
+              local okK, Kit = pcall(V.require, fenceKit)
               local joined = map.def.connections or {}
               local sig = okK and Kit and Kit.signature and Kit.signature(
                 function(x, y) return S.tileAt[keyOf(x, y)] end, tx, ty,
@@ -1785,7 +2139,7 @@ function Buildings.build(S, map, data, perRow)
                       or (y < 0 and joined.north ~= nil) or (y >= th and joined.south ~= nil)
                 end)
               if sig then
-                local key = "fence@" .. sig
+                local key = "fence@" .. fenceKit .. ":" .. sig
                 if not models[key] then
                   local sp = readSprite(Kit.SHEET)
                   local tex = sp and loadSpriteImage(Kit.SHEET)
@@ -1818,8 +2172,7 @@ function Buildings.build(S, map, data, perRow)
               built = {}
               local okK, Kit = pcall(V.require, "LavenderGroundKit")
               local lay = okK and Kit and Kit.spec and Kit.spec(
-                function(x, y) return S.tileAt[keyOf(x, y)] end, tx, ty,
-                map.def.id or map.def.name)
+                tileAtFn, tx, ty, map.def.id or map.def.name)
               if lay then
                 local sp = sheets[lay.sheet]
                 if sp == nil then
@@ -1834,11 +2187,27 @@ function Buildings.build(S, map, data, perRow)
                   sheets[lay.sheet] = sp
                 end
                 local okM, m, why = false, nil, nil
-                if sp then okM, m, why = pcall(Kit.model, lay) end
+                -- The slab and the growth are emitted APART (see
+                -- LavenderGroundKit.model's `part`). Together, every plant
+                -- cut the turf's flat tops into runs round it -- through the
+                -- crisp-top ring and the corner AO -- and 81% of a Kanto
+                -- map's ground quads were plants or those cuts. Apart, the
+                -- slab merges as if nothing grew on it and each plant is
+                -- drawn as it was (the slab stands under it as PHANTOM).
+                -- What goes is the one-voxel contact shadow the turf wore at
+                -- a plant's foot: kanto_shots_probe, Pewter 558k -> 300k
+                -- ground quads and 6.7 -> 3.2 s, the look signed off against
+                -- still-frame shots of five maps.
+                if sp then okM, m, why = pcall(Kit.model, lay, "ground") end
                 if okM and m then
                   built = emit(m, sp, sp.W, sp.H)
                   built.tex = lay.sheet
                   built.claimMask = m.claimMask
+                  local okP, mp = pcall(Kit.model, lay, "plants")
+                  if okP and mp then
+                    local qp = emit(mp, sp, sp.W, sp.H)
+                    for i = 1, #qp do built[#built + 1] = qp[i] end
+                  end
                 else
                   Buildings.lastError = "lavender ground: "
                                         .. tostring(why or m or Kit)
@@ -1855,17 +2224,22 @@ function Buildings.build(S, map, data, perRow)
               local mapId = tostring(map.def.id or map.def.name)
               local key = tileset.id .. ":" .. index .. "@home:" .. mapId
               if not models[key] then
-                local okV, VKit = pcall(V.require, "VermilionHomeKit")
-                local kitName = (okV and VKit and VKit.MAPS and VKit.MAPS[mapId])
-                                and "VermilionHomeKit" or "LavenderHomeKit"
+                scope(key, buildMap)
+                -- ...and every home since (lib/HomeKits.lua): the first kit
+                -- whose MAPS names this map builds it, from the sheet it
+                -- names for this map; Lavender's is the default, as it
+                -- always was.
+                local okH, HomeKits = pcall(V.require, "HomeKits")
+                local kitName = okH and HomeKits.kitFor(mapId) or "LavenderHomeKit"
                 local okK, Kit = pcall(V.require, kitName)
-                local sp = okK and Kit and readSprite(Kit.SHEET)
-                local tex = sp and loadSpriteImage(Kit.SHEET)
+                local sheet = okK and Kit and (okH and HomeKits.sheetFor(Kit, mapId) or Kit.SHEET)
+                local sp = sheet and readSprite(sheet)
+                local tex = sp and loadSpriteImage(sheet)
                 local okM, m, why = false, nil, nil
                 if sp and tex then okM, m, why = pcall(Kit.model, sp, t, mapId) end
                 if okM and m then
                   local q = emit(m, sp, sp.W, sp.H)
-                  q.tex = Kit.SHEET
+                  q.tex = sheet
                   q.standH, q.noFigure, q.claimMask = m.standH, m.noFigure, m.claimMask
                   models[key] = q
                 else
@@ -1880,6 +2254,7 @@ function Buildings.build(S, map, data, perRow)
               -- the same cottage template everywhere else keeps its model.
               local key = tileset.id .. ":" .. index .. "@lavender:" .. tx .. ":" .. ty
               if not models[key] then
+                scope(key, buildMap)
                 local okK, Kit = pcall(V.require, "LavenderHouseKit")
                 local sp = okK and Kit and readSprite(Kit.SHEET)
                 local tex = sp and loadSpriteImage(Kit.SHEET)
@@ -2056,13 +2431,46 @@ function Buildings.build(S, map, data, perRow)
             -- on (a wall's end matches the grass beyond it) -- claim only
             -- its own
             Buildings.progress.phase = "stamp"
-            Buildings.stamp(S, map, built, tx, ty, bw, t.claimRows or bh)
+            -- (a cell the script has painted over -- `alt` -- is not claimed:
+            -- its own tile stands, a door the profile builds)
+            if t.alt and built.claimMask then
+              local mask = {}
+              for r = 0, bh - 1 do
+                for c = 0, bw - 1 do
+                  local i = r * bw + c + 1
+                  mask[i] = built.claimMask[i]
+                    and S.tileAt[keyOf(tx + c, ty + r)] == t.tiles[r + 1][c + 1]
+                end
+              end
+              local own = built.claimMask
+              built.claimMask = mask
+              Buildings.stamp(S, map, built, tx, ty, bw, t.claimRows or bh)
+              built.claimMask = own
+            else
+              Buildings.stamp(S, map, built, tx, ty, bw, t.claimRows or bh)
+            end
             Buildings.progress.phase = "scan"
           end
         end
       end
+      if perfT0 then
+        local id = tostring(t.id)
+        local lab = PERF_LABEL[id]
+        if not lab then
+          lab = { "bld." .. id, "bldq." .. id }
+          PERF_LABEL[id] = lab
+        end
+        Perf.add(lab[1], perfT0)
+        Perf.count(lab[2], #quads + (S.spriteCount or 0) - perfQ0)
+      end
     end
   end
+  -- the painted ground decodes each cell's turf and growth strings into
+  -- three 256-slot tables, and held every one it ever opened (~134 MB over
+  -- a tour of Kanto). They are only read while a map builds; the next
+  -- build reopens what it needs, from the same strings.
+  local okG, GroundKit = pcall(V.require, "LavenderGroundKit")
+  if okG and GroundKit and GroundKit.release then pcall(GroundKit.release) end
 end
 
 -- ------- how tall a building stands over each CELL it claims
@@ -2155,8 +2563,8 @@ function Buildings.stamp(S, map, quads, tx, ty, bw, bh)
   -- the model's real top, remembered per CELL for line-of-sight (above)
   local top = 0
   for _, q in ipairs(quads) do
-    for i = 1, 4 do
-      if q[i][2] - (quads.sink or 0) > top then top = q[i][2] - (quads.sink or 0) end
+    for i = 2, 11, 3 do                -- each corner's y (emit's layout)
+      if q[i] - (quads.sink or 0) > top then top = q[i] - (quads.sink or 0) end
     end
   end
   if top > 0 and S then
@@ -2216,10 +2624,25 @@ function Buildings.stamp(S, map, quads, tx, ty, bw, bh)
                         slow = h.slow,
                         tx = tx, ty = ty }
   end
+  -- A model on its own sheet goes to the sprite pass as ONE placement --
+  -- the model and where it stands -- not as a copy of every quad moved
+  -- there. The copy was five tables a quad (the quad and its four
+  -- corners), kept until the map's meshes were built: a Kanto
+  -- neighbourhood stamped 0.9-1.9 million quads (kanto_shots_probe), which
+  -- is most of the heap a first visit grew. The one reader,
+  -- ChunkMesher's buildSpriteMesh, walks each placement's quads in their
+  -- own order and adds the offset as it pushes, so the vertex stream is
+  -- the one the copies made: same quads, same order, same values. (A
+  -- stamped sprite quad never carried `sky`, and `own` is an objectQuads
+  -- rule the sprite pass does not read.)
   if quads.tex then
-    S.spriteQuads = S.spriteQuads or {}
+    S.spritePlacements = S.spritePlacements or {}
+    local list = S.spritePlacements
+    list[#list + 1] = { quads = quads, mx = mx, my = my, mz = mz, tex = quads.tex }
+    S.spriteCount = (S.spriteCount or 0) + #quads
+    return
   end
-  local out = quads.tex and S.spriteQuads or S.objectQuads
+  local out = S.objectQuads
   -- Budget.tick per quad: one model can be tens of thousands of quads and
   -- each copy is five tables, and this loop was the one step of a kit
   -- build with no yield in it -- tools/profiler's overrun.structures.
@@ -2228,12 +2651,15 @@ function Buildings.stamp(S, map, quads, tx, ty, bw, bh)
   -- clock one call in 32, so it costs nothing per quad.
   for _, q in ipairs(quads) do
     Budget.tick()
+    -- objectQuads keep the world-space shape the terrain pass reads
+    -- (corner tables, a uv of pairs); the pairs are expanded once per
+    -- model quad and shared by every placement of it, as `q.uv` was
     out[#out + 1] = {
-      { q[1][1] + mx, q[1][2] + my, q[1][3] + mz },
-      { q[2][1] + mx, q[2][2] + my, q[2][3] + mz },
-      { q[3][1] + mx, q[3][2] + my, q[3][3] + mz },
-      { q[4][1] + mx, q[4][2] + my, q[4][3] + mz },
-      uv = q.uv, shade = q.shade, tex = quads.tex,
+      { q[1] + mx, q[2] + my, q[3] + mz },
+      { q[4] + mx, q[5] + my, q[6] + mz },
+      { q[7] + mx, q[8] + my, q[9] + mz },
+      { q[10] + mx, q[11] + my, q[12] + mz },
+      uv = Buildings.quadUVPairs(q), shade = q.shade, tex = quads.tex,
       -- placements only ever scan the BODY, so a building is always this
       -- map's own structure: the mesher's edge keep-rules must not eat
       -- the parts that poke past the boundary (an edge-row house's eave
@@ -2243,6 +2669,40 @@ function Buildings.stamp(S, map, quads, tx, ty, bw, bh)
       own = true,
     }
   end
+end
+
+-- A compact quad's uv as the four { u, v } pairs the world-space quad
+-- shape carries, built once and kept on the quad (`uvPairs`): a model
+-- stamped at a hundred places shares one, as it always shared `q.uv`.
+function Buildings.quadUVPairs(q)
+  local t = q.uvPairs
+  if not t then
+    t = { { q[13], q[14] }, { q[15], q[16] }, { q[17], q[18] }, { q[19], q[20] } }
+    q.uvPairs = t
+  end
+  return t
+end
+
+-- A map's sprite quads in WORLD pixels, as stamp used to store them (see
+-- stamp: it keeps placements now). For probes that look at what was
+-- stamped; it allocates the copies stamp no longer makes, so nothing at
+-- runtime calls it.
+function Buildings.spriteQuadsOf(S)
+  local out = {}
+  for _, q in ipairs((S and S.spriteQuads) or {}) do out[#out + 1] = q end
+  for _, p in ipairs((S and S.spritePlacements) or {}) do
+    local mx, my, mz = p.mx, p.my, p.mz
+    for _, q in ipairs(p.quads) do
+      out[#out + 1] = {
+        { q[1] + mx, q[2] + my, q[3] + mz },
+        { q[4] + mx, q[5] + my, q[6] + mz },
+        { q[7] + mx, q[8] + my, q[9] + mz },
+        { q[10] + mx, q[11] + my, q[12] + mz },
+        uv = Buildings.quadUVPairs(q), shade = q.shade, tex = p.tex, own = true,
+      }
+    end
+  end
+  return out
 end
 
 -- What the models built so far cost, keyed "<tileset>:<index>": the voxel
@@ -2264,6 +2724,7 @@ end
 function Buildings.invalidate()
   spec = nil
   models = {}
+  scoped, scopedOrder, failed = {}, {}, {}
   sheets = {}
   for k in pairs(spriteImg) do spriteImg[k] = nil end
   Buildings.clearTall()
