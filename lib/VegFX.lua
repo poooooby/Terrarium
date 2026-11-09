@@ -42,6 +42,7 @@
 -- much forest lies far from them (SprayFX learned that one first).
 
 local V = ...
+local Screen = V.require("Screen")
 
 local Wind = V.require("Wind")
 local WindFX = V.require("WindFX")
@@ -267,14 +268,14 @@ local function updateBody(dt, voxelOn)
   local Game = game()
   local ow = Game and Game.overworld
   local live = voxelOn and ow and ow.map and ow.player
-               and Game.stack and Game.stack:top() == ow
+               and Screen.onTop(Game, ow)
                and not ow.transitioning
                and VegFX.grows(ow.map)
   if not live then
     VegFX.lastGate =
       (not voxelOn and "voxelOn=false")
       or (not (ow and ow.map and ow.player) and "no overworld/map/player")
-      or (not (Game.stack and Game.stack:top() == ow) and "overworld not on top")
+      or (not (Screen.onTop(Game, ow)) and "overworld not on top")
       or (ow.transitioning and "map transitioning")
       or "indoors"
     VegFX.windGate = VegFX.lastGate

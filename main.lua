@@ -468,7 +468,14 @@ mod.content.render_pipelines:register(PIPE_VOXEL, {
     local Game = require("src.core.Game")
     local ow = Game and Game.overworld
     if ow and ow.map and ow.camera then
-      pcall(VoxelScene.prefetch, ow)
+      -- Printed once: a throw here leaves Voxel.ready false, which holds the
+      -- camera flat for as long as it keeps throwing, with nothing to say why.
+      local okFetch, errFetch = pcall(VoxelScene.prefetch, ow)
+      if not okFetch and not V.prefetchError then
+        V.prefetchError = tostring(errFetch)
+        V.mod.log:warn("voxel prefetch failed: %s -- the view stays flat "
+                       .. "until it succeeds", V.prefetchError)
+      end
       -- "Building voxels... N%" over the flat 2D picture while this map's
       -- 3D is still on its way (lib/BuildBadge.lua; drawn in render.hud)
       BuildBadge.note(ow.map, Voxel.ready)
@@ -721,14 +728,19 @@ local fullWas = nil
 applyFull = function(level)
   local isFull = Voxel.isFull(level)
   local was = fullWas
-  fullWas = isFull
-  if not isFull or was == true or was == nil then return end
+  if not isFull or was == true or was == nil then
+    fullWas = isFull
+    return
+  end
 
   local Game = require("src.core.Game")
   local Pipelines = require("src.render.Pipelines")
   local Zoom = require("src.render.Zoom")
   local opts = Game.save and Game.save.options
+  -- latched only past this guard, so an arrival with no save yet is retried
+  -- on the next tick instead of being spent with nothing applied
   if not opts then return end
+  fullWas = true
 
   -- the miniature blur at its strongest: FULL is the diorama look, and the
   -- tilt-shift is most of what makes it read as a model.
@@ -1858,7 +1870,8 @@ end)
 --
 -- Rebuilt in place, and only on a step that changes the LIST: crossing FULL,
 -- toggling 3D-BTL, which is the other row that owns one (BATTLE LAYOUT), or
--- WILD arriving at or leaving OFF, which takes W-COUNT with it.
+-- WEATHER or CLOUDS arriving at or leaving off, which take GROUND and SHADE
+-- with them.
 -- Every other rung returns the same list, and rebuilding on all of them would
 -- rerun every mod's ui.options.rows hook once per keypress. The cursor is
 -- clamped rather than reset, so it stays on the row it was just used on
@@ -1879,6 +1892,7 @@ do
       local before = Pipelines.level(PIPE_VOXEL)
       local hadBattles = OverworldBattle.enabled()
       local hadWeather = Weather.enabled()
+      local hadClouds = Sky.cloudAmount() > 0
       local wasOn = idAt(self, self.index)
       inner(self, dt)
       local after = Pipelines.level(PIPE_VOXEL)
@@ -1888,7 +1902,9 @@ do
          -- WEATHER arriving at or leaving OFF takes GROUND with it: with
          -- no sky there is never a puddle for that row to decide anything
          -- about
-         or Weather.enabled() ~= hadWeather then
+         or Weather.enabled() ~= hadWeather
+         -- and CLOUDS arriving at or leaving none takes SHADE with it
+         or (Sky.cloudAmount() > 0) ~= hadClouds then
         if self.terrarium then
           local rows = terrariumRows(self.game)
           self.rows, self.view = rows, rows
@@ -2227,3 +2243,87 @@ mod.exports.pipelines = { voxel = PIPE_VOXEL, tiltshift = PIPE_TILT }
 mod.exports.keys = V.KEYS
 -- a mod's own pictures in the diorama's overlay pass (lib/OverlayHooks.lua)
 mod.exports.overlay = { add = OverlayHooks.add, remove = OverlayHooks.remove }
+-- every reported lifecycle, by name (lib/StateReport.lua)
+mod.exports.states = V.require("StateReport")
+
+-- ------- the lifecycles this file can see whole
+--
+-- Derived from fields that already exist; nothing here drives anything, and
+-- none of it runs unless DEBUG INFO, a probe or another mod asks. The rest
+-- are declared beside their own fields. assets/docs/state-machines.md is the
+-- catalogue, and tools/check_states.py keeps it in step.
+do
+  local StateReport = mod.exports.states
+  local Screen = V.require("Screen")
+  local Pipelines = require("src.render.Pipelines")
+  local AutoQuality = V.require("AutoQuality")
+
+  local function world()
+    local Game = require("src.core.Game")
+    local ow = Game and Game.overworld
+    return Game, ow, ow and ow.map
+  end
+
+  StateReport.define("world.freeroam",
+    { "freeroam", "covered", "warping", "no-world" },
+    function()
+      local Game, ow, map = world()
+      if not (map and ow.player) then return "no-world" end
+      if not Screen.onTop(Game, ow) then return "covered" end
+      if ow.transitioning then return "warping" end
+      return "freeroam"
+    end)
+
+  StateReport.define("pipeline.voxel", { "off", "eligible", "retired" },
+    function()
+      if Pipelines.level(PIPE_VOXEL) <= 0 then return "off" end
+      return Pipelines.eligible(PIPE_VOXEL) and "eligible" or "retired"
+    end)
+
+  StateReport.define("scene.gate",
+    { "off", "waiting", "easing-in", "on", "easing-out" },
+    function()
+      if Voxel.level == 0 and Voxel.angle == 0 then return "off" end
+      if Voxel.angle == 0 and Voxel.goal > 0 and not Voxel.ready then
+        return "waiting", V.prefetchError
+      end
+      if Voxel.t < 1 then
+        return Voxel.goal >= Voxel.from and "easing-in" or "easing-out"
+      end
+      return "on"
+    end)
+
+  StateReport.define("scene.mesh",
+    { "absent", "queued", "running", "ready", "empty", "failed", "stale" },
+    function()
+      local _, _, map = world()
+      if not map then return "absent" end
+      return ChunkMesher.status(map.id, "full")
+    end)
+
+  StateReport.define("scene.settled",
+    { "no-mesh", "neighbours", "trees", "settled" },
+    function()
+      local _, _, map = world()
+      if not (map and ChunkMesher.peek(map, false)) then return "no-mesh" end
+      if ChunkMesher.pending() > 0 then return "neighbours" end
+      if Trees3D.buildsInFlight() > 0 then return "trees" end
+      return "settled"
+    end)
+
+  StateReport.define("scene.trees", { "ready", "building", "cold", "hulls" },
+    function()
+      local _, _, map = world()
+      local _, state = Trees3D.ready(map)
+      return state
+    end)
+
+  StateReport.define("preset.full", { "unseen", "off", "on" }, function()
+    if fullWas == nil then return "unseen" end
+    return fullWas and "on" or "off"
+  end)
+
+  StateReport.define("quality.governor",
+    { "unseeded", "inert", "filling", "settling", "trial", "idle" },
+    AutoQuality.state)
+end

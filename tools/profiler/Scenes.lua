@@ -171,7 +171,18 @@ function Scenes.visit(game, V, c, log, quiet)
     log(("%s FAIL: landed on %s"):format(c.id, tostring(game.overworld.map.id)))
     return false
   end
-  if not ready(game, V, c.id) then log(c.id, "FAIL: scene never finished building"); return false end
+  if not ready(game, V, c.id) then
+    -- Only a map with no mesh of its own is a failure. The guard also waits
+    -- for every neighbour the prefetch queued, and since the Kanto kits a
+    -- cold town's neighbours outlast 1800 frames while the town itself is
+    -- done in under two seconds: LAVENDER_TOWN "failed" on every run.
+    if not Scenes.ownAt then
+      log(c.id, "FAIL: no mesh of its own at the guard")
+      return false
+    end
+    log(("NOTE: %s own mesh at frame %d; neighbours still building at the guard")
+        :format(c.id, Scenes.ownAt))
+  end
   settle(game)
   Scenes.wait(60)
   return true

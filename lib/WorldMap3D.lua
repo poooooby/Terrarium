@@ -2228,4 +2228,13 @@ function WorldMap3D.install()
   return true
 end
 
+V.require("StateReport").define("worldmap.build",
+  { "unbuilt", "building", "built", "failed" },
+  function()
+    if failed then return "failed" end
+    if R then return "built" end
+    if build then return "building" end
+    return "unbuilt"
+  end)
+
 return WorldMap3D

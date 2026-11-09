@@ -26,6 +26,23 @@ Tags and packages:
 - Zip asset: `TERRARIUM-1.50.0.zip`
 - `manifest.json` / catalog `version` field: `1.50.0`
 
+## Unreleased
+
+### Fixes
+
+- **Quitting to the title in the middle of a battle now ends it properly.** The 3D arena used to keep rendering behind the title screen, the D-pad on the title could stop responding, and the next map could load with the wrong people on it.
+- **The "switch to ADVANCED colours" panel** no longer stays on screen forever if you quit to the title while it's open.
+- **Hit marks in the grass stay put during staged battles.** The landing effect was firing twice every frame instead of once per battle, which wiped them out almost immediately.
+- **Rain thins out as a shower ends.** The rain used to vanish at once while the sky took 14 seconds to clear.
+- **TIME OF DAY set from the mod manager while VOXEL is on FULL** now saves as SYNC, the value FULL holds it at. The next launch used to start with the wrong sky.
+- **The "Building voxels" bar** no longer creeps to 95% and sits there when a map's 3D build has failed.
+- **The SHADE row** now appears and disappears as soon as you change CLOUDS, instead of when you reopen the menu.
+
+### For developers and mod authors
+
+- **DEBUG INFO lists every major lifecycle by name**: battle session, D-pad owner, mesh state, weather spell, camera mode and more, so a screenshot of the panel says what state the mod is in. Other mods can read the same list through `mod.exports.states`.
+- `assets/docs/state-machines.md` catalogues every lifecycle in the mod, and `python tools/check_states.py` keeps it in step with the code. `tests/state_report_probe.lua` plays through each fix above in the real game.
+
 ## 1.61.0-beta (pre-release)
 
 ### Untamed Tohjo in 3D

@@ -1767,6 +1767,15 @@ local function swapSlot(c, slot, mesh)
   local old = c[slot]
   if old and old ~= mesh and old.release then pcall(old.release, old) end
   c[slot] = mesh
+  if c.failed then c.failed[slot] = nil end
+end
+
+-- `false` in a slot means "nothing to draw", for two different reasons: the
+-- map is empty (terminal, and fine) or the build threw. Recording which is
+-- what lets BuildBadge let go and DEBUG INFO name the error.
+local function noteFailure(c, slot, err)
+  c.failed = c.failed or {}
+  c.failed[slot] = tostring(err)
 end
 
 -- ------------------------------------------------------------- the cache
@@ -1789,6 +1798,7 @@ local function releaseEntry(c)
   releaseFigures(c.figures)
   c.figures = nil
   c.stale = nil
+  c.failed = nil
 end
 
 -- ---------------------------------------------------------- async builds
@@ -1815,7 +1825,9 @@ local function finishJob(job, ok, err)
     print("[warn] voxel mesh build failed for " .. tostring(job.id)
           .. ": " .. tostring(err))
     if (gen[job.id] or 0) == job.gen then
-      entry(job.id)[job.slot] = false
+      local c = entry(job.id)
+      c[job.slot] = false
+      noteFailure(c, job.slot, err)
     end
   end
 end
@@ -2249,6 +2261,7 @@ function ChunkMesher.get(map, bodyOnly, masks)
             .. ": " .. tostring(mesh))
     end
     swapSlot(c, slot, (ok and mesh) or false)
+    if not ok then noteFailure(c, slot, mesh) end
     if c.stale then
       c.stale[slot] = nil
       if not (c.stale.full or c.stale.body or c.stale.aux) then
@@ -2260,6 +2273,22 @@ function ChunkMesher.get(map, bodyOnly, masks)
     if job then finishJob(job, true) end
   end
   return c[slot] or nil
+end
+
+-- Where one mesh slot is in its life, by name; never builds or queues. A
+-- failure also answers the error. absent | queued | running | ready | empty |
+-- failed | stale.
+function ChunkMesher.status(mapId, slot)
+  slot = slot or "full"
+  local job = jobIndex[jobKey(mapId, slot)]
+  if job then return job.co and "running" or "queued" end
+  local c = cache[mapId]
+  if not c or c[slot] == nil then return "absent" end
+  if c.stale and c.stale[slot] then return "stale" end
+  if c[slot] then return "ready" end
+  local why = c.failed and c.failed[slot]
+  if why then return "failed", why end
+  return "empty"
 end
 
 -- The cached mesh, or nil -- never builds. The async path's read side.

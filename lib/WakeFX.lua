@@ -42,6 +42,7 @@
 -- The player's wake first: the camera is on them.
 
 local V = ...
+local Screen = V.require("Screen")
 local Voxel3D = V.require("Voxel3D")
 local StepFX = V.require("StepFX")
 local RainOnFX = V.require("RainOnFX")
@@ -167,7 +168,7 @@ local function updateBody(dt, voxelOn)
   local ow = Game and Game.overworld
   local live = voxelOn and ow and ow.map and ow.player
                and Map.isOutdoor(ow.map.def)
-               and Game.stack and Game.stack:top() == ow
+               and Screen.onTop(Game, ow)
                and not ow.transitioning
   if not live then WakeFX.lastGate = "not live" return end
   WakeFX.lastGate = "live"

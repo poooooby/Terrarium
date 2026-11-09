@@ -78,6 +78,7 @@
 
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
+local Screen = V.require("Screen")
 local WaterMap = V.require("WaterMap")   -- where water may be drawn at all
 
 
@@ -1130,7 +1131,7 @@ local function tick(dt)
 
   if GroundFX.enabled()
      and puddleAmount() > 0.02
-     and Game.stack and Game.stack:top() == ow and not ow.transitioning then
+     and Screen.onTop(Game, ow) and not ow.transitioning then
     trackSteps(ow)
   end
 end

@@ -61,6 +61,7 @@
 
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
+local Screen = V.require("Screen")
 local WaterMap = V.require("WaterMap")   -- where water may be drawn at all
 
 
@@ -927,7 +928,7 @@ local function tick(dt)
   local ow = Game and Game.overworld
 
   local live = AmbientSound.enabled() and ow and ow.map and ow.player
-               and Game.stack and Game.stack:top() == ow
+               and Screen.onTop(Game, ow)
                and not ow.transitioning
   if not live then
     -- a menu, a battle or a warp: everything eases down rather than cutting,

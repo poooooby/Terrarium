@@ -37,6 +37,7 @@
 
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
+local Screen = V.require("Screen")
 
 local ModSetting = V.require("ModSetting")
 local BattleArena = V.require("BattleArena")
@@ -478,6 +479,21 @@ function OverworldBattle.update(dt)
   local g = game()
   local top = g and g.stack and g.stack:top()
   local ow = g and g.overworld
+  -- A battle taken off the stack with no ending at all. Game:returnToTitle
+  -- (QUIT, the touch soft reset) pops every screen and emits nothing, so
+  -- `armed` below would hold the session open with the title on top: the
+  -- arena rendering behind it, BattleNav still answering the D-pad for a dead
+  -- battle's menu, and the pre-reset cast written over whatever map loaded
+  -- next. Only after the battle has been SEEN on the stack, because a session
+  -- opens at pushBattle, a wipe ahead of the battle's own push.
+  if session.battle then
+    if Screen.onStack(g, session.battle) then
+      session.seen = true
+    elseif session.seen then
+      OverworldBattle.finish()
+      return
+    end
+  end
   -- A battle that ended without saying so (a script tearing the state down,
   -- a path that never emits battle.ended) would otherwise leave the cast
   -- culled for good. Armed only once something has actually covered the
@@ -1624,5 +1640,17 @@ function OverworldBattle.drawHudPanels(battle)
   battle.dramaticShapeDark = dark
   for _, r in pairs(live) do BattleHud.panel(r, shot, dark) end
 end
+
+V.require("StateReport").define("battle.session",
+  { "none", "opening", "staged", "in-frame", "shotless", "broken" },
+  function()
+    if not session then return "none" end
+    if session.broken then return "broken" end
+    if not session.armed then return "opening" end
+    if session.shot and session.shot.canvas then
+      return session.snapped and "staged" or "in-frame"
+    end
+    return "shotless"
+  end)
 
 return OverworldBattle

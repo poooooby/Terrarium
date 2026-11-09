@@ -16,6 +16,7 @@
 -- overworld on top -- WindFX's own gates minus the wind.
 
 local V = ...
+local Screen = V.require("Screen")
 
 local Particles = V.require("Particles")
 local ParticleMesh = V.require("ParticleMesh")
@@ -133,13 +134,13 @@ local function updateBody(dt, voxelOn)
   local ow = Game and Game.overworld
   local live = voxelOn and ow and ow.map and ow.player
                and Map.isOutdoor(ow.map.def)
-               and Game.stack and Game.stack:top() == ow
+               and Screen.onTop(Game, ow)
                and not ow.transitioning
   if not live then
     BreathFX.lastGate = (not voxelOn and "voxelOn=false")
       or (not (ow and ow.map and ow.player) and "no overworld/map/player")
       or (not Map.isOutdoor(ow.map.def) and "indoors")
-      or (not (Game.stack and Game.stack:top() == ow) and "overworld not on top")
+      or (not (Screen.onTop(Game, ow)) and "overworld not on top")
       or (ow.transitioning and "map transitioning") or "unknown"
     field:clear()
     return

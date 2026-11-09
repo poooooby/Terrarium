@@ -51,6 +51,7 @@
 
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
+local Screen = V.require("Screen")
 local WaterMap = V.require("WaterMap")   -- where water may be drawn at all
 
 
@@ -690,12 +691,12 @@ local function updateBody(dt, voxelOn)
 
   local ok = voxelOn and AmbientLife.enabled()
              and ow and ow.map and ow.player
-             and Game.stack and Game.stack:top() == ow
+             and Screen.onTop(Game, ow)
              and not ow.transitioning
              and Map.isOutdoor(ow.map.def)
   if not ok then
     if #critters > 0 and not (ow and Game.stack
-                              and Game.stack:top() ~= ow) then
+                              and not Screen.onTop(Game, ow)) then
       -- gone for a real reason (indoors, mode off): drop the population.
       -- Under a battle or menu it is merely paused, and comes back intact.
       critters = {}

@@ -46,6 +46,7 @@
 -- depth that hides the roof behind it.
 
 local V = ...
+local Screen = V.require("Screen")
 
 local Particles = V.require("Particles")
 local ParticleMesh = V.require("ParticleMesh")
@@ -209,7 +210,7 @@ local function updateBody(dt, voxelOn)
   local outdoor = ow and ow.map and Map.isOutdoor(ow.map.def) or false
   local live = voxelOn and GhostFX.enabled() and ow and ow.map and ow.player
                and (outdoor or crypt)
-               and Game.stack and Game.stack:top() == ow
+               and Screen.onTop(Game, ow)
                and not ow.transitioning
   if not live then
     GhostFX.lastGate =
@@ -217,7 +218,7 @@ local function updateBody(dt, voxelOn)
       or (not GhostFX.enabled() and "GHOSTS off")
       or (not (ow and ow.map and ow.player) and "no overworld/map/player")
       or (not (outdoor or crypt) and "indoors")
-      or (not (Game.stack and Game.stack:top() == ow) and "overworld not on top")
+      or (not (Screen.onTop(Game, ow)) and "overworld not on top")
       or (ow.transitioning and "map transitioning")
       or "unknown"
     field:clear()

@@ -1522,4 +1522,11 @@ function MarioCam.lens()
   return math.rad(lakitu.fov + lakitu.fovOffset) / 2, math.max(1, dist)
 end
 
+V.require("StateReport").define("camera.mode",
+  { "off", "orbit", "radial", "close", "eight", "behind", "fixed" },
+  function()
+    if not MarioCam.enabled() then return "off" end
+    return MarioCam.cam.mode
+  end)
+
 return MarioCam

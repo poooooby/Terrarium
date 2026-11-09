@@ -198,4 +198,7 @@ function BattleExit.install()
   end
 end
 
+V.require("StateReport").define("battle.exit", { "idle", "out", "in" },
+  function() return live and live.phase or "idle" end)
+
 return BattleExit

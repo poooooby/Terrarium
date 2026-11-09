@@ -46,6 +46,11 @@ function BuildBadge.note(map, ready)
   if shown and shown.id ~= id then
     shown = nil
   end
+  -- a build that threw is over: nothing is coming, and the bar would otherwise
+  -- creep to 95% and sit there
+  if shown and ChunkMesher.status(shown.id, "full") == "failed" then
+    shown, fading = nil, nil
+  end
   if ready then
     if shown then
       -- the build the badge was timing: teach the estimate this device's

@@ -21,6 +21,7 @@
 -- tools/make_wind_sprites.py): grit, seed, dash, spray, snow, puff.
 
 local V = ...
+local Screen = V.require("Screen")
 
 local DayNight = V.require("DayNight")
 local Wind = V.require("Wind")
@@ -691,7 +692,7 @@ function WindFX.update(dt, voxelOn)
   local live = voxelOn and cap > 0 and amount > WindFX.FLOOR
                 and ow and ow.map and ow.player
                 and openSky(ow.map)
-                and Game.stack and Game.stack:top() == ow
+                and Screen.onTop(Game, ow)
                 and not ow.transitioning
   if not live then
     WindFX.lastGate =
@@ -700,7 +701,7 @@ function WindFX.update(dt, voxelOn)
       or (amount <= WindFX.FLOOR and "wind below FLOOR")
       or (not (ow and ow.map and ow.player) and "no overworld/map/player")
       or (not openSky(ow.map) and "indoors (no open sky)")
-      or (not (Game.stack and Game.stack:top() == ow) and "overworld not on top")
+      or (not (Screen.onTop(Game, ow)) and "overworld not on top")
       or (ow.transitioning and "map transitioning")
       or "unknown"
     WindFX.clear()

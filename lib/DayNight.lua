@@ -80,7 +80,10 @@ DayNight.setting = ModSetting.new(DayNight.KEY, DayNight.LABEL,
 -- the manager's options_changed), mirroring OverworldBattle.forceOG.
 function DayNight.forceSync(game)
   if DayNight.setting:get() ~= "sync" then
-    DayNight.setting:setIndex(1, game)
+    -- The game, always: with none, setIndex moves only the cached index, and
+    -- the manager page had already written the player's value to the file --
+    -- live said SYNC, the next boot said whatever the file did.
+    DayNight.setting:setIndex(1, game or require("src.core.Game"))
   end
 end
 
@@ -889,5 +892,14 @@ function DayNight.restore()
   DayNight.clock = type(stored) == "number"
                    and stored % DayNight.CYCLE or DayNight.T.day
 end
+
+V.require("StateReport").define("time.mode",
+  { "pinned", "sync-wall", "cycle" },
+  function()
+    local m = mode()
+    if m == "sync" then return "sync-wall" end
+    if m == "cycle" then return "cycle" end
+    return "pinned", m
+  end)
 
 return DayNight

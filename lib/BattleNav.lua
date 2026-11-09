@@ -644,4 +644,12 @@ function BattleNav.install()
   return true
 end
 
+V.require("StateReport").define("battle.nav",
+  { "retired", "idle", "menu", "move", "party" },
+  function()
+    local kind = BattleNav.wants()
+    if kind then return kind end
+    return S.live and "idle" or "retired"
+  end)
+
 return BattleNav

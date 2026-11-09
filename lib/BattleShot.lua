@@ -396,4 +396,8 @@ function BattleShot.frame(cam, pitch, arena, groundY)
   return out, outPitch
 end
 
+V.require("StateReport").define("battle.shot",
+  { "idle", "attack", "hold", "recover" },
+  function() return S.mode end)
+
 return BattleShot

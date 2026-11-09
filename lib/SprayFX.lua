@@ -35,6 +35,7 @@
 -- the everyday feature; the waterfall waits for a reason to exist.
 
 local V = ...
+local Screen = V.require("Screen")
 local WaterMap = V.require("WaterMap")   -- where water may be drawn at all
 
 
@@ -176,7 +177,7 @@ local function updateBody(dt, voxelOn)
   local amount = Wind.amount()
   local live = voxelOn and ow and ow.map and ow.player
                and Map.isOutdoor(ow.map.def)
-               and Game.stack and Game.stack:top() == ow
+               and Screen.onTop(Game, ow)
                and not ow.transitioning
                and amount > WindFX.FLOOR
   if not live then
@@ -184,7 +185,7 @@ local function updateBody(dt, voxelOn)
       (not voxelOn and "voxelOn=false")
       or (not (ow and ow.map and ow.player) and "no overworld/map/player")
       or (not Map.isOutdoor(ow.map.def) and "indoors")
-      or (not (Game.stack and Game.stack:top() == ow) and "overworld not on top")
+      or (not (Screen.onTop(Game, ow)) and "overworld not on top")
       or (ow.transitioning and "map transitioning")
       or (amount <= WindFX.FLOOR and "wind below FLOOR")
       or "unknown"

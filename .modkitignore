@@ -61,6 +61,7 @@ assets/docs/shop/DRESSING.md
 assets/docs/shop/SILHOUETTE_AUDIT.md
 assets/docs/shop/SILHOUETTE_AUDIT_2.md
 assets/docs/shop/WORKFLOW.md
+assets/docs/state-machines.md
 assets/ground/README.md
 assets/ground/grass/README.md
 assets/ground/lamppost/README.md
@@ -276,6 +277,7 @@ tests/snow_on_probe.lua
 tests/snow_probe.lua
 tests/spray_probe.lua
 tests/startmenu_probe.lua
+tests/state_report_probe.lua
 tests/step_dust_probe.lua
 tests/sun_shadow_card2_probe.lua
 tests/sun_shadow_card_probe.lua
@@ -339,6 +341,7 @@ tools/bake_voxel_tree.py
 tools/bisect_visual.ps1
 tools/building_images.py
 tools/building_voxels.py
+tools/check_states.py
 tools/contact_sheets.py
 tools/cut_snow_burst.py
 tools/cut_snowflakes.py
@@ -404,6 +407,7 @@ tools/voxel-trees-workflow.md
 # third-party art, scratch output): listed so a pack built from this
 # checkout never carries them. Another machine regenerates its own.
 CLAUDE.md
+GEN2-PLAN.md
 PARTICLES-PLAN.md
 PRECACHE-PLAN.md
 Terrarium.code-workspace
@@ -416,6 +420,12 @@ releases/TERRARIUM-1.40.4-beta.test1.zip
 releases/TERRARIUM-1.40.4-beta.test2.zip
 releases/Terrarium.code-workspace
 releases/sha256sums.txt
+tests/local/Boot.lua
+tests/local/Plan.lua
+tests/local/README.md
+tests/local/arena_config.lua
+tests/local/arena_editor.lua
+tests/local/map_picker.lua
 tools/_kit_out/CryptKit_POKEMON_TOWER_4F.faces
 tools/_kit_out/CryptKit_POKEMON_TOWER_4F.json
 tools/_kit_out/CryptKit_POKEMON_TOWER_4F.png
@@ -449,3 +459,6 @@ tools/_kit_out/sheet5.rgba
 tools/_kit_out/sheet6.rgba
 tools/_kit_out/sheet7.rgba
 tools/_kit_out/sheet8.rgba
+tools/local/depth_inputs.py
+tools/local/depth_score.py
+tools/local/depth_try.py

@@ -22,6 +22,7 @@
 -- fall and land through the same code.
 
 local V = ...
+local Screen = V.require("Screen")
 
 local Weather = V.require("Weather")
 
@@ -156,7 +157,7 @@ local function updateBody(dt, voxelOn)
   local ow = Game and Game.overworld
   local live = voxelOn and ow and ow.map and ow.player
                and Map.isOutdoor(ow.map.def)
-               and Game.stack and Game.stack:top() == ow
+               and Screen.onTop(Game, ow)
                and not ow.transitioning
   if not live then
     RainOnFX.lastGate = "not live"

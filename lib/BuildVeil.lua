@@ -525,4 +525,7 @@ function BuildVeil.resetForProbe()
   veil = nil
 end
 
+V.require("StateReport").define("veil.build", { "none", "ask", "build" },
+  function() return veil and veil.phase or "none" end)
+
 return BuildVeil

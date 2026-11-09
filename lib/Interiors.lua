@@ -29,6 +29,7 @@
 
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
+local Screen = V.require("Screen")
 
 local ModSetting = V.require("ModSetting")
 local TileShape = V.require("TileShape")
@@ -168,7 +169,7 @@ local function tick()
   local Game = game()
   local ow = Game and Game.overworld
   if not (ow and ow.map and ow.player) then return end
-  if Game.stack and Game.stack:top() ~= ow then return end
+  if Game.stack and not Screen.onTop(Game, ow) then return end
   if ow.transitioning then return end
   if ow.runner and ow.runner.isRunning and ow.runner:isRunning() then return end
 

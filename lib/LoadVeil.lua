@@ -141,4 +141,7 @@ function LoadVeil.present(canvas)
   return canvas
 end
 
+V.require("StateReport").define("veil.load", { "none", "hold", "fade" },
+  function() return veil and veil.phase or "none" end)
+
 return LoadVeil

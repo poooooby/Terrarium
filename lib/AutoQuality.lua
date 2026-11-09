@@ -330,4 +330,15 @@ function AutoQuality.report()
               or (pendFrom and " | on trial" or ""))
 end
 
+-- Where the governor is, by name (declared to StateReport from main.lua, so
+-- this file keeps no dependency its offline test would have to stub).
+function AutoQuality.state()
+  if AutoQuality.inert then return "inert" end
+  if not idx then return "unseeded" end
+  if pendFrom then return "trial" end
+  if ringN < AutoQuality.WINDOW then return "filling" end
+  if sinceChange < AutoQuality.SETTLE then return "settling" end
+  return "idle"
+end
+
 return AutoQuality

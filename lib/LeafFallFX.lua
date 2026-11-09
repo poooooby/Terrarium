@@ -55,6 +55,7 @@
 -- Neighbour maps are not drawn (the same limit VegFX and StepFX have).
 
 local V = ...
+local Screen = V.require("Screen")
 
 local Particles = V.require("Particles")
 local LeafLitter = V.require("LeafLitter")
@@ -523,7 +524,7 @@ local function updateBody(dt, voxelOn)
   local Game = game()
   local ow = Game and Game.overworld
   local live = voxelOn and ow and ow.map and ow.player
-               and Game.stack and Game.stack:top() == ow
+               and Screen.onTop(Game, ow)
                and not ow.transitioning
   if not live then
     -- nothing is cleared: the ground keeps its leaves through a battle, a
@@ -531,7 +532,7 @@ local function updateBody(dt, voxelOn)
     LeafFallFX.lastGate =
       (not voxelOn and "voxelOn=false")
       or (not (ow and ow.map and ow.player) and "no overworld/map/player")
-      or (not (Game.stack and Game.stack:top() == ow) and "overworld not on top")
+      or (not (Screen.onTop(Game, ow)) and "overworld not on top")
       or (ow.transitioning and "map transitioning")
       or "unknown"
     return

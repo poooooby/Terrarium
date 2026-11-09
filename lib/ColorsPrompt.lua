@@ -26,6 +26,7 @@
 
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
+local Screen = V.require("Screen")
 
 local Lang = V.require("Lang")
 local PaletteFX = require("src.render.PaletteFX")
@@ -141,7 +142,13 @@ end
 -- From main.lua's core.update: push the panel once its conditions have held
 -- for SETTLE seconds of free roam.
 function ColorsPrompt.update(game, dt, voxelOn)
-  if prompt then return end
+  if prompt then
+    if Screen.onStack(game, prompt) then return end
+    -- popped from under itself: a soft reset clears every screen without
+    -- calling close, and this panel draws from `prompt`, so it would stay up
+    -- over every later frame with nothing left to dismiss it
+    prompt, held = nil, 0
+  end
   local mode = PaletteFX.mode
   if mode == ColorsPrompt.WANT then
     -- back on ADVANCED: forget an old KEEP, so leaving it again asks again

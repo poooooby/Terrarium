@@ -251,6 +251,19 @@ function Diag.lines()
     add(try(PreCache.report) or "precache ?")
   end
 
+  -- every lifecycle by name, so a screenshot of this panel is a bug report
+  local StateReport = mod("StateReport")
+  if StateReport then
+    local parts = {}
+    for i, r in ipairs(StateReport.all()) do
+      parts[i] = r.name .. "=" .. r.state
+    end
+    wrapTo(table.concat(parts, "  "), 96, out, "state    ")
+  end
+  if V.prefetchError then
+    wrapTo((V.prefetchError:gsub("%s+", " ")), 96, out, "  prefetch: ")
+  end
+
   return out
 end
 

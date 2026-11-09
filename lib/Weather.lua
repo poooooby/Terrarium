@@ -70,6 +70,7 @@
 
 -- the mod namespace (see main.lua): V.require loads a sibling module
 local V = ...
+local Screen = V.require("Screen")
 local WaterMap = V.require("WaterMap")   -- where water may be drawn at all
 local RenderTarget = V.require("RenderTarget")
 
@@ -193,7 +194,9 @@ local state = {
 -- The AUTO roll, one of a pair: a dry spell and a wet one, each ending by
 -- rolling the other.
 local function rollClear()
-  state.kind, state.target = nil, 0
+  -- `kind` stays: the rain still coming down has to know what it is while it
+  -- thins out. tick clears it when the fade has finished.
+  state.target = 0
   state.timer = Weather.CLEAR_MIN
                 + rand() * (Weather.CLEAR_MAX - Weather.CLEAR_MIN)
 end
@@ -2321,7 +2324,8 @@ local function tick(dt)
     if changed then rollClear() end
     state.timer = state.timer - dt
     if state.timer <= 0 then
-      if state.kind then rollClear() else rollWet() end
+      -- target, not kind: `kind` lingers through a fade
+      if state.target > 0 then rollClear() else rollWet() end
     end
   end
 
@@ -2460,7 +2464,7 @@ local function tick(dt)
     if okA then dripAfter = tonumber(v) or 0 end
   end
   local canDraw = (visible or dripAfter > 0) and ow and ow.map and ow.player
-                  and Game.stack and Game.stack:top() == ow
+                  and Screen.onTop(Game, ow)
                   and not ow.transitioning
   if not canDraw then
     if #motes > 0 then motes = {} end
@@ -4373,5 +4377,18 @@ function Weather.paintFlat()
   g.setBlendMode(prevBlend or "alpha", prevAlpha)
   g.setColor(1, 1, 1, 1)
 end
+
+V.require("StateReport").define("weather.spell",
+  { "off", "clear", "wet", "pinned", "fading", "after", "failed" },
+  function()
+    if failed then return "failed", lastErr and tostring(lastErr) or nil end
+    if state.target > 0 then
+      return state.timer == math.huge and "pinned" or "wet", state.kind
+    end
+    if state.power > 0 then return "fading", state.kind end
+    if (Weather.afterRain() or 0) > 0 then return "after" end
+    if Weather.setting:get() == "off" then return "off" end
+    return "clear"
+  end)
 
 return Weather

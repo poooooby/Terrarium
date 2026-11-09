@@ -50,14 +50,14 @@ local Map = require("src.world.Map")
 
 local BattleScene = {}
 
--- Landing splat: one shot per arena token. Contact crush is typed and
+-- Landing splat: one shot per arena. Contact crush is typed and
 -- defender-only now (see BattleHitFX); the live discs under each mon
 -- still part the meadow for the length of the battle. The arena itself
 -- is laid on bare ground (BattleArena.openCell refuses tall grass), so
 -- the land splat flattens the tufts AROUND the pair -- the apron the
 -- comment at BattleArena:124-138 is about -- not a dent under a mon
 -- that is standing on paving.
-local lastArenaTok = nil
+local lastArena = nil
 local didLand = false
 local lastGrassAt = nil
 
@@ -613,9 +613,11 @@ function BattleScene.render(state, arena, textures, token)
     -- contact splat on the hit-flash edge used to flatten BOTH mons on
     -- any flash; BattleHitFX now owns a typed dent at the defender.
     if GrassMod then
-      local tok = token or (arena.x .. ":" .. arena.y)
-      if tok ~= lastArenaTok then
-        lastArenaTok, didLand = tok, false
+      -- the arena table itself, one per battle: `token` is bumped every
+      -- frame for the shadow signature, and keyed on that this "once" fired
+      -- two full splats a frame and evicted the typed dents from the trail
+      if arena ~= lastArena then
+        lastArena, didLand = arena, false
       end
       pcall(GrassMod.bindMap, host)
       if not didLand then
