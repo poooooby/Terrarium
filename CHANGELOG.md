@@ -26,7 +26,9 @@ Tags and packages:
 - Zip asset: `TERRARIUM-1.50.0.zip`
 - `manifest.json` / catalog `version` field: `1.50.0`
 
-## Unreleased
+## 1.61.0
+
+The first stable release since 1.52.3. It includes 1.60.0-beta and 1.61.0-beta below: all of Kanto in 3D, faster and lighter 3D builds, Untamed Tohjo in 3D, and the battle text fixes.
 
 ### Fixes
 
